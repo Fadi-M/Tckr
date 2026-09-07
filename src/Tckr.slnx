@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="Tckr.MarketData.Distribution/Tckr.MarketData.Distribution.csproj" />
+  <Project Path="Tckr.MarketData.Gateway/Tckr.MarketData.Gateway.csproj" />
+  <Project Path="Tckr.MarketData.Ingestion/Tckr.MarketData.Ingestion.csproj" />
+  <Project Path="Tckr.MockExchange/Tckr.MockExchange.csproj" />
+  <Project Path="../tests/Unit/Tckr.MockExchange.Tests/Tckr.MockExchange.Tests.csproj" />
+  <Project Path="../tools/Tckr.FeedProbe/Tckr.FeedProbe.csproj" />
+</Solution>

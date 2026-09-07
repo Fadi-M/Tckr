@@ -1,0 +1,55 @@
+{
+  "_disclaimer": [
+    "These are FICTIONAL instruments. Ticker shapes, names and price magnitudes are",
+    "modelled on an EGX-flavoured board so that the mock tape looks plausible and so",
+    "that downstream fixed-point and formatting code is exercised across magnitudes.",
+    "Nothing in this file is real market reference data and it must never be used as such."
+  ],
+  "_tickSizeBands": [
+    "referencePrice <  10.00  -> tickSize 0.001",
+    "referencePrice <  50.00  -> tickSize 0.01",
+    "referencePrice < 200.00  -> tickSize 0.05",
+    "referencePrice >= 200.00 -> tickSize 0.10"
+  ],
+  "_weights": [
+    "Relative activity shares, not probabilities. SymbolUniverse normalises them across",
+    "the whole universe (named + synthetic padding) at load time. The shape is deliberately",
+    "skewed: the head symbol takes ~15% of the tape and the top ten take ~59%."
+  ],
+  "symbols": [
+    { "symbol": "COMI", "name": "Commercial International Holding", "referencePrice": 85.10, "tickSize": 0.05, "lotSize": 100, "weight": 1000 },
+    { "symbol": "CIB", "name": "Cairo Investment Bank", "referencePrice": 62.75, "tickSize": 0.05, "lotSize": 100, "weight": 620 },
+    { "symbol": "ORAS", "name": "Orascom Construction Group", "referencePrice": 245.60, "tickSize": 0.10, "lotSize": 10, "weight": 470 },
+    { "symbol": "SWDY", "name": "Elsewedy Cables", "referencePrice": 18.42, "tickSize": 0.01, "lotSize": 100, "weight": 400 },
+    { "symbol": "HRHO", "name": "Hermes Financial Holding", "referencePrice": 21.87, "tickSize": 0.01, "lotSize": 100, "weight": 340 },
+    { "symbol": "TMGH", "name": "Talaat Moustafa Group Holding", "referencePrice": 44.15, "tickSize": 0.01, "lotSize": 100, "weight": 300 },
+    { "symbol": "ETEL", "name": "Egyptian Telecom", "referencePrice": 33.09, "tickSize": 0.01, "lotSize": 100, "weight": 270 },
+    { "symbol": "EAST", "name": "Eastern Tobacco", "referencePrice": 12.64, "tickSize": 0.01, "lotSize": 100, "weight": 250 },
+    { "symbol": "ABUK", "name": "Abu Qir Fertilizers", "referencePrice": 68.30, "tickSize": 0.05, "lotSize": 100, "weight": 230 },
+    { "symbol": "FWRY", "name": "Fawry Payments", "referencePrice": 6.128, "tickSize": 0.001, "lotSize": 500, "weight": 215 },
+    { "symbol": "SKPC", "name": "Sidi Kerir Petrochemicals", "referencePrice": 9.845, "tickSize": 0.001, "lotSize": 500, "weight": 190 },
+    { "symbol": "ESRS", "name": "Ezz Steel Rebars", "referencePrice": 78.55, "tickSize": 0.05, "lotSize": 100, "weight": 175 },
+    { "symbol": "AMOC", "name": "Alexandria Mineral Oils", "referencePrice": 7.312, "tickSize": 0.001, "lotSize": 500, "weight": 165 },
+    { "symbol": "MNHD", "name": "Madinet Nasr Housing", "referencePrice": 4.906, "tickSize": 0.001, "lotSize": 500, "weight": 155 },
+    { "symbol": "PHDC", "name": "Palm Hills Development", "referencePrice": 3.274, "tickSize": 0.001, "lotSize": 1000, "weight": 145 },
+    { "symbol": "EFIH", "name": "EFG Finance Holding", "referencePrice": 26.71, "tickSize": 0.01, "lotSize": 100, "weight": 138 },
+    { "symbol": "ORWE", "name": "Oriental Weavers Carpets", "referencePrice": 15.38, "tickSize": 0.01, "lotSize": 100, "weight": 130 },
+    { "symbol": "JUFO", "name": "Juhayna Food Industries", "referencePrice": 189.45, "tickSize": 0.05, "lotSize": 10, "weight": 124 },
+    { "symbol": "ISPH", "name": "Ibnsina Pharma", "referencePrice": 8.960, "tickSize": 0.001, "lotSize": 500, "weight": 118 },
+    { "symbol": "CLHO", "name": "Cleopatra Hospitals", "referencePrice": 5.482, "tickSize": 0.001, "lotSize": 500, "weight": 112 },
+    { "symbol": "EKHO", "name": "Egypt Kuwait Holding", "referencePrice": 1.926, "tickSize": 0.001, "lotSize": 1000, "weight": 106 },
+    { "symbol": "SUGR", "name": "Delta Sugar Refining", "referencePrice": 14.03, "tickSize": 0.01, "lotSize": 100, "weight": 101 },
+    { "symbol": "ADIB", "name": "Alexandria Development Bank", "referencePrice": 36.88, "tickSize": 0.01, "lotSize": 100, "weight": 96 },
+    { "symbol": "CCAP", "name": "Citadel Capital Partners", "referencePrice": 2.735, "tickSize": 0.001, "lotSize": 1000, "weight": 92 },
+    { "symbol": "GBCO", "name": "GB Motors", "referencePrice": 11.24, "tickSize": 0.01, "lotSize": 100, "weight": 88 },
+    { "symbol": "MTIE", "name": "MM Technology Industries", "referencePrice": 310.20, "tickSize": 0.10, "lotSize": 10, "weight": 84 },
+    { "symbol": "ARCC", "name": "Arabian Cement Company", "referencePrice": 52.65, "tickSize": 0.05, "lotSize": 100, "weight": 80 },
+    { "symbol": "EGTS", "name": "Egyptian Tourism Resorts", "referencePrice": 2.118, "tickSize": 0.001, "lotSize": 1000, "weight": 77 },
+    { "symbol": "PRDC", "name": "Pioneers Real Estate Development", "referencePrice": 41.90, "tickSize": 0.01, "lotSize": 100, "weight": 74 },
+    { "symbol": "OCDI", "name": "Sixth of October Development", "referencePrice": 128.75, "tickSize": 0.05, "lotSize": 10, "weight": 71 },
+    { "symbol": "AUTO", "name": "GB Auto Leasing", "referencePrice": 7.845, "tickSize": 0.001, "lotSize": 500, "weight": 68 },
+    { "symbol": "RAYA", "name": "Raya Contact Centres", "referencePrice": 3.560, "tickSize": 0.001, "lotSize": 1000, "weight": 65 },
+    { "symbol": "SPMD", "name": "Speed Medical Diagnostics", "referencePrice": 466.40, "tickSize": 0.10, "lotSize": 10, "weight": 62 },
+    { "symbol": "BINV", "name": "Beltone Investment Group", "referencePrice": 23.19, "tickSize": 0.01, "lotSize": 100, "weight": 60 }
+  ]
+}
