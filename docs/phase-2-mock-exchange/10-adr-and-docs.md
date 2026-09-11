@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Phase** | 2 — Mock Exchange |
-| **Status** | Not started |
+| **Status** | Done |
 | **Depends on** | 01, 05 (for the decisions being recorded) |
 | **Blocks** | — |
 | **Parallel with** | 09 |
@@ -127,6 +127,19 @@ complete enough that they never need to open the C# to understand the format.
 
 Keep it short. The master context is the deep document; the README is the front door.
 
+**From task 06 — the one thing "how to run what exists today" must include.** Every
+`MockExchange` setting is overridable by environment variable through the double-underscore
+convention, and task 09 depends on it to sweep rates without editing files:
+
+```bash
+MockExchange__Session__BaseEventsPerSecond=25000 dotnet run --project src/Tckr.MockExchange
+```
+
+Worth a line in the README because it falls out of the default configuration providers rather than
+out of anything written here, which means nothing in the repository would fail if it stopped
+working. Task 06's brief asked for it to be documented here; it has a test
+(`AnEnvironmentVariableOverridesTheBoundOptions`) and the key list is in `09-throughput-benchmark.md`.
+
 ### ADR format
 
 Standard, consistent across all four:
@@ -172,3 +185,87 @@ section is decoration and needs rewriting.
 Tasks 05 and 08 are each asked to record a decision for the ADRs (encode-once-fan-out
 strategy; shared vs. duplicated codec in the probe). Collect those from their Notes
 sections before writing ADRs 001 and 002.
+
+### Delivered
+
+```text
+docs/decisions/001-mock-exchange-wire-protocol.md
+docs/decisions/002-slow-consumer-policy.md
+docs/decisions/003-symbol-distribution.md
+docs/decisions/004-deterministic-generation.md
+docs/decisions/005-shared-frame-codec-in-probe.md      fifth ADR — task 08's request, kept standalone
+docs/phase-2-mock-exchange/wire-protocol.md
+README.md (repo root)
+```
+
+Task 05's encode-once-vs-per-session measurement went into ADR 001 rather than a
+separate ADR — it is a decision about the same artifact (how a batch becomes bytes on
+the wire), made two tasks later once the server existed to measure it. Task 08's
+codec-sharing decision got its own ADR (005): it is not about the wire format itself,
+it is about how *this repository's own tooling* verifies the wire format, which is a
+different kind of decision with its own trade-off and its own Revisit If condition —
+folding it into ADR 001 would have buried it.
+
+### The one thing worth flagging back to the coordinator
+
+**ADR-002's central claim — the one the brief itself calls "the most defensible
+decision in Phase 2" — had to be rewritten, not summarized.** The brief's own draft
+text for the alternatives list ("drop oldest / coalesce ... a gap is indistinguishable
+from corruption") is the claim that task 05 disproved mid-build: with the original
+write-time sequence numbering, a withheld-then-recovered session emitted a gap-free
+`1, 2, 3, …` — not an ambiguous signal, no signal at all. ADR 002 as written records
+both the wrong claim and why it was wrong, and lands on the weaker, truer justification
+task 05's notes specify: `Disconnect` is a contract preference (most consumers of a
+sequenced feed want a complete tape) now that both policies are equally detectable, not
+a correctness necessity forced by an undetectable failure mode. This is flagged
+explicitly because it means the task brief's own "Alternatives Considered" sketch for
+ADR 002 is not safe to copy verbatim into any future phase's planning docs — it
+describes a bug that was fixed, not a permanent property of `DropOldest`.
+
+### Genuinely hard to defend, or contradictory in the source material
+
+- **ADR 001's encode-strategy sub-decision (A over B) gets weaker, not stronger, as
+  session count grows**, and Phase 2's own default `MaxSessions` (8) is comfortably
+  past the point where the measurement says B wins. The ADR states this plainly rather
+  than hiding it — the tie-break is invariants (one hard-coded byte offset is a smaller
+  risk surface than a second decoder in this repo), not throughput — but it is the one
+  ADR here where "chosen" is not "measured-fastest." A reviewer who only reads the
+  table and not the reasoning will reasonably ask why the losing option was picked.
+- **ADR 004's reproducibility guarantee is conditional in a way the Phase 2 Definition
+  of Done does not surface.** The DoD line ("two runs with the same seed produce
+  byte-identical tapes") is only true under `DeterministicTimestamps = true`, which is
+  *not* the default and is *not* what any benchmark run uses. Read literally, the DoD
+  checkbox and the default configuration are in tension: the tape a benchmark actually
+  produces is reproducible in content but not byte-identical, because its timestamps
+  come from a real clock. ADR 004 states this explicitly rather than letting the DoD
+  checkbox imply more than the default configuration delivers.
+- **Task 03's notes call the timestamp/reproducibility gap "the one place I think the
+  brief was underspecified rather than wrong."** That is a fair characterization of the
+  brief, but it means ADR 004 is partly documenting a decision (`DeterministicTimestamps`,
+  off by default) that nobody asked for in writing before it was built — worth knowing
+  if a future reviewer asks "who decided this default," because the honest answer is
+  "the implementing task, because the alternative made two of this phase's own written
+  claims false simultaneously."
+- **No outright contradiction found between briefs 01–08's Notes sections**, beyond the
+  ADR-002 claim above, which is a correction task 05 made to task 02's original design
+  document (`README.md` §4, decision 5) as much as to this task's own brief — the
+  Phase 2 `README.md`'s wording ("a gap is indistinguishable from corruption") is now
+  stale in the same way this task's brief was, and was intentionally left untouched
+  since it is outside this task's ownership; flagging it here rather than editing it.
+
+### For the coordinator to decide
+
+- **Whether `docs/phase-2-mock-exchange/README.md` §4's decision 5 wording should be
+  updated to match ADR 002**, given it is the design document ADR 002 now partially
+  supersedes and this task does not own it.
+- **The `benchmarks/phase-2/results.md` link in the root `README.md` does not resolve
+  yet** — task 09 was still running when this task finished. It is a deliberate forward
+  reference per this task's own instructions rather than an oversight; worth a final
+  check once task 09 lands that the path and filename still match.
+
+### Verified
+
+```text
+Cross-link check (README.md, all five ADRs, wire-protocol.md): every relative link
+resolves except benchmarks/phase-2/results.md, which task 09 had not yet produced.
+```

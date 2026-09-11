@@ -1,0 +1,34 @@
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed server listening on 127.0.0.1:9001 for up to 8 sessions.
+info: Tckr.MockExchange.FeedPublisherService[0]
+      Mock exchange starting: seed=20260907 symbols=250 target=1000/s mode=Continuous listen=127.0.0.1:9001 build=RELEASE.
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: /Users/fadi/Work/Tckr/src/Tckr.MockExchange
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=1000/s achieved=912/s (91.2%) sessions=0 no consumers connected lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:00:05
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session b1926a52-8fb2-48f8-bb98-72fb00986412 accepted from 127.0.0.1:50090.
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=1000/s achieved=1000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:00:10
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=1000/s achieved=1000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:00:15
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=1000/s achieved=1000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:00:20
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=1000/s achieved=1000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:00:25
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session b1926a52-8fb2-48f8-bb98-72fb00986412 at 127.0.0.1:50090 ended: client-closed.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session b1926a52-8fb2-48f8-bb98-72fb00986412 closed: client-closed. Sent 880696 bytes, dropped 0 records.
+info: Microsoft.Hosting.Lifetime[0]
+      Application is shutting down...
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed server stopping; draining 0 sessions within 2000 ms.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed server stopped.
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=1000/s achieved=1000/s (100.0%) sessions=0 no consumers connected lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:00:26

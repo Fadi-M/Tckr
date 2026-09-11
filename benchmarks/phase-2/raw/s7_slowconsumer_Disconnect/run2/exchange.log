@@ -1,0 +1,44 @@
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed server listening on 127.0.0.1:9001 for up to 8 sessions.
+info: Tckr.MockExchange.FeedPublisherService[0]
+      Mock exchange starting: seed=20260907 symbols=250 target=25000/s mode=Continuous listen=127.0.0.1:9001 build=RELEASE.
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: /Users/fadi/Work/Tckr/src/Tckr.MockExchange
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=25000/s achieved=22725/s (90.9%) sessions=0 no consumers connected lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:00:05
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 702f3a58-715c-4845-b584-4916f45b7ea5 accepted from 127.0.0.1:52864.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 0889d0b9-e950-41db-beeb-4524c267b99b accepted from 127.0.0.1:52865.
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=25000/s achieved=25000/s (100.0%) sessions=2 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:00:10
+warn: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 0889d0b9-e950-41db-beeb-4524c267b99b at 127.0.0.1:52865 is behind: its 4194304-byte outbound buffer is full. Applying Disconnect if it has not drained within 2000 ms.
+warn: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=25000/s achieved=25000/s (100.0%) sessions=2 lag_p99=0.0ms dropped=9750 slow_disconnects=0 uptime=00:00:15
+warn: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 0889d0b9-e950-41db-beeb-4524c267b99b drained but 14000 records were withheld; disconnecting because Disconnect promises a complete tape.
+warn: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 0889d0b9-e950-41db-beeb-4524c267b99b at 127.0.0.1:52865 disconnected: slow-consumer-loss. It fell more than 4194304 bytes behind and did not recover within 2000 ms.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 0889d0b9-e950-41db-beeb-4524c267b99b closed: slow-consumer-loss. Sent 10406036 bytes, dropped 14000 records.
+warn: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=25000/s achieved=25000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=14000 slow_disconnects=1 uptime=00:00:20
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=25000/s achieved=25000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=14000 slow_disconnects=1 uptime=00:00:25
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 702f3a58-715c-4845-b584-4916f45b7ea5 at 127.0.0.1:52864 ended: client-closed.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 702f3a58-715c-4845-b584-4916f45b7ea5 closed: client-closed. Sent 22104536 bytes, dropped 0 records.
+info: Microsoft.Hosting.Lifetime[0]
+      Application is shutting down...
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed server stopping; draining 0 sessions within 2000 ms.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed server stopped.
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=25000/s achieved=25000/s (100.0%) sessions=0 no consumers connected lag_p99=0.0ms dropped=14000 slow_disconnects=1 uptime=00:00:26

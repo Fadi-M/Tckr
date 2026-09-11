@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
 using Tckr.MockExchange.Protocol;
+using Tckr.MockExchange.Options;
 
 namespace Tckr.MockExchange.Feed;
 

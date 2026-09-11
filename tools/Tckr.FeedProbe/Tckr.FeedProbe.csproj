@@ -11,4 +11,11 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- The test project drives ProcessBuffer/BuildReport/DetermineExitCode/BuildTopSymbols directly
+         with synthetic input rather than over a real socket; those members are internal rather than
+         public for exactly this reason. -->
+    <InternalsVisibleTo Include="Tckr.FeedProbe.Tests"/>
+  </ItemGroup>
+
 </Project>

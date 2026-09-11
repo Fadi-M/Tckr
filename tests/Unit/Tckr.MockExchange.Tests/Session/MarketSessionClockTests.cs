@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Time.Testing;
+using Tckr.MockExchange.Options;
 using Tckr.MockExchange.Session;
 
 namespace Tckr.MockExchange.Tests.Session;

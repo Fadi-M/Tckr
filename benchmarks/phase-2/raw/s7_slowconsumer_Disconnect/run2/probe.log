@@ -1,0 +1,48 @@
+Tckr.FeedProbe connecting to 127.0.0.1:9001 (duration 20s, target 25,000/s)
+ [   5.0s] events      125,125   interval    25,021/s   overall    25,021/s   gaps   0   framing-errors   0
+ [  10.0s] events      250,125   interval    25,000/s   overall    25,011/s   gaps   0   framing-errors   0
+ [  15.0s] events      375,250   interval    25,000/s   overall    25,007/s   gaps   0   framing-errors   0
+
+════════════════════════════════════════════════════════════
+ Tckr.FeedProbe — session 702f…7ea5 — 20.0s
+────────────────────────────────────────────────────────────
+ Events received           500,125
+ Achieved rate           25,005 /s   (target 25,000 — 100.0%)
+ Rate min/max            25,000 /s      25,021 /s   (per report interval)
+ Sequence gaps          0   (0 record(s) lost)
+ Sequence integrity     0   (reorder/duplicate — always a bug, never a policy)
+ Framing errors         0
+ Wire throughput        1.05 MB/s   (44.0 bytes/event)
+ Inter-arrival        p50 0.00ms  p95 0.00ms  p99 0.00ms  max 10.76ms
+ Delivery latency     p50 1.36ms  p95 1.57ms  p99 1.60ms  max 2.24ms  (same-host clock — see notes)
+ Message mix          trade 40.0%  bid 30.0%  ask 30.0%
+ Symbol skew          top-1 14.5%  top-10 59.1%  top-50 98.7%  (250 symbols seen)
+ Heartbeats             0   max interval 0ms   (configured 1000ms; 0 exceeded 2x)
+ Auction prints         0   (observation only — Flags=0 on the default Continuous session mode; see notes)
+────────────────────────────────────────────────────────────
+ Top 20 symbols
+   COMI         72,385    14.5%
+   CIB          44,672     8.9%
+   ORAS         33,860     6.8%
+   SWDY         28,802     5.8%
+   HRHO         24,633     4.9%
+   TMGH         21,600     4.3%
+   ETEL         19,555     3.9%
+   EAST         18,267     3.7%
+   ABUK         16,483     3.3%
+   FWRY         15,517     3.1%
+   SKPC         13,566     2.7%
+   ESRS         12,554     2.5%
+   AMOC         11,996     2.4%
+   MNHD         11,130     2.2%
+   PHDC         10,358     2.1%
+   EFIH          9,864     2.0%
+   ORWE          9,375     1.9%
+   JUFO          8,883     1.8%
+   ISPH          8,620     1.7%
+   CLHO          8,001     1.6%
+────────────────────────────────────────────────────────────
+ End reason: duration-elapsed
+ RESULT: PASS   (exit 0)
+════════════════════════════════════════════════════════════
+ Report written to /Users/fadi/Work/Tckr/benchmarks/phase-2/raw/s7_slowconsumer_Disconnect/run2/probe.json

@@ -1,0 +1,160 @@
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed server listening on 127.0.0.1:9001 for up to 8 sessions.
+info: Tckr.MockExchange.FeedPublisherService[0]
+      Mock exchange starting: seed=20260907 symbols=250 target=25000/s mode=CompressedDay listen=127.0.0.1:9001 build=RELEASE.
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: /Users/fadi/Work/Tckr/src/Tckr.MockExchange
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=Closed target=0/s achieved=0/s (0.0%) sessions=0 no consumers connected lag_p99=0.4ms dropped=0 slow_disconnects=0 uptime=00:00:05
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 178d036b-7064-4151-99c7-68b597decf77 accepted from 127.0.0.1:53244.
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=Closed target=0/s achieved=0/s (0.0%) sessions=1 lag_p99=0.6ms dropped=0 slow_disconnects=0 uptime=00:00:10
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=Closed target=0/s achieved=0/s (0.0%) sessions=1 lag_p99=0.4ms dropped=0 slow_disconnects=0 uptime=00:00:15
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=Closed target=0/s achieved=0/s (0.0%) sessions=1 lag_p99=0.3ms dropped=0 slow_disconnects=0 uptime=00:00:20
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=Closed target=0/s achieved=0/s (0.0%) sessions=1 lag_p99=0.3ms dropped=0 slow_disconnects=0 uptime=00:00:25
+info: Tckr.MockExchange.FeedPublisherService[0]
+      Market phase Closed -> PreOpen, rate multiplier 0.10 (2500 events/sec).
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=PreOpen target=2500/s achieved=0/s (0.0%) sessions=1 lag_p99=0.3ms dropped=0 slow_disconnects=0 uptime=00:00:30
+warn: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=PreOpen target=2500/s achieved=2282/s (91.3%) sessions=1 lag_p99=0.3ms dropped=0 slow_disconnects=0 uptime=00:00:35
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=PreOpen target=2500/s achieved=2500/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:00:40
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=PreOpen target=2500/s achieved=2500/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:00:45
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=PreOpen target=2500/s achieved=2500/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:00:50
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=PreOpen target=2500/s achieved=2500/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:00:55
+info: Tckr.MockExchange.FeedPublisherService[0]
+      Market phase PreOpen -> OpeningAuction, rate multiplier 3.00 (75000 events/sec).
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=OpeningAuction target=75000/s achieved=39693/s (52.9%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:01:00
+info: Tckr.MockExchange.FeedPublisherService[0]
+      Market phase OpeningAuction -> ContinuousMorning, rate multiplier 1.20 (30000 events/sec).
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=30000/s achieved=47415/s (158.1%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:01:05
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=30000/s achieved=30000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:01:10
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=30000/s achieved=30000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:01:15
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=30000/s achieved=30000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:01:20
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=30000/s achieved=30000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:01:25
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=30000/s achieved=30000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:01:29
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=30000/s achieved=30000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:01:34
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=30000/s achieved=30000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:01:39
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=30000/s achieved=30000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:01:44
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=30000/s achieved=30000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:01:49
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=30000/s achieved=30000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:01:54
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=30000/s achieved=30000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:01:59
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=30000/s achieved=30000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:02:04
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=30000/s achieved=30000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:02:09
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=30000/s achieved=30000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:02:14
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=30000/s achieved=30000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:02:19
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=30000/s achieved=30000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:02:24
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=30000/s achieved=30000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:02:29
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=30000/s achieved=30000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:02:34
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=30000/s achieved=30000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:02:39
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=30000/s achieved=30000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:02:44
+info: Tckr.MockExchange.FeedPublisherService[0]
+      Market phase ContinuousMorning -> MiddayLull, rate multiplier 0.60 (15000 events/sec).
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=MiddayLull target=15000/s achieved=16305/s (108.7%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:02:49
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=MiddayLull target=15000/s achieved=15000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:02:54
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=MiddayLull target=15000/s achieved=15000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:02:59
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=MiddayLull target=15000/s achieved=15000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:03:04
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=MiddayLull target=15000/s achieved=15000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:03:09
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=MiddayLull target=15000/s achieved=15000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:03:14
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=MiddayLull target=15000/s achieved=15000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:03:19
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=MiddayLull target=15000/s achieved=15000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:03:24
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=MiddayLull target=15000/s achieved=15000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:03:29
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=MiddayLull target=15000/s achieved=15000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:03:34
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=MiddayLull target=15000/s achieved=15000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:03:39
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=MiddayLull target=15000/s achieved=15000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:03:44
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=MiddayLull target=15000/s achieved=15000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:03:49
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=MiddayLull target=15000/s achieved=15000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:03:54
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=MiddayLull target=15000/s achieved=15000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:03:59
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=MiddayLull target=15000/s achieved=15000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:04:04
+info: Tckr.MockExchange.FeedPublisherService[0]
+      Market phase MiddayLull -> ContinuousAfternoon, rate multiplier 1.00 (25000 events/sec).
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousAfternoon target=25000/s achieved=22130/s (88.5%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:04:09
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousAfternoon target=25000/s achieved=25000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:04:14
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousAfternoon target=25000/s achieved=25000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:04:19
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousAfternoon target=25000/s achieved=25000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:04:24
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousAfternoon target=25000/s achieved=25000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:04:29
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousAfternoon target=25000/s achieved=25000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:04:34
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousAfternoon target=25000/s achieved=25000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:04:39
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousAfternoon target=25000/s achieved=25000/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:04:44
+info: Tckr.MockExchange.FeedPublisherService[0]
+      Market phase ContinuousAfternoon -> ClosingAuction, rate multiplier 2.50 (62500 events/sec).
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ClosingAuction target=62500/s achieved=47987/s (76.8%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:04:49
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ClosingAuction target=62500/s achieved=62500/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:04:54
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ClosingAuction target=62500/s achieved=62500/s (100.0%) sessions=1 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:04:59
+info: Tckr.MockExchange.FeedPublisherService[0]
+      Market phase ClosingAuction -> Closed, rate multiplier 0.00 (0 events/sec).
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=Closed target=0/s achieved=5438/s (0.0%) sessions=1 lag_p99=1.1ms dropped=0 slow_disconnects=0 uptime=00:05:04
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 178d036b-7064-4151-99c7-68b597decf77 at 127.0.0.1:53244 ended: client-closed.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 178d036b-7064-4151-99c7-68b597decf77 closed: client-closed. Sent 289575876 bytes, dropped 0 records.
+info: Microsoft.Hosting.Lifetime[0]
+      Application is shutting down...
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed server stopping; draining 0 sessions within 2000 ms.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed server stopped.
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=Closed target=0/s achieved=0/s (0.0%) sessions=0 no consumers connected lag_p99=1.1ms dropped=0 slow_disconnects=0 uptime=00:05:06

@@ -1,0 +1,51 @@
+Tckr.FeedProbe connecting to 127.0.0.1:9001 (duration 20s, target 25,000/s, expecting drops)
+ [   5.0s] events      125,250   interval    25,032/s   overall    25,032/s   gaps   0   framing-errors   0
+ [probe] --stall-after reached: pausing reads for 5s to exercise the slow-consumer policy.
+ [probe] resuming reads.
+ [  10.0s] events      126,739   interval       298/s   overall    25,321/s   gaps   0   framing-errors   0
+ [  15.0s] events      266,250   interval    27,895/s   overall    26,607/s   gaps   1   framing-errors   0
+
+════════════════════════════════════════════════════════════
+ Tckr.FeedProbe — session 499e…7664 — 15.0s
+────────────────────────────────────────────────────────────
+ Events received           391,125
+ Achieved rate           26,072 /s   (target 25,000 — 104.3%)
+ Rate min/max               298 /s      27,895 /s   (per report interval)
+ Sequence gaps          1   (109,125 record(s) lost, expected under DropOldest)
+ Sequence integrity     0   (reorder/duplicate — always a bug, never a policy)
+ Framing errors         0
+ Wire throughput        1.09 MB/s   (44.0 bytes/event)
+ Inter-arrival        p50 0.00ms  p95 0.00ms  p99 0.00ms  max 5003.52ms
+ Delivery latency     p50 1.10ms  p95 1.28ms  p99 4845.37ms  max 4999.50ms  (same-host clock — see notes)
+ Message mix          trade 40.0%  bid 30.0%  ask 30.0%
+ Symbol skew          top-1 14.4%  top-10 59.2%  top-50 98.7%  (250 symbols seen)
+ Heartbeats             0   max interval 0ms   (configured 1000ms; 0 exceeded 2x)
+ Auction prints         0   (observation only — Flags=0 on the default Continuous session mode; see notes)
+ Stall test           --stall-after 5s, paused 5s, outcome: continued
+────────────────────────────────────────────────────────────
+ Top 20 symbols
+   COMI         56,502    14.4%
+   CIB          34,848     8.9%
+   ORAS         26,555     6.8%
+   SWDY         22,532     5.8%
+   HRHO         19,298     4.9%
+   TMGH         16,936     4.3%
+   ETEL         15,237     3.9%
+   EAST         14,397     3.7%
+   ABUK         12,974     3.3%
+   FWRY         12,175     3.1%
+   SKPC         10,627     2.7%
+   ESRS          9,821     2.5%
+   AMOC          9,465     2.4%
+   MNHD          8,773     2.2%
+   PHDC          8,036     2.1%
+   EFIH          7,781     2.0%
+   ORWE          7,307     1.9%
+   JUFO          6,892     1.8%
+   ISPH          6,682     1.7%
+   CLHO          6,237     1.6%
+────────────────────────────────────────────────────────────
+ End reason: duration-elapsed
+ RESULT: FAIL   (exit 2)
+════════════════════════════════════════════════════════════
+ Report written to /Users/fadi/Work/Tckr/benchmarks/phase-2/raw/s7_slowconsumer_DropOldest/run3/probe2.json

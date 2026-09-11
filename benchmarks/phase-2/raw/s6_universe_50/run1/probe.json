@@ -1,0 +1,543 @@
+{
+  "schemaVersion": 1,
+  "host": "127.0.0.1",
+  "port": 9001,
+  "sessionEstablished": true,
+  "sessionId": "4e1f2f82-4048-4f4b-bdf6-5b2d05d99e8d",
+  "startedAtUtc": "2026-09-11T03:08:19.881155+00:00",
+  "endedAtUtc": "2026-09-11T03:08:39.896693+00:00",
+  "activeSeconds": 20.003348,
+  "endReason": "duration-elapsed",
+  "result": "PASS",
+  "exitCode": 0,
+  "heartbeatIntervalMsAdvertised": 1000,
+  "eventsReceived": 500250,
+  "achievedRate": {
+    "overall": 25008.31360830197,
+    "min": 24999.820001295993,
+    "max": 25035.159157651342,
+    "target": 25000,
+    "targetPercent": 100.03325443320789,
+    "note": "min/max are per report-interval rates; a --stall-after run legitimately shows a near-zero minimum for the interval spanning the pause."
+  },
+  "sequence": {
+    "gapCount": 0,
+    "recordsLost": 0,
+    "expectDrops": false,
+    "gaps": [],
+    "integrityViolationCount": 0,
+    "integrityViolations": [],
+    "note": "Every gap here is exchange-side loss, never network loss: TCP delivers in order or breaks, and the frame reader throws rather than resynchronising past a bad frame. Under the default Disconnect policy a gap should never occur \u2014 the session is closed instead; under DropOldest a gap is the documented, expected disclosure of what the server withheld. integrityViolations (a sequence number at or below one already seen) is a different, always-a-bug condition \u2014 reorder or duplication is impossible on a single TCP session."
+  },
+  "framingErrors": {
+    "count": 0,
+    "errors": []
+  },
+  "wire": {
+    "totalBytes": 22011000,
+    "bytesPerSecond": 1100365.7987652868,
+    "meanBytesPerEvent": 44
+  },
+  "interArrivalMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "max": 12.153084
+  },
+  "deliveryLatencyMs": {
+    "p50": 1.016916,
+    "p95": 1.144333,
+    "p99": 1.175666,
+    "max": 3.117708,
+    "note": "Clocks are shared (same host) in Phase 2, so this is meaningful now. It becomes unreliable once the probe and the exchange run on different machines; do not trust it blindly once that changes."
+  },
+  "messageMix": {
+    "trade": 200129,
+    "bid": 150284,
+    "ask": 149837
+  },
+  "symbolSkew": {
+    "distinctSymbolsSeen": 50,
+    "top1Percent": 14.657271364317841,
+    "top10Percent": 59.94422788605697,
+    "top50Percent": 100,
+    "topSymbols": [
+      {
+        "symbol": "COMI",
+        "count": 73323,
+        "sharePercent": 14.657271364317841
+      },
+      {
+        "symbol": "CIB",
+        "count": 45323,
+        "sharePercent": 9.060069965017492
+      },
+      {
+        "symbol": "ORAS",
+        "count": 34445,
+        "sharePercent": 6.8855572213893055
+      },
+      {
+        "symbol": "SWDY",
+        "count": 29282,
+        "sharePercent": 5.853473263368316
+      },
+      {
+        "symbol": "HRHO",
+        "count": 24822,
+        "sharePercent": 4.96191904047976
+      },
+      {
+        "symbol": "TMGH",
+        "count": 22161,
+        "sharePercent": 4.429985007496252
+      },
+      {
+        "symbol": "ETEL",
+        "count": 19637,
+        "sharePercent": 3.9254372813593204
+      },
+      {
+        "symbol": "EAST",
+        "count": 18369,
+        "sharePercent": 3.6719640179910047
+      },
+      {
+        "symbol": "ABUK",
+        "count": 16716,
+        "sharePercent": 3.3415292353823087
+      },
+      {
+        "symbol": "FWRY",
+        "count": 15793,
+        "sharePercent": 3.1570214892553725
+      },
+      {
+        "symbol": "SKPC",
+        "count": 13999,
+        "sharePercent": 2.7984007996002
+      },
+      {
+        "symbol": "ESRS",
+        "count": 12738,
+        "sharePercent": 2.5463268365817093
+      },
+      {
+        "symbol": "AMOC",
+        "count": 12174,
+        "sharePercent": 2.433583208395802
+      },
+      {
+        "symbol": "MNHD",
+        "count": 11391,
+        "sharePercent": 2.2770614692653672
+      },
+      {
+        "symbol": "PHDC",
+        "count": 10747,
+        "sharePercent": 2.148325837081459
+      },
+      {
+        "symbol": "EFIH",
+        "count": 10031,
+        "sharePercent": 2.0051974012993505
+      },
+      {
+        "symbol": "ORWE",
+        "count": 9640,
+        "sharePercent": 1.9270364817591203
+      },
+      {
+        "symbol": "JUFO",
+        "count": 9041,
+        "sharePercent": 1.8072963518240879
+      },
+      {
+        "symbol": "ISPH",
+        "count": 8614,
+        "sharePercent": 1.7219390304847577
+      },
+      {
+        "symbol": "CLHO",
+        "count": 8117,
+        "sharePercent": 1.6225887056471764
+      }
+    ]
+  },
+  "priceSanity": {
+    "perSymbol": [
+      {
+        "symbol": "ESRS",
+        "count": 12738,
+        "min": 76.1,
+        "max": 81,
+        "maxSingleStepMove": 0.35
+      },
+      {
+        "symbol": "CIB",
+        "count": 45323,
+        "min": 60.5,
+        "max": 64.95,
+        "maxSingleStepMove": 0.35
+      },
+      {
+        "symbol": "HRHO",
+        "count": 24822,
+        "min": 21.35,
+        "max": 22.44,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "EGTS",
+        "count": 5535,
+        "min": 2.062,
+        "max": 2.149,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "SYN0003",
+        "count": 1185,
+        "min": 306.7,
+        "max": 312.6,
+        "maxSingleStepMove": 0.7
+      },
+      {
+        "symbol": "ISPH",
+        "count": 8614,
+        "min": 8.896,
+        "max": 9.078,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "SYN0001",
+        "count": 3849,
+        "min": 343.6,
+        "max": 352.6,
+        "maxSingleStepMove": 0.7
+      },
+      {
+        "symbol": "SKPC",
+        "count": 13999,
+        "min": 9.746,
+        "max": 9.92,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "SUGR",
+        "count": 7279,
+        "min": 13.72,
+        "max": 14.5,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "CCAP",
+        "count": 6602,
+        "min": 2.702,
+        "max": 2.797,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "COMI",
+        "count": 73323,
+        "min": 82.45,
+        "max": 87.75,
+        "maxSingleStepMove": 0.35
+      },
+      {
+        "symbol": "ORWE",
+        "count": 9640,
+        "min": 14.87,
+        "max": 15.87,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "EAST",
+        "count": 18369,
+        "min": 12.27,
+        "max": 13.11,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "SWDY",
+        "count": 29282,
+        "min": 17.89,
+        "max": 19.05,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "TMGH",
+        "count": 22161,
+        "min": 43.5,
+        "max": 45.05,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "FWRY",
+        "count": 15793,
+        "min": 6.023,
+        "max": 6.207,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "ETEL",
+        "count": 19637,
+        "min": 32.42,
+        "max": 33.7,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "SYN0002",
+        "count": 1853,
+        "min": 390.2,
+        "max": 401.5,
+        "maxSingleStepMove": 0.7
+      },
+      {
+        "symbol": "MNHD",
+        "count": 11391,
+        "min": 4.831,
+        "max": 4.969,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "PHDC",
+        "count": 10747,
+        "min": 3.201,
+        "max": 3.334,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "ABUK",
+        "count": 16716,
+        "min": 65.9,
+        "max": 70.6,
+        "maxSingleStepMove": 0.35
+      },
+      {
+        "symbol": "ORAS",
+        "count": 34445,
+        "min": 238.7,
+        "max": 252.6,
+        "maxSingleStepMove": 0.7
+      },
+      {
+        "symbol": "SYN0013",
+        "count": 248,
+        "min": 471,
+        "max": 477,
+        "maxSingleStepMove": 0.7
+      },
+      {
+        "symbol": "EFIH",
+        "count": 10031,
+        "min": 26.29,
+        "max": 27.26,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "AUTO",
+        "count": 4945,
+        "min": 7.76,
+        "max": 7.903,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "CLHO",
+        "count": 8117,
+        "min": 5.431,
+        "max": 5.541,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "AMOC",
+        "count": 12174,
+        "min": 7.22,
+        "max": 7.367,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "GBCO",
+        "count": 6414,
+        "min": 10.89,
+        "max": 11.55,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "ARCC",
+        "count": 5912,
+        "min": 50.95,
+        "max": 54.2,
+        "maxSingleStepMove": 0.35
+      },
+      {
+        "symbol": "SPMD",
+        "count": 4621,
+        "min": 460.9,
+        "max": 473,
+        "maxSingleStepMove": 0.7
+      },
+      {
+        "symbol": "EKHO",
+        "count": 7842,
+        "min": 1.881,
+        "max": 1.975,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "RAYA",
+        "count": 4655,
+        "min": 3.494,
+        "max": 3.6,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "JUFO",
+        "count": 9041,
+        "min": 186.9,
+        "max": 192.75,
+        "maxSingleStepMove": 0.35
+      },
+      {
+        "symbol": "SYN0012",
+        "count": 264,
+        "min": 468.6,
+        "max": 471.4,
+        "maxSingleStepMove": 0.7
+      },
+      {
+        "symbol": "OCDI",
+        "count": 5178,
+        "min": 126.45,
+        "max": 131,
+        "maxSingleStepMove": 0.35
+      },
+      {
+        "symbol": "MTIE",
+        "count": 6166,
+        "min": 304.4,
+        "max": 314.1,
+        "maxSingleStepMove": 0.7
+      },
+      {
+        "symbol": "ADIB",
+        "count": 7210,
+        "min": 36.33,
+        "max": 37.6,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "SYN0010",
+        "count": 305,
+        "min": 32.87,
+        "max": 33.13,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "PRDC",
+        "count": 5302,
+        "min": 41.45,
+        "max": 42.6,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "BINV",
+        "count": 4382,
+        "min": 22.81,
+        "max": 23.64,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "SYN0014",
+        "count": 218,
+        "min": 438.2,
+        "max": 441.3,
+        "maxSingleStepMove": 0.7
+      },
+      {
+        "symbol": "SYN0008",
+        "count": 392,
+        "min": 362.8,
+        "max": 368,
+        "maxSingleStepMove": 0.7
+      },
+      {
+        "symbol": "SYN0006",
+        "count": 538,
+        "min": 92.9,
+        "max": 95.65,
+        "maxSingleStepMove": 0.35
+      },
+      {
+        "symbol": "SYN0016",
+        "count": 175,
+        "min": 117.6,
+        "max": 119.55,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0007",
+        "count": 461,
+        "min": 8.167,
+        "max": 8.244,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "SYN0009",
+        "count": 330,
+        "min": 48.52,
+        "max": 49.2,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "SYN0004",
+        "count": 840,
+        "min": 436.6,
+        "max": 444.3,
+        "maxSingleStepMove": 0.7
+      },
+      {
+        "symbol": "SYN0015",
+        "count": 210,
+        "min": 306.4,
+        "max": 309.1,
+        "maxSingleStepMove": 0.6
+      },
+      {
+        "symbol": "SYN0005",
+        "count": 691,
+        "min": 472.1,
+        "max": 480.2,
+        "maxSingleStepMove": 0.7
+      },
+      {
+        "symbol": "SYN0011",
+        "count": 285,
+        "min": 73.15,
+        "max": 75.5,
+        "maxSingleStepMove": 0.35
+      }
+    ],
+    "note": "Observation only, not an assertion. Task 08 depends only on tasks 01 and 05, not on the symbol universe or the generator (02/03), so the probe has no independent source for a symbol\u0027s real tick size or the server\u0027s MaxTickMove. Min, max and the largest single observed step per symbol are reported for a human or task 09 to judge against the server\u0027s own configuration; the probe does not flag or fail on any of them."
+  },
+  "auctionPrintFlag": {
+    "observedCount": 0,
+    "note": "Observation only. The default Session:Mode (Continuous) never enters an auction phase, so 0 is the expected value on every default benchmark run, not a failure. Set MockExchange__Session__Mode=CompressedDay to see it set."
+  },
+  "heartbeats": {
+    "count": 0,
+    "configuredIntervalMs": 1000,
+    "maxIntervalMs": 0,
+    "exceeded2xCount": 0,
+    "note": "Heartbeats appear only while the session is idle; a probe under sustained load may legitimately see none for the whole run. Zero heartbeats is not a failure by itself."
+  },
+  "verifyOrder": {
+    "enabled": false,
+    "violationCount": 0,
+    "violations": []
+  },
+  "stall": {
+    "requestedAfterSeconds": null,
+    "pauseDurationSeconds": null,
+    "outcome": "n/a"
+  }
+}
