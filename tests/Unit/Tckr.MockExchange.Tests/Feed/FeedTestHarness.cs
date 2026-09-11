@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 using Microsoft.Extensions.Logging.Testing;
 using Tckr.MockExchange.Feed;
+using Tckr.MockExchange.Options;
 using Tckr.MockExchange.Protocol;
 
 namespace Tckr.MockExchange.Tests.Feed;

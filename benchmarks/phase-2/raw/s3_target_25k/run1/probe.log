@@ -1,0 +1,57 @@
+Tckr.FeedProbe connecting to 127.0.0.1:9001 (duration 60s, target 25,000/s)
+ [   5.0s] events      125,250   interval    25,036/s   overall    25,036/s   gaps   0   framing-errors   0
+ [  10.0s] events      250,375   interval    25,000/s   overall    25,018/s   gaps   0   framing-errors   0
+ [  15.0s] events      375,375   interval    25,000/s   overall    25,012/s   gaps   0   framing-errors   0
+ [  20.0s] events      500,500   interval    25,000/s   overall    25,009/s   gaps   0   framing-errors   0
+ [  25.0s] events      625,625   interval    25,000/s   overall    25,007/s   gaps   0   framing-errors   0
+ [  30.0s] events      750,750   interval    25,000/s   overall    25,006/s   gaps   0   framing-errors   0
+ [  35.0s] events      875,750   interval    25,000/s   overall    25,005/s   gaps   0   framing-errors   0
+ [  40.0s] events    1,000,750   interval    25,000/s   overall    25,005/s   gaps   0   framing-errors   0
+ [  45.0s] events    1,125,875   interval    25,000/s   overall    25,004/s   gaps   0   framing-errors   0
+ [  50.0s] events    1,251,000   interval    25,000/s   overall    25,004/s   gaps   0   framing-errors   0
+ [  55.0s] events    1,376,125   interval    25,000/s   overall    25,003/s   gaps   0   framing-errors   0
+
+════════════════════════════════════════════════════════════
+ Tckr.FeedProbe — session e4a9…68cb — 60.0s
+────────────────────────────────────────────────────────────
+ Events received         1,500,250
+ Achieved rate           25,003 /s   (target 25,000 — 100.0%)
+ Rate min/max            25,000 /s      25,036 /s   (per report interval)
+ Sequence gaps          0   (0 record(s) lost)
+ Sequence integrity     0   (reorder/duplicate — always a bug, never a policy)
+ Framing errors         0
+ Wire throughput        1.05 MB/s   (44.0 bytes/event)
+ Inter-arrival        p50 0.00ms  p95 0.00ms  p99 0.00ms  max 9.11ms
+ Delivery latency     p50 0.48ms  p95 0.54ms  p99 0.56ms  max 4.63ms  (same-host clock — see notes)
+ Message mix          trade 40.0%  bid 30.0%  ask 30.0%
+ Symbol skew          top-1 14.4%  top-10 59.1%  top-50 98.7%  (250 symbols seen)
+ Heartbeats             0   max interval 0ms   (configured 1000ms; 0 exceeded 2x)
+ Auction prints         0   (observation only — Flags=0 on the default Continuous session mode; see notes)
+ Order violations       0   (--verify-order)
+────────────────────────────────────────────────────────────
+ Top 20 symbols
+   COMI        216,637    14.4%
+   CIB         134,257     8.9%
+   ORAS        101,773     6.8%
+   SWDY         86,225     5.7%
+   HRHO         73,587     4.9%
+   TMGH         65,039     4.3%
+   ETEL         58,823     3.9%
+   EAST         54,213     3.6%
+   ABUK         49,934     3.3%
+   FWRY         46,567     3.1%
+   SKPC         40,911     2.7%
+   ESRS         37,856     2.5%
+   AMOC         35,645     2.4%
+   MNHD         33,476     2.2%
+   PHDC         31,357     2.1%
+   EFIH         29,745     2.0%
+   ORWE         28,447     1.9%
+   JUFO         26,969     1.8%
+   ISPH         25,751     1.7%
+   CLHO         24,174     1.6%
+────────────────────────────────────────────────────────────
+ End reason: duration-elapsed
+ RESULT: PASS   (exit 0)
+════════════════════════════════════════════════════════════
+ Report written to /Users/fadi/Work/Tckr/benchmarks/phase-2/raw/s3_target_25k/run1/probe.json

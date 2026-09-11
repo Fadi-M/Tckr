@@ -1,0 +1,75 @@
+Tckr.FeedProbe connecting to 127.0.0.1:9001 (duration 300s, target 25,000/s)
+ [  10.0s] events            0   interval         0/s   overall         0/s   gaps   0   framing-errors   0
+ [  20.0s] events            0   interval         0/s   overall         0/s   gaps   0   framing-errors   0
+ [  30.0s] events       12,775   interval     1,277/s   overall       426/s   gaps   0   framing-errors   0
+ [  40.0s] events       37,775   interval     2,500/s   overall       944/s   gaps   0   framing-errors   0
+ [  50.0s] events       62,787   interval     2,500/s   overall     1,255/s   gaps   0   framing-errors   0
+ [  60.0s] events      513,450   interval    45,066/s   overall     8,556/s   gaps   0   framing-errors   0
+ [  70.0s] events      813,600   interval    30,000/s   overall    11,620/s   gaps   0   framing-errors   0
+ [  80.0s] events    1,113,600   interval    30,000/s   overall    13,917/s   gaps   0   framing-errors   0
+ [  90.0s] events    1,413,600   interval    30,000/s   overall    15,704/s   gaps   0   framing-errors   0
+ [ 100.0s] events    1,713,750   interval    30,000/s   overall    17,134/s   gaps   0   framing-errors   0
+ [ 110.0s] events    2,013,750   interval    30,000/s   overall    18,303/s   gaps   0   framing-errors   0
+ [ 120.0s] events    2,313,750   interval    30,000/s   overall    19,278/s   gaps   0   framing-errors   0
+ [ 130.0s] events    2,613,900   interval    30,000/s   overall    20,103/s   gaps   0   framing-errors   0
+ [ 140.0s] events    2,914,050   interval    30,000/s   overall    20,810/s   gaps   0   framing-errors   0
+ [ 150.0s] events    3,214,050   interval    30,000/s   overall    21,423/s   gaps   0   framing-errors   0
+ [ 160.0s] events    3,512,100   interval    29,790/s   overall    21,946/s   gaps   0   framing-errors   0
+ [ 170.0s] events    3,662,100   interval    15,000/s   overall    21,537/s   gaps   0   framing-errors   0
+ [ 180.0s] events    3,812,100   interval    15,000/s   overall    21,174/s   gaps   0   framing-errors   0
+ [ 190.0s] events    3,962,175   interval    15,000/s   overall    20,849/s   gaps   0   framing-errors   0
+ [ 200.0s] events    4,112,250   interval    15,000/s   overall    20,557/s   gaps   0   framing-errors   0
+ [ 210.1s] events    4,262,325   interval    15,000/s   overall    20,292/s   gaps   0   framing-errors   0
+ [ 220.1s] events    4,412,325   interval    15,000/s   overall    20,051/s   gaps   0   framing-errors   0
+ [ 230.1s] events    4,562,400   interval    15,000/s   overall    19,832/s   gaps   0   framing-errors   0
+ [ 240.1s] events    4,712,400   interval    15,000/s   overall    19,630/s   gaps   0   framing-errors   0
+ [ 250.1s] events    4,954,000   interval    24,160/s   overall    19,812/s   gaps   0   framing-errors   0
+ [ 260.1s] events    5,204,000   interval    25,000/s   overall    20,011/s   gaps   0   framing-errors   0
+ [ 270.1s] events    5,454,000   interval    25,000/s   overall    20,196/s   gaps   0   framing-errors   0
+ [ 280.1s] events    5,704,125   interval    25,000/s   overall    20,367/s   gaps   0   framing-errors   0
+ [ 290.1s] events    6,279,062   interval    57,493/s   overall    21,647/s   gaps   0   framing-errors   0
+ [ 300.9s] events    6,581,250   interval    27,890/s   overall    21,872/s   gaps   0   framing-errors   0
+
+════════════════════════════════════════════════════════════
+ Tckr.FeedProbe — session 178d…cf77 — 300.9s
+────────────────────────────────────────────────────────────
+ Events received         6,581,250
+ Achieved rate           21,872 /s   (target 25,000 — 87.5%)
+ Rate min/max                 0 /s      57,493 /s   (per report interval)
+ Sequence gaps          0   (0 record(s) lost)
+ Sequence integrity     0   (reorder/duplicate — always a bug, never a policy)
+ Framing errors         0
+ Wire throughput        0.92 MB/s   (44.0 bytes/event)
+ Inter-arrival        p50 0.00ms  p95 0.00ms  p99 0.00ms  max 11.94ms
+ Delivery latency     p50 -23.99ms  p95 1.47ms  p99 1.61ms  max 4.72ms  (same-host clock — see notes)
+ Message mix          trade 40.0%  bid 30.0%  ask 30.0%
+ Symbol skew          top-1 14.4%  top-10 59.1%  top-50 98.7%  (250 symbols seen)
+ Heartbeats            30   max interval 271892ms   (configured 1000ms; 1 exceeded 2x)
+ Auction prints       472825   (observation only — Flags=0 on the default Continuous session mode; see notes)
+────────────────────────────────────────────────────────────
+ Top 20 symbols
+   COMI        950,008    14.4%
+   CIB         589,085     9.0%
+   ORAS        446,224     6.8%
+   SWDY        380,185     5.8%
+   HRHO        322,630     4.9%
+   TMGH        285,315     4.3%
+   ETEL        257,943     3.9%
+   EAST        237,389     3.6%
+   ABUK        218,672     3.3%
+   FWRY        204,502     3.1%
+   SKPC        180,252     2.7%
+   ESRS        166,054     2.5%
+   AMOC        156,691     2.4%
+   MNHD        146,402     2.2%
+   PHDC        137,965     2.1%
+   EFIH        130,983     2.0%
+   ORWE        123,553     1.9%
+   JUFO        118,319     1.8%
+   ISPH        112,122     1.7%
+   CLHO        105,892     1.6%
+────────────────────────────────────────────────────────────
+ End reason: duration-elapsed
+ RESULT: FAIL   (exit 2)
+════════════════════════════════════════════════════════════
+ Report written to /Users/fadi/Work/Tckr/benchmarks/phase-2/raw/s8_phases_compressedday/run3/probe.json

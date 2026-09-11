@@ -1,0 +1,8 @@
+=== run 1 (first invocation) ===
+ events        : 19,996,672
+ elapsed       : 0.551 s
+ throughput    : 36,283,455 events/sec (floor 1,000,000)
+ per event     : 27.6 ns
+ headroom      : 1,451.3x the 25,000/sec target
+ allocated     : 0 bytes
+ gen0 collects : 0

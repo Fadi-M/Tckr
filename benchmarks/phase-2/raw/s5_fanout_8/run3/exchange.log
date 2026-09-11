@@ -1,0 +1,76 @@
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed server listening on 127.0.0.1:9001 for up to 8 sessions.
+info: Tckr.MockExchange.FeedPublisherService[0]
+      Mock exchange starting: seed=20260907 symbols=250 target=25000/s mode=Continuous listen=127.0.0.1:9001 build=RELEASE.
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: /Users/fadi/Work/Tckr/src/Tckr.MockExchange
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=25000/s achieved=24850/s (99.4%) sessions=0 no consumers connected lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:00:05
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session d96a76c0-a683-4dd2-8584-99315a62a80b accepted from 127.0.0.1:50202.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 1ecec412-5161-46b6-9fd0-f2d18695f87a accepted from 127.0.0.1:50203.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session c7732673-435f-4904-b19e-2b5047180867 accepted from 127.0.0.1:50204.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 16e0e701-706f-4f90-8d60-df9add89e027 accepted from 127.0.0.1:50205.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session d2d7c7e4-9992-4eb1-9de0-0f5ed3895da5 accepted from 127.0.0.1:50206.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 221280c7-8399-4e79-96aa-79662631a338 accepted from 127.0.0.1:50207.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 3f1a5c36-f000-4913-b1c1-3182806dbda3 accepted from 127.0.0.1:50208.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 4fd46b35-083a-46fb-a354-f6e384cc84c8 accepted from 127.0.0.1:50209.
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=25000/s achieved=25000/s (100.0%) sessions=8 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:00:10
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=25000/s achieved=25000/s (100.0%) sessions=8 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:00:15
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=25000/s achieved=25000/s (100.0%) sessions=8 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:00:20
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=25000/s achieved=25000/s (100.0%) sessions=8 lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:00:25
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session d96a76c0-a683-4dd2-8584-99315a62a80b at 127.0.0.1:50202 ended: client-closed.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 1ecec412-5161-46b6-9fd0-f2d18695f87a at 127.0.0.1:50203 ended: client-closed.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 221280c7-8399-4e79-96aa-79662631a338 at 127.0.0.1:50207 ended: client-closed.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session c7732673-435f-4904-b19e-2b5047180867 at 127.0.0.1:50204 ended: client-closed.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session d2d7c7e4-9992-4eb1-9de0-0f5ed3895da5 at 127.0.0.1:50206 ended: client-closed.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 1ecec412-5161-46b6-9fd0-f2d18695f87a closed: client-closed. Sent 22077036 bytes, dropped 0 records.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 221280c7-8399-4e79-96aa-79662631a338 closed: client-closed. Sent 22077036 bytes, dropped 0 records.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session c7732673-435f-4904-b19e-2b5047180867 closed: client-closed. Sent 22077036 bytes, dropped 0 records.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 4fd46b35-083a-46fb-a354-f6e384cc84c8 at 127.0.0.1:50209 ended: client-closed.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session d96a76c0-a683-4dd2-8584-99315a62a80b closed: client-closed. Sent 22077036 bytes, dropped 0 records.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session d2d7c7e4-9992-4eb1-9de0-0f5ed3895da5 closed: client-closed. Sent 22077036 bytes, dropped 0 records.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 16e0e701-706f-4f90-8d60-df9add89e027 at 127.0.0.1:50205 ended: client-closed.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 4fd46b35-083a-46fb-a354-f6e384cc84c8 closed: client-closed. Sent 22077036 bytes, dropped 0 records.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 16e0e701-706f-4f90-8d60-df9add89e027 closed: client-closed. Sent 22077036 bytes, dropped 0 records.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 3f1a5c36-f000-4913-b1c1-3182806dbda3 at 127.0.0.1:50208 ended: client-closed.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed session 3f1a5c36-f000-4913-b1c1-3182806dbda3 closed: client-closed. Sent 22077036 bytes, dropped 0 records.
+info: Microsoft.Hosting.Lifetime[0]
+      Application is shutting down...
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed server stopping; draining 0 sessions within 2000 ms.
+info: Tckr.MockExchange.Feed.FeedServer[0]
+      Feed server stopped.
+info: Tckr.MockExchange.Diagnostics.ThroughputReporter[0]
+      Feed status phase=ContinuousMorning target=25000/s achieved=25000/s (100.0%) sessions=0 no consumers connected lag_p99=0.0ms dropped=0 slow_disconnects=0 uptime=00:00:26

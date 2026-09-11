@@ -1,0 +1,49 @@
+=== run 1 ===
+  Passed Tckr.MockExchange.Tests.Generation.RandomWalkGeneratorBenchmarkTests.GeneratesAtLeastAMillionEventsPerSecondOnOneThread [612 ms]
+ throughput    : 35,927,197 events/sec (floor 1,000,000)
+ per event     : 27.8 ns
+ allocated     : 0 bytes
+ gen0 collects : 0
+     Passed: 1
+=== run 2 ===
+  Passed Tckr.MockExchange.Tests.Generation.RandomWalkGeneratorBenchmarkTests.GeneratesAtLeastAMillionEventsPerSecondOnOneThread [602 ms]
+ throughput    : 36,431,595 events/sec (floor 1,000,000)
+ per event     : 27.4 ns
+ allocated     : 0 bytes
+ gen0 collects : 0
+     Passed: 1
+=== run 3 ===
+  Passed Tckr.MockExchange.Tests.Generation.RandomWalkGeneratorBenchmarkTests.GeneratesAtLeastAMillionEventsPerSecondOnOneThread [606 ms]
+ throughput    : 36,323,013 events/sec (floor 1,000,000)
+ per event     : 27.5 ns
+ allocated     : 0 bytes
+ gen0 collects : 0
+     Passed: 1
+=== run 4 ===
+  Passed Tckr.MockExchange.Tests.Generation.RandomWalkGeneratorBenchmarkTests.GeneratesAtLeastAMillionEventsPerSecondOnOneThread [597 ms]
+ throughput    : 36,868,720 events/sec (floor 1,000,000)
+ per event     : 27.1 ns
+ allocated     : 0 bytes
+ gen0 collects : 0
+     Passed: 1
+=== run 5 ===
+  Passed Tckr.MockExchange.Tests.Generation.RandomWalkGeneratorBenchmarkTests.GeneratesAtLeastAMillionEventsPerSecondOnOneThread [600 ms]
+ throughput    : 36,673,935 events/sec (floor 1,000,000)
+ per event     : 27.3 ns
+ allocated     : 0 bytes
+ gen0 collects : 0
+     Passed: 1
+=== run 6 ===
+  Passed Tckr.MockExchange.Tests.Generation.RandomWalkGeneratorBenchmarkTests.GeneratesAtLeastAMillionEventsPerSecondOnOneThread [605 ms]
+ throughput    : 36,303,381 events/sec (floor 1,000,000)
+ per event     : 27.5 ns
+ allocated     : 0 bytes
+ gen0 collects : 0
+     Passed: 1
+=== run 7 ===
+  Passed Tckr.MockExchange.Tests.Generation.RandomWalkGeneratorBenchmarkTests.GeneratesAtLeastAMillionEventsPerSecondOnOneThread [611 ms]
+ throughput    : 35,887,943 events/sec (floor 1,000,000)
+ per event     : 27.9 ns
+ allocated     : 0 bytes
+ gen0 collects : 0
+     Passed: 1

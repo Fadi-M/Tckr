@@ -1,0 +1,1915 @@
+{
+  "schemaVersion": 1,
+  "host": "127.0.0.1",
+  "port": 9001,
+  "sessionEstablished": true,
+  "sessionId": "31775860-73a5-458b-b26c-741c4b947b13",
+  "startedAtUtc": "2026-09-10T10:06:12.158123+00:00",
+  "endedAtUtc": "2026-09-10T10:06:32.170065+00:00",
+  "activeSeconds": 20.00082,
+  "endReason": "duration-elapsed",
+  "result": "PASS",
+  "exitCode": 0,
+  "heartbeatIntervalMsAdvertised": 1000,
+  "eventsReceived": 100025,
+  "achievedRate": {
+    "overall": 5001.044957156756,
+    "min": 4999.9910000162,
+    "max": 5004.330420589725,
+    "target": 5000,
+    "targetPercent": 100.02089914313511,
+    "note": "min/max are per report-interval rates; a --stall-after run legitimately shows a near-zero minimum for the interval spanning the pause."
+  },
+  "sequence": {
+    "gapCount": 0,
+    "recordsLost": 0,
+    "expectDrops": false,
+    "gaps": [],
+    "integrityViolationCount": 0,
+    "integrityViolations": [],
+    "note": "Every gap here is exchange-side loss, never network loss: TCP delivers in order or breaks, and the frame reader throws rather than resynchronising past a bad frame. Under the default Disconnect policy a gap should never occur \u2014 the session is closed instead; under DropOldest a gap is the documented, expected disclosure of what the server withheld. integrityViolations (a sequence number at or below one already seen) is a different, always-a-bug condition \u2014 reorder or duplication is impossible on a single TCP session."
+  },
+  "framingErrors": {
+    "count": 0,
+    "errors": []
+  },
+  "wire": {
+    "totalBytes": 4401100,
+    "bytesPerSecond": 220045.97811489727,
+    "meanBytesPerEvent": 44
+  },
+  "interArrivalMs": {
+    "p50": 0,
+    "p95": 0,
+    "p99": 5.009334,
+    "max": 10.130792
+  },
+  "deliveryLatencyMs": {
+    "p50": 0.613709,
+    "p95": 0.648959,
+    "p99": 0.6915,
+    "max": 1.44975,
+    "note": "Clocks are shared (same host) in Phase 2, so this is meaningful now. It becomes unreliable once the probe and the exchange run on different machines; do not trust it blindly once that changes."
+  },
+  "messageMix": {
+    "trade": 40197,
+    "bid": 29930,
+    "ask": 29898
+  },
+  "symbolSkew": {
+    "distinctSymbolsSeen": 246,
+    "top1Percent": 14.36540864783804,
+    "top10Percent": 58.943264183954014,
+    "top50Percent": 98.68232941764559,
+    "topSymbols": [
+      {
+        "symbol": "COMI",
+        "count": 14369,
+        "sharePercent": 14.36540864783804
+      },
+      {
+        "symbol": "CIB",
+        "count": 8966,
+        "sharePercent": 8.963759060234942
+      },
+      {
+        "symbol": "ORAS",
+        "count": 6769,
+        "sharePercent": 6.767308172956761
+      },
+      {
+        "symbol": "SWDY",
+        "count": 5866,
+        "sharePercent": 5.864533866533367
+      },
+      {
+        "symbol": "HRHO",
+        "count": 4914,
+        "sharePercent": 4.912771807048238
+      },
+      {
+        "symbol": "TMGH",
+        "count": 4297,
+        "sharePercent": 4.2959260184953765
+      },
+      {
+        "symbol": "ETEL",
+        "count": 3868,
+        "sharePercent": 3.8670332416895774
+      },
+      {
+        "symbol": "EAST",
+        "count": 3564,
+        "sharePercent": 3.5631092226943264
+      },
+      {
+        "symbol": "ABUK",
+        "count": 3266,
+        "sharePercent": 3.2651837040739813
+      },
+      {
+        "symbol": "FWRY",
+        "count": 3079,
+        "sharePercent": 3.0782304423894025
+      },
+      {
+        "symbol": "SKPC",
+        "count": 2750,
+        "sharePercent": 2.749312671832042
+      },
+      {
+        "symbol": "ESRS",
+        "count": 2597,
+        "sharePercent": 2.596350912271932
+      },
+      {
+        "symbol": "AMOC",
+        "count": 2398,
+        "sharePercent": 2.3974006498375404
+      },
+      {
+        "symbol": "MNHD",
+        "count": 2268,
+        "sharePercent": 2.267433141714571
+      },
+      {
+        "symbol": "PHDC",
+        "count": 2036,
+        "sharePercent": 2.0354911272181955
+      },
+      {
+        "symbol": "EFIH",
+        "count": 1957,
+        "sharePercent": 1.9565108722819295
+      },
+      {
+        "symbol": "ORWE",
+        "count": 1888,
+        "sharePercent": 1.8875281179705075
+      },
+      {
+        "symbol": "JUFO",
+        "count": 1805,
+        "sharePercent": 1.8045488627843038
+      },
+      {
+        "symbol": "ISPH",
+        "count": 1765,
+        "sharePercent": 1.7645588602849287
+      },
+      {
+        "symbol": "CLHO",
+        "count": 1703,
+        "sharePercent": 1.7025743564108973
+      }
+    ]
+  },
+  "priceSanity": {
+    "perSymbol": [
+      {
+        "symbol": "ESRS",
+        "count": 2597,
+        "min": 77,
+        "max": 80.3,
+        "maxSingleStepMove": 0.35
+      },
+      {
+        "symbol": "COMI",
+        "count": 14369,
+        "min": 82.25,
+        "max": 87.1,
+        "maxSingleStepMove": 0.35
+      },
+      {
+        "symbol": "HRHO",
+        "count": 4914,
+        "min": 21.34,
+        "max": 22.25,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "SKPC",
+        "count": 2750,
+        "min": 9.825,
+        "max": 9.947,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "ORAS",
+        "count": 6769,
+        "min": 241.2,
+        "max": 252.5,
+        "maxSingleStepMove": 0.7
+      },
+      {
+        "symbol": "FWRY",
+        "count": 3079,
+        "min": 6.108,
+        "max": 6.178,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "PHDC",
+        "count": 2036,
+        "min": 3.227,
+        "max": 3.33,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "EKHO",
+        "count": 1496,
+        "min": 1.891,
+        "max": 1.954,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "EAST",
+        "count": 3564,
+        "min": 12.2,
+        "max": 13,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "AMOC",
+        "count": 2398,
+        "min": 7.263,
+        "max": 7.392,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "CLHO",
+        "count": 1703,
+        "min": 5.431,
+        "max": 5.515,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "SUGR",
+        "count": 1395,
+        "min": 13.58,
+        "max": 14.34,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "GBCO",
+        "count": 1301,
+        "min": 10.94,
+        "max": 11.59,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "CIB",
+        "count": 8966,
+        "min": 60.65,
+        "max": 64.5,
+        "maxSingleStepMove": 0.35
+      },
+      {
+        "symbol": "SYN0009",
+        "count": 71,
+        "min": 48.9,
+        "max": 49.18,
+        "maxSingleStepMove": 0.05
+      },
+      {
+        "symbol": "SYN0006",
+        "count": 111,
+        "min": 94.5,
+        "max": 96.35,
+        "maxSingleStepMove": 0.35
+      },
+      {
+        "symbol": "CCAP",
+        "count": 1312,
+        "min": 2.709,
+        "max": 2.78,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "RAYA",
+        "count": 953,
+        "min": 3.535,
+        "max": 3.597,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "OCDI",
+        "count": 1025,
+        "min": 126.9,
+        "max": 129.75,
+        "maxSingleStepMove": 0.35
+      },
+      {
+        "symbol": "JUFO",
+        "count": 1805,
+        "min": 187,
+        "max": 191.65,
+        "maxSingleStepMove": 0.35
+      },
+      {
+        "symbol": "MTIE",
+        "count": 1262,
+        "min": 305.3,
+        "max": 314.5,
+        "maxSingleStepMove": 0.7
+      },
+      {
+        "symbol": "ARCC",
+        "count": 1173,
+        "min": 51.3,
+        "max": 54.55,
+        "maxSingleStepMove": 0.35
+      },
+      {
+        "symbol": "SWDY",
+        "count": 5866,
+        "min": 17.95,
+        "max": 18.93,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "TMGH",
+        "count": 4297,
+        "min": 43.42,
+        "max": 44.75,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "SYN0011",
+        "count": 55,
+        "min": 73.95,
+        "max": 74.65,
+        "maxSingleStepMove": 0.35
+      },
+      {
+        "symbol": "BINV",
+        "count": 822,
+        "min": 22.99,
+        "max": 23.48,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "ABUK",
+        "count": 3266,
+        "min": 66,
+        "max": 70.2,
+        "maxSingleStepMove": 0.35
+      },
+      {
+        "symbol": "EFIH",
+        "count": 1957,
+        "min": 26.2,
+        "max": 27.14,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "ETEL",
+        "count": 3868,
+        "min": 32.42,
+        "max": 33.51,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "ORWE",
+        "count": 1888,
+        "min": 15.06,
+        "max": 15.74,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "ISPH",
+        "count": 1765,
+        "min": 8.918,
+        "max": 9.015,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "PRDC",
+        "count": 1144,
+        "min": 41.85,
+        "max": 42.44,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "SPMD",
+        "count": 903,
+        "min": 459.9,
+        "max": 467.1,
+        "maxSingleStepMove": 0.7
+      },
+      {
+        "symbol": "SYN0005",
+        "count": 131,
+        "min": 477.3,
+        "max": 479.6,
+        "maxSingleStepMove": 0.6
+      },
+      {
+        "symbol": "SYN0037",
+        "count": 15,
+        "min": 41.47,
+        "max": 41.56,
+        "maxSingleStepMove": 0.06
+      },
+      {
+        "symbol": "SYN0150",
+        "count": 6,
+        "min": 125.6,
+        "max": 126.05,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "MNHD",
+        "count": 2268,
+        "min": 4.88,
+        "max": 4.992,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "SYN0163",
+        "count": 3,
+        "min": 129.85,
+        "max": 130.05,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0021",
+        "count": 25,
+        "min": 158.25,
+        "max": 159.3,
+        "maxSingleStepMove": 0.35
+      },
+      {
+        "symbol": "ADIB",
+        "count": 1366,
+        "min": 36.47,
+        "max": 37.25,
+        "maxSingleStepMove": 0.07
+      },
+      {
+        "symbol": "AUTO",
+        "count": 953,
+        "min": 7.826,
+        "max": 7.899,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "EGTS",
+        "count": 1159,
+        "min": 2.068,
+        "max": 2.128,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "SYN0002",
+        "count": 343,
+        "min": 392.9,
+        "max": 400.7,
+        "maxSingleStepMove": 0.7
+      },
+      {
+        "symbol": "SYN0014",
+        "count": 39,
+        "min": 436.7,
+        "max": 438.6,
+        "maxSingleStepMove": 0.6
+      },
+      {
+        "symbol": "SYN0013",
+        "count": 55,
+        "min": 472,
+        "max": 475,
+        "maxSingleStepMove": 0.6
+      },
+      {
+        "symbol": "SYN0110",
+        "count": 5,
+        "min": 6.303,
+        "max": 6.308,
+        "maxSingleStepMove": 0.002
+      },
+      {
+        "symbol": "SYN0020",
+        "count": 32,
+        "min": 258.5,
+        "max": 259.6,
+        "maxSingleStepMove": 0.4
+      },
+      {
+        "symbol": "SYN0004",
+        "count": 181,
+        "min": 441.7,
+        "max": 445.4,
+        "maxSingleStepMove": 0.7
+      },
+      {
+        "symbol": "SYN0001",
+        "count": 742,
+        "min": 349.4,
+        "max": 353.9,
+        "maxSingleStepMove": 0.7
+      },
+      {
+        "symbol": "SYN0008",
+        "count": 80,
+        "min": 363,
+        "max": 366.4,
+        "maxSingleStepMove": 0.6
+      },
+      {
+        "symbol": "SYN0086",
+        "count": 5,
+        "min": 402.5,
+        "max": 403.3,
+        "maxSingleStepMove": 0.5
+      },
+      {
+        "symbol": "SYN0003",
+        "count": 224,
+        "min": 306,
+        "max": 310.7,
+        "maxSingleStepMove": 0.6
+      },
+      {
+        "symbol": "SYN0031",
+        "count": 24,
+        "min": 321.3,
+        "max": 323,
+        "maxSingleStepMove": 0.5
+      },
+      {
+        "symbol": "SYN0128",
+        "count": 7,
+        "min": 473.3,
+        "max": 474,
+        "maxSingleStepMove": 0.4
+      },
+      {
+        "symbol": "SYN0089",
+        "count": 7,
+        "min": 147.75,
+        "max": 148.2,
+        "maxSingleStepMove": 0.35
+      },
+      {
+        "symbol": "SYN0176",
+        "count": 3,
+        "min": 274.2,
+        "max": 274.5,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0018",
+        "count": 33,
+        "min": 122.95,
+        "max": 123.8,
+        "maxSingleStepMove": 0.35
+      },
+      {
+        "symbol": "SYN0026",
+        "count": 19,
+        "min": 353.8,
+        "max": 355.6,
+        "maxSingleStepMove": 0.5
+      },
+      {
+        "symbol": "SYN0165",
+        "count": 3,
+        "min": 280.9,
+        "max": 281.3,
+        "maxSingleStepMove": 0.4
+      },
+      {
+        "symbol": "SYN0053",
+        "count": 14,
+        "min": 69.15,
+        "max": 69.75,
+        "maxSingleStepMove": 0.25
+      },
+      {
+        "symbol": "SYN0022",
+        "count": 25,
+        "min": 476.4,
+        "max": 477.4,
+        "maxSingleStepMove": 0.6
+      },
+      {
+        "symbol": "SYN0045",
+        "count": 12,
+        "min": 338,
+        "max": 339.7,
+        "maxSingleStepMove": 0.6
+      },
+      {
+        "symbol": "SYN0007",
+        "count": 96,
+        "min": 8.185,
+        "max": 8.219,
+        "maxSingleStepMove": 0.007
+      },
+      {
+        "symbol": "SYN0028",
+        "count": 20,
+        "min": 306.3,
+        "max": 307.2,
+        "maxSingleStepMove": 0.5
+      },
+      {
+        "symbol": "SYN0092",
+        "count": 17,
+        "min": 408.8,
+        "max": 410.4,
+        "maxSingleStepMove": 0.5
+      },
+      {
+        "symbol": "SYN0073",
+        "count": 7,
+        "min": 52.8,
+        "max": 53,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0159",
+        "count": 3,
+        "min": 217,
+        "max": 217.4,
+        "maxSingleStepMove": 0.4
+      },
+      {
+        "symbol": "SYN0029",
+        "count": 17,
+        "min": 490.1,
+        "max": 491.2,
+        "maxSingleStepMove": 0.4
+      },
+      {
+        "symbol": "SYN0090",
+        "count": 5,
+        "min": 332.5,
+        "max": 333,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0012",
+        "count": 43,
+        "min": 470.6,
+        "max": 472,
+        "maxSingleStepMove": 0.5
+      },
+      {
+        "symbol": "SYN0109",
+        "count": 4,
+        "min": 178.75,
+        "max": 179.05,
+        "maxSingleStepMove": 0.25
+      },
+      {
+        "symbol": "SYN0121",
+        "count": 4,
+        "min": 304.4,
+        "max": 304.8,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0027",
+        "count": 25,
+        "min": 200.6,
+        "max": 201.8,
+        "maxSingleStepMove": 0.6
+      },
+      {
+        "symbol": "SYN0147",
+        "count": 6,
+        "min": 17.65,
+        "max": 17.73,
+        "maxSingleStepMove": 0.04
+      },
+      {
+        "symbol": "SYN0100",
+        "count": 6,
+        "min": 491.2,
+        "max": 491.6,
+        "maxSingleStepMove": 0.4
+      },
+      {
+        "symbol": "SYN0182",
+        "count": 3,
+        "min": 89.6,
+        "max": 89.85,
+        "maxSingleStepMove": 0.25
+      },
+      {
+        "symbol": "SYN0019",
+        "count": 30,
+        "min": 144.7,
+        "max": 145.2,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0071",
+        "count": 4,
+        "min": 104.5,
+        "max": 104.7,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0151",
+        "count": 4,
+        "min": 442.6,
+        "max": 442.8,
+        "maxSingleStepMove": 0.1
+      },
+      {
+        "symbol": "SYN0078",
+        "count": 7,
+        "min": 84.75,
+        "max": 85.15,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0124",
+        "count": 6,
+        "min": 87.9,
+        "max": 88,
+        "maxSingleStepMove": 0.05
+      },
+      {
+        "symbol": "SYN0010",
+        "count": 71,
+        "min": 33.09,
+        "max": 33.34,
+        "maxSingleStepMove": 0.05
+      },
+      {
+        "symbol": "SYN0207",
+        "count": 6,
+        "min": 34.3,
+        "max": 34.37,
+        "maxSingleStepMove": 0.04
+      },
+      {
+        "symbol": "SYN0097",
+        "count": 7,
+        "min": 186.7,
+        "max": 187,
+        "maxSingleStepMove": 0.15
+      },
+      {
+        "symbol": "SYN0081",
+        "count": 5,
+        "min": 224.8,
+        "max": 225.4,
+        "maxSingleStepMove": 0.5
+      },
+      {
+        "symbol": "SYN0101",
+        "count": 6,
+        "min": 283,
+        "max": 283.4,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0166",
+        "count": 5,
+        "min": 125.45,
+        "max": 125.9,
+        "maxSingleStepMove": 0.25
+      },
+      {
+        "symbol": "SYN0015",
+        "count": 29,
+        "min": 304.6,
+        "max": 306.4,
+        "maxSingleStepMove": 0.7
+      },
+      {
+        "symbol": "SYN0024",
+        "count": 19,
+        "min": 356.7,
+        "max": 358,
+        "maxSingleStepMove": 0.5
+      },
+      {
+        "symbol": "SYN0076",
+        "count": 6,
+        "min": 279.1,
+        "max": 280.1,
+        "maxSingleStepMove": 0.5
+      },
+      {
+        "symbol": "SYN0017",
+        "count": 41,
+        "min": 357.9,
+        "max": 360.4,
+        "maxSingleStepMove": 0.4
+      },
+      {
+        "symbol": "SYN0034",
+        "count": 21,
+        "min": 20.24,
+        "max": 20.31,
+        "maxSingleStepMove": 0.05
+      },
+      {
+        "symbol": "SYN0213",
+        "count": 3,
+        "min": 449.2,
+        "max": 450,
+        "maxSingleStepMove": 0.4
+      },
+      {
+        "symbol": "SYN0040",
+        "count": 17,
+        "min": 432.7,
+        "max": 433.4,
+        "maxSingleStepMove": 0.7
+      },
+      {
+        "symbol": "SYN0016",
+        "count": 35,
+        "min": 118,
+        "max": 118.8,
+        "maxSingleStepMove": 0.25
+      },
+      {
+        "symbol": "SYN0043",
+        "count": 8,
+        "min": 437.1,
+        "max": 437.7,
+        "maxSingleStepMove": 0.5
+      },
+      {
+        "symbol": "SYN0030",
+        "count": 15,
+        "min": 327.9,
+        "max": 328.9,
+        "maxSingleStepMove": 0.5
+      },
+      {
+        "symbol": "SYN0214",
+        "count": 2,
+        "min": 184.5,
+        "max": 184.55,
+        "maxSingleStepMove": 0.05
+      },
+      {
+        "symbol": "SYN0033",
+        "count": 13,
+        "min": 56.6,
+        "max": 56.8,
+        "maxSingleStepMove": 0.15
+      },
+      {
+        "symbol": "SYN0058",
+        "count": 6,
+        "min": 132,
+        "max": 132.55,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0177",
+        "count": 5,
+        "min": 91.05,
+        "max": 91.35,
+        "maxSingleStepMove": 0.25
+      },
+      {
+        "symbol": "SYN0115",
+        "count": 8,
+        "min": 45.97,
+        "max": 46.08,
+        "maxSingleStepMove": 0.06
+      },
+      {
+        "symbol": "SYN0077",
+        "count": 7,
+        "min": 171.75,
+        "max": 172.1,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0056",
+        "count": 6,
+        "min": 331.5,
+        "max": 332,
+        "maxSingleStepMove": 0.5
+      },
+      {
+        "symbol": "SYN0102",
+        "count": 3,
+        "min": 330.5,
+        "max": 330.7,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0067",
+        "count": 6,
+        "min": 215.8,
+        "max": 216.1,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0075",
+        "count": 7,
+        "min": 458.1,
+        "max": 458.7,
+        "maxSingleStepMove": 0.4
+      },
+      {
+        "symbol": "SYN0087",
+        "count": 12,
+        "min": 482.9,
+        "max": 483.5,
+        "maxSingleStepMove": 0.4
+      },
+      {
+        "symbol": "SYN0202",
+        "count": 2,
+        "min": 153.6,
+        "max": 153.8,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0094",
+        "count": 6,
+        "min": 389.1,
+        "max": 389.7,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0149",
+        "count": 3,
+        "min": 468.2,
+        "max": 468.6,
+        "maxSingleStepMove": 0.4
+      },
+      {
+        "symbol": "SYN0069",
+        "count": 6,
+        "min": 156.85,
+        "max": 157.35,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0206",
+        "count": 4,
+        "min": 97.2,
+        "max": 97.35,
+        "maxSingleStepMove": 0.1
+      },
+      {
+        "symbol": "SYN0104",
+        "count": 6,
+        "min": 184.3,
+        "max": 184.65,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0070",
+        "count": 9,
+        "min": 399.9,
+        "max": 400.4,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0059",
+        "count": 9,
+        "min": 474.6,
+        "max": 475.3,
+        "maxSingleStepMove": 0.5
+      },
+      {
+        "symbol": "SYN0035",
+        "count": 20,
+        "min": 122.85,
+        "max": 123.35,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0042",
+        "count": 12,
+        "min": 271.5,
+        "max": 272.2,
+        "maxSingleStepMove": 0.5
+      },
+      {
+        "symbol": "SYN0039",
+        "count": 17,
+        "min": 349,
+        "max": 350.1,
+        "maxSingleStepMove": 0.7
+      },
+      {
+        "symbol": "SYN0083",
+        "count": 6,
+        "min": 42.91,
+        "max": 42.95,
+        "maxSingleStepMove": 0.03
+      },
+      {
+        "symbol": "SYN0047",
+        "count": 15,
+        "min": 14.16,
+        "max": 14.25,
+        "maxSingleStepMove": 0.06
+      },
+      {
+        "symbol": "SYN0167",
+        "count": 5,
+        "min": 346.4,
+        "max": 346.6,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0085",
+        "count": 5,
+        "min": 281,
+        "max": 281.5,
+        "maxSingleStepMove": 0.5
+      },
+      {
+        "symbol": "SYN0041",
+        "count": 17,
+        "min": 144.1,
+        "max": 144.95,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0142",
+        "count": 4,
+        "min": 85.35,
+        "max": 85.7,
+        "maxSingleStepMove": 0.15
+      },
+      {
+        "symbol": "SYN0023",
+        "count": 27,
+        "min": 315.5,
+        "max": 316.8,
+        "maxSingleStepMove": 0.5
+      },
+      {
+        "symbol": "SYN0055",
+        "count": 11,
+        "min": 463.1,
+        "max": 463.8,
+        "maxSingleStepMove": 0.4
+      },
+      {
+        "symbol": "SYN0188",
+        "count": 4,
+        "min": 484.1,
+        "max": 484.9,
+        "maxSingleStepMove": 0.5
+      },
+      {
+        "symbol": "SYN0093",
+        "count": 7,
+        "min": 62.8,
+        "max": 63.15,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0125",
+        "count": 4,
+        "min": 393.2,
+        "max": 393.4,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0118",
+        "count": 4,
+        "min": 103.65,
+        "max": 103.95,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0057",
+        "count": 9,
+        "min": 199.9,
+        "max": 200.8,
+        "maxSingleStepMove": 0.6
+      },
+      {
+        "symbol": "SYN0196",
+        "count": 3,
+        "min": 25.65,
+        "max": 25.69,
+        "maxSingleStepMove": 0.03
+      },
+      {
+        "symbol": "SYN0050",
+        "count": 10,
+        "min": 126.95,
+        "max": 127.3,
+        "maxSingleStepMove": 0.15
+      },
+      {
+        "symbol": "SYN0062",
+        "count": 8,
+        "min": 22.68,
+        "max": 22.71,
+        "maxSingleStepMove": 0.02
+      },
+      {
+        "symbol": "SYN0154",
+        "count": 5,
+        "min": 60.35,
+        "max": 60.9,
+        "maxSingleStepMove": 0.25
+      },
+      {
+        "symbol": "SYN0119",
+        "count": 5,
+        "min": 224.2,
+        "max": 224.3,
+        "maxSingleStepMove": 0.1
+      },
+      {
+        "symbol": "SYN0184",
+        "count": 4,
+        "min": 228,
+        "max": 228.6,
+        "maxSingleStepMove": 0.4
+      },
+      {
+        "symbol": "SYN0080",
+        "count": 8,
+        "min": 334,
+        "max": 334.9,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0134",
+        "count": 3,
+        "min": 316.1,
+        "max": 316.5,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0126",
+        "count": 4,
+        "min": 270.4,
+        "max": 270.9,
+        "maxSingleStepMove": 0.4
+      },
+      {
+        "symbol": "SYN0191",
+        "count": 1,
+        "min": 239.2,
+        "max": 239.2,
+        "maxSingleStepMove": 0
+      },
+      {
+        "symbol": "SYN0108",
+        "count": 4,
+        "min": 193.45,
+        "max": 193.6,
+        "maxSingleStepMove": 0.15
+      },
+      {
+        "symbol": "SYN0038",
+        "count": 9,
+        "min": 143.5,
+        "max": 143.85,
+        "maxSingleStepMove": 0.25
+      },
+      {
+        "symbol": "SYN0141",
+        "count": 2,
+        "min": 412.2,
+        "max": 412.4,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0123",
+        "count": 6,
+        "min": 56.05,
+        "max": 56.45,
+        "maxSingleStepMove": 0.35
+      },
+      {
+        "symbol": "SYN0036",
+        "count": 11,
+        "min": 105.45,
+        "max": 106.05,
+        "maxSingleStepMove": 0.25
+      },
+      {
+        "symbol": "SYN0198",
+        "count": 2,
+        "min": 29.74,
+        "max": 29.77,
+        "maxSingleStepMove": 0.03
+      },
+      {
+        "symbol": "SYN0132",
+        "count": 4,
+        "min": 37.78,
+        "max": 37.87,
+        "maxSingleStepMove": 0.04
+      },
+      {
+        "symbol": "SYN0160",
+        "count": 2,
+        "min": 105.75,
+        "max": 105.85,
+        "maxSingleStepMove": 0.1
+      },
+      {
+        "symbol": "SYN0131",
+        "count": 4,
+        "min": 125.05,
+        "max": 125.35,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0112",
+        "count": 6,
+        "min": 400.9,
+        "max": 401.5,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0157",
+        "count": 7,
+        "min": 67.85,
+        "max": 68.35,
+        "maxSingleStepMove": 0.25
+      },
+      {
+        "symbol": "SYN0095",
+        "count": 4,
+        "min": 21.21,
+        "max": 21.24,
+        "maxSingleStepMove": 0.03
+      },
+      {
+        "symbol": "SYN0061",
+        "count": 4,
+        "min": 90.35,
+        "max": 90.55,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0060",
+        "count": 3,
+        "min": 313.1,
+        "max": 313.6,
+        "maxSingleStepMove": 0.5
+      },
+      {
+        "symbol": "SYN0066",
+        "count": 6,
+        "min": 222,
+        "max": 222.4,
+        "maxSingleStepMove": 0.4
+      },
+      {
+        "symbol": "SYN0046",
+        "count": 9,
+        "min": 58.65,
+        "max": 59,
+        "maxSingleStepMove": 0.25
+      },
+      {
+        "symbol": "SYN0025",
+        "count": 24,
+        "min": 131.15,
+        "max": 131.6,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0144",
+        "count": 5,
+        "min": 311.6,
+        "max": 312.3,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0140",
+        "count": 3,
+        "min": 91.1,
+        "max": 91.3,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0117",
+        "count": 4,
+        "min": 165.3,
+        "max": 165.6,
+        "maxSingleStepMove": 0.25
+      },
+      {
+        "symbol": "SYN0113",
+        "count": 3,
+        "min": 335.3,
+        "max": 335.5,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0190",
+        "count": 5,
+        "min": 90.95,
+        "max": 91.5,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0048",
+        "count": 7,
+        "min": 186.8,
+        "max": 186.95,
+        "maxSingleStepMove": 0.1
+      },
+      {
+        "symbol": "SYN0044",
+        "count": 11,
+        "min": 128.6,
+        "max": 129.05,
+        "maxSingleStepMove": 0.35
+      },
+      {
+        "symbol": "SYN0063",
+        "count": 6,
+        "min": 270.7,
+        "max": 271.3,
+        "maxSingleStepMove": 0.6
+      },
+      {
+        "symbol": "SYN0210",
+        "count": 1,
+        "min": 36.07,
+        "max": 36.07,
+        "maxSingleStepMove": 0
+      },
+      {
+        "symbol": "SYN0194",
+        "count": 3,
+        "min": 39.32,
+        "max": 39.34,
+        "maxSingleStepMove": 0.01
+      },
+      {
+        "symbol": "SYN0189",
+        "count": 4,
+        "min": 256.9,
+        "max": 257.4,
+        "maxSingleStepMove": 0.4
+      },
+      {
+        "symbol": "SYN0079",
+        "count": 3,
+        "min": 158.75,
+        "max": 158.85,
+        "maxSingleStepMove": 0.1
+      },
+      {
+        "symbol": "SYN0072",
+        "count": 6,
+        "min": 202.6,
+        "max": 203.1,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0054",
+        "count": 8,
+        "min": 253.8,
+        "max": 254.1,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0065",
+        "count": 6,
+        "min": 256.3,
+        "max": 256.7,
+        "maxSingleStepMove": 0.4
+      },
+      {
+        "symbol": "SYN0106",
+        "count": 5,
+        "min": 378.1,
+        "max": 379,
+        "maxSingleStepMove": 0.5
+      },
+      {
+        "symbol": "SYN0211",
+        "count": 2,
+        "min": 481.3,
+        "max": 481.6,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0084",
+        "count": 7,
+        "min": 205.5,
+        "max": 206,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0074",
+        "count": 7,
+        "min": 436.6,
+        "max": 437.3,
+        "maxSingleStepMove": 0.5
+      },
+      {
+        "symbol": "SYN0197",
+        "count": 3,
+        "min": 135.9,
+        "max": 136.15,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0172",
+        "count": 4,
+        "min": 109.8,
+        "max": 109.95,
+        "maxSingleStepMove": 0.15
+      },
+      {
+        "symbol": "SYN0164",
+        "count": 4,
+        "min": 437.3,
+        "max": 438,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0135",
+        "count": 2,
+        "min": 345.2,
+        "max": 345.2,
+        "maxSingleStepMove": 0
+      },
+      {
+        "symbol": "SYN0032",
+        "count": 15,
+        "min": 176.45,
+        "max": 177.05,
+        "maxSingleStepMove": 0.25
+      },
+      {
+        "symbol": "SYN0143",
+        "count": 6,
+        "min": 379.5,
+        "max": 379.8,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0127",
+        "count": 1,
+        "min": 338.2,
+        "max": 338.2,
+        "maxSingleStepMove": 0
+      },
+      {
+        "symbol": "SYN0209",
+        "count": 2,
+        "min": 127.25,
+        "max": 127.35,
+        "maxSingleStepMove": 0.1
+      },
+      {
+        "symbol": "SYN0107",
+        "count": 6,
+        "min": 438.8,
+        "max": 439.5,
+        "maxSingleStepMove": 0.6
+      },
+      {
+        "symbol": "SYN0122",
+        "count": 2,
+        "min": 391,
+        "max": 391.1,
+        "maxSingleStepMove": 0.1
+      },
+      {
+        "symbol": "SYN0114",
+        "count": 7,
+        "min": 490.3,
+        "max": 491.1,
+        "maxSingleStepMove": 0.6
+      },
+      {
+        "symbol": "SYN0146",
+        "count": 2,
+        "min": 361.9,
+        "max": 362.3,
+        "maxSingleStepMove": 0.4
+      },
+      {
+        "symbol": "SYN0200",
+        "count": 2,
+        "min": 259.8,
+        "max": 260.2,
+        "maxSingleStepMove": 0.4
+      },
+      {
+        "symbol": "SYN0068",
+        "count": 6,
+        "min": 50,
+        "max": 50.5,
+        "maxSingleStepMove": 0.25
+      },
+      {
+        "symbol": "SYN0161",
+        "count": 5,
+        "min": 62.95,
+        "max": 63.35,
+        "maxSingleStepMove": 0.25
+      },
+      {
+        "symbol": "SYN0201",
+        "count": 4,
+        "min": 313.1,
+        "max": 313.5,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0052",
+        "count": 10,
+        "min": 143.2,
+        "max": 143.5,
+        "maxSingleStepMove": 0.25
+      },
+      {
+        "symbol": "SYN0103",
+        "count": 4,
+        "min": 464.1,
+        "max": 464.4,
+        "maxSingleStepMove": 0.1
+      },
+      {
+        "symbol": "SYN0091",
+        "count": 4,
+        "min": 77.9,
+        "max": 78.05,
+        "maxSingleStepMove": 0.1
+      },
+      {
+        "symbol": "SYN0162",
+        "count": 5,
+        "min": 239.2,
+        "max": 239.6,
+        "maxSingleStepMove": 0.4
+      },
+      {
+        "symbol": "SYN0216",
+        "count": 2,
+        "min": 41.97,
+        "max": 41.97,
+        "maxSingleStepMove": 0
+      },
+      {
+        "symbol": "SYN0171",
+        "count": 2,
+        "min": 122.4,
+        "max": 122.45,
+        "maxSingleStepMove": 0.05
+      },
+      {
+        "symbol": "SYN0049",
+        "count": 7,
+        "min": 63.55,
+        "max": 63.95,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0212",
+        "count": 1,
+        "min": 288.2,
+        "max": 288.2,
+        "maxSingleStepMove": 0
+      },
+      {
+        "symbol": "SYN0111",
+        "count": 3,
+        "min": 432.3,
+        "max": 432.6,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0120",
+        "count": 9,
+        "min": 113.15,
+        "max": 113.45,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0156",
+        "count": 4,
+        "min": 99.2,
+        "max": 99.4,
+        "maxSingleStepMove": 0.1
+      },
+      {
+        "symbol": "SYN0204",
+        "count": 3,
+        "min": 301.1,
+        "max": 301.3,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0178",
+        "count": 3,
+        "min": 350.8,
+        "max": 350.9,
+        "maxSingleStepMove": 0.1
+      },
+      {
+        "symbol": "SYN0155",
+        "count": 2,
+        "min": 109.3,
+        "max": 109.4,
+        "maxSingleStepMove": 0.1
+      },
+      {
+        "symbol": "SYN0064",
+        "count": 3,
+        "min": 287.9,
+        "max": 288.6,
+        "maxSingleStepMove": 0.7
+      },
+      {
+        "symbol": "SYN0158",
+        "count": 6,
+        "min": 452.3,
+        "max": 452.7,
+        "maxSingleStepMove": 0.4
+      },
+      {
+        "symbol": "SYN0179",
+        "count": 2,
+        "min": 340.8,
+        "max": 341,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0136",
+        "count": 2,
+        "min": 32.08,
+        "max": 32.1,
+        "maxSingleStepMove": 0.02
+      },
+      {
+        "symbol": "SYN0088",
+        "count": 5,
+        "min": 492.6,
+        "max": 493,
+        "maxSingleStepMove": 0.4
+      },
+      {
+        "symbol": "SYN0203",
+        "count": 2,
+        "min": 204.2,
+        "max": 204.4,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0105",
+        "count": 4,
+        "min": 378.7,
+        "max": 379.3,
+        "maxSingleStepMove": 0.6
+      },
+      {
+        "symbol": "SYN0099",
+        "count": 4,
+        "min": 161.4,
+        "max": 161.75,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0168",
+        "count": 2,
+        "min": 169.65,
+        "max": 169.7,
+        "maxSingleStepMove": 0.05
+      },
+      {
+        "symbol": "SYN0051",
+        "count": 5,
+        "min": 195.45,
+        "max": 195.65,
+        "maxSingleStepMove": 0.1
+      },
+      {
+        "symbol": "SYN0116",
+        "count": 4,
+        "min": 375.2,
+        "max": 375.8,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0185",
+        "count": 1,
+        "min": 249.3,
+        "max": 249.3,
+        "maxSingleStepMove": 0
+      },
+      {
+        "symbol": "SYN0145",
+        "count": 4,
+        "min": 78.75,
+        "max": 78.95,
+        "maxSingleStepMove": 0.15
+      },
+      {
+        "symbol": "SYN0082",
+        "count": 2,
+        "min": 14.42,
+        "max": 14.45,
+        "maxSingleStepMove": 0.03
+      },
+      {
+        "symbol": "SYN0138",
+        "count": 2,
+        "min": 194.5,
+        "max": 194.65,
+        "maxSingleStepMove": 0.15
+      },
+      {
+        "symbol": "SYN0195",
+        "count": 5,
+        "min": 370.4,
+        "max": 371.2,
+        "maxSingleStepMove": 0.5
+      },
+      {
+        "symbol": "SYN0192",
+        "count": 3,
+        "min": 399.9,
+        "max": 400.1,
+        "maxSingleStepMove": 0.2
+      },
+      {
+        "symbol": "SYN0169",
+        "count": 2,
+        "min": 483.6,
+        "max": 483.7,
+        "maxSingleStepMove": 0.1
+      },
+      {
+        "symbol": "SYN0183",
+        "count": 3,
+        "min": 360.9,
+        "max": 361.5,
+        "maxSingleStepMove": 0.4
+      },
+      {
+        "symbol": "SYN0129",
+        "count": 1,
+        "min": 386.8,
+        "max": 386.8,
+        "maxSingleStepMove": 0
+      },
+      {
+        "symbol": "SYN0208",
+        "count": 2,
+        "min": 109.65,
+        "max": 109.8,
+        "maxSingleStepMove": 0.15
+      },
+      {
+        "symbol": "SYN0187",
+        "count": 1,
+        "min": 106.85,
+        "max": 106.85,
+        "maxSingleStepMove": 0
+      },
+      {
+        "symbol": "SYN0181",
+        "count": 2,
+        "min": 329.5,
+        "max": 329.6,
+        "maxSingleStepMove": 0.1
+      },
+      {
+        "symbol": "SYN0199",
+        "count": 1,
+        "min": 193.2,
+        "max": 193.2,
+        "maxSingleStepMove": 0
+      },
+      {
+        "symbol": "SYN0186",
+        "count": 2,
+        "min": 466.3,
+        "max": 466.9,
+        "maxSingleStepMove": 0.6
+      },
+      {
+        "symbol": "SYN0205",
+        "count": 2,
+        "min": 362.9,
+        "max": 363,
+        "maxSingleStepMove": 0.1
+      },
+      {
+        "symbol": "SYN0152",
+        "count": 3,
+        "min": 489.6,
+        "max": 489.7,
+        "maxSingleStepMove": 0.1
+      },
+      {
+        "symbol": "SYN0175",
+        "count": 1,
+        "min": 122.25,
+        "max": 122.25,
+        "maxSingleStepMove": 0
+      },
+      {
+        "symbol": "SYN0139",
+        "count": 1,
+        "min": 177.5,
+        "max": 177.5,
+        "maxSingleStepMove": 0
+      },
+      {
+        "symbol": "SYN0215",
+        "count": 2,
+        "min": 279.2,
+        "max": 279.5,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0173",
+        "count": 2,
+        "min": 335,
+        "max": 335.1,
+        "maxSingleStepMove": 0.1
+      },
+      {
+        "symbol": "SYN0180",
+        "count": 1,
+        "min": 401.7,
+        "max": 401.7,
+        "maxSingleStepMove": 0
+      },
+      {
+        "symbol": "SYN0096",
+        "count": 3,
+        "min": 393.3,
+        "max": 393.6,
+        "maxSingleStepMove": 0.3
+      },
+      {
+        "symbol": "SYN0137",
+        "count": 2,
+        "min": 55.15,
+        "max": 55.15,
+        "maxSingleStepMove": 0
+      },
+      {
+        "symbol": "SYN0133",
+        "count": 2,
+        "min": 247.1,
+        "max": 247.1,
+        "maxSingleStepMove": 0
+      },
+      {
+        "symbol": "SYN0098",
+        "count": 1,
+        "min": 393,
+        "max": 393,
+        "maxSingleStepMove": 0
+      },
+      {
+        "symbol": "SYN0193",
+        "count": 2,
+        "min": 47.33,
+        "max": 47.34,
+        "maxSingleStepMove": 0.01
+      },
+      {
+        "symbol": "SYN0174",
+        "count": 2,
+        "min": 296.3,
+        "max": 296.4,
+        "maxSingleStepMove": 0.1
+      }
+    ],
+    "note": "Observation only, not an assertion. Task 08 depends only on tasks 01 and 05, not on the symbol universe or the generator (02/03), so the probe has no independent source for a symbol\u0027s real tick size or the server\u0027s MaxTickMove. Min, max and the largest single observed step per symbol are reported for a human or task 09 to judge against the server\u0027s own configuration; the probe does not flag or fail on any of them."
+  },
+  "auctionPrintFlag": {
+    "observedCount": 0,
+    "note": "Observation only. The default Session:Mode (Continuous) never enters an auction phase, so 0 is the expected value on every default benchmark run, not a failure. Set MockExchange__Session__Mode=CompressedDay to see it set."
+  },
+  "heartbeats": {
+    "count": 0,
+    "configuredIntervalMs": 1000,
+    "maxIntervalMs": 0,
+    "exceeded2xCount": 0,
+    "note": "Heartbeats appear only while the session is idle; a probe under sustained load may legitimately see none for the whole run. Zero heartbeats is not a failure by itself."
+  },
+  "verifyOrder": {
+    "enabled": false,
+    "violationCount": 0,
+    "violations": []
+  },
+  "stall": {
+    "requestedAfterSeconds": null,
+    "pauseDurationSeconds": null,
+    "outcome": "n/a"
+  }
+}

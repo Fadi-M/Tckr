@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Tckr.MockExchange.Options;
 
 namespace Tckr.MockExchange.Session;
 
