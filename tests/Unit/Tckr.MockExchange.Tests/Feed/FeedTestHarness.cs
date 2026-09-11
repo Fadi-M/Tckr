@@ -109,7 +109,15 @@ internal sealed class FeedTestHarness : IAsyncDisposable
             await Task.Delay(5);
         }
 
-        condition().ShouldBeTrue($"Timed out after {timeout.TotalMilliseconds} ms waiting for {what}.");
+        // A plain, purpose-built exception rather than condition().ShouldBeTrue(...): the latter
+        // reports only the opaque source text "condition()" as its subject, which names nothing
+        // about what was actually being waited for. This names it, so a future timeout is
+        // diagnosable from the failure message alone without re-deriving which of a test's several
+        // WaitForAsync calls was the one that gave up.
+        if (!condition())
+        {
+            throw new TimeoutException($"Timed out after {timeout.TotalMilliseconds} ms waiting for {what}.");
+        }
     }
 
     /// <summary>

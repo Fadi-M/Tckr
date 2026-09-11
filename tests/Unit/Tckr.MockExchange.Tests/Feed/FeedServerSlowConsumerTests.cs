@@ -236,35 +236,77 @@ public sealed class FeedServerSlowConsumerTests(ITestOutputHelper output)
 
         Task drain = Task.Run(async () =>
         {
-            try
+            while (!stop.IsCancellationRequested)
             {
-                while (!stop.IsCancellationRequested)
+                DecodedFrame frame;
+
+                try
                 {
-                    DecodedFrame frame = await client.ReadFrameAsync(TimeSpan.FromMilliseconds(500));
-                    if (frame.Type == FeedMessageType.Trade)
-                    {
-                        received.Enqueue(FeedFrameReader.ReadTick(frame.Payload).SequenceNumber);
-                    }
+                    // Each call gets its own 500 ms slice so the loop keeps re-checking `stop`
+                    // rather than blocking on one read forever. A slice expiring is not the stream
+                    // ending - under contention the server can easily take longer than 500 ms to
+                    // unstick a wedged send and start discarding its backlog - so it must be
+                    // retried, not treated as EOF. Terminating the whole loop on a transient
+                    // per-slice timeout was the actual bug: it silently emptied `received` forever
+                    // and left the test waiting out its full generous timeout for frames that a
+                    // dead reader could never produce.
+                    frame = await client.ReadFrameAsync(TimeSpan.FromMilliseconds(500));
                 }
-            }
-            catch (Exception)
-            {
-                // Ends when the test stops publishing and the reads time out.
+                catch (OperationCanceledException)
+                {
+                    continue;
+                }
+                catch (Exception)
+                {
+                    // The socket itself ended (peer closed, reset, or disposed): nothing more will
+                    // ever arrive, so this is the one case worth leaving the loop for.
+                    break;
+                }
+
+                if (frame.Type == FeedMessageType.Trade)
+                {
+                    received.Enqueue(FeedFrameReader.ReadTick(frame.Payload).SequenceNumber);
+                }
             }
         });
 
-        await FeedTestHarness.WaitForAsync(
-            () => !received.IsEmpty, Generous, "the consumer to start draining its backlog");
+        // DropOldest's contract is to discard whatever is currently buffered, in full, to make
+        // room - it does not promise that any of it was ever handed to the socket first. Under
+        // scheduling delay the write loop can go from "backpressured" straight to "fully
+        // discarded" without ever having sent a single phase-one byte, so nothing from phase one
+        // is guaranteed to reach the client. Proving recovery therefore means keeping fresh
+        // batches flowing while watching for the first delivery, not waiting on stale data the
+        // policy is free to throw away whole - which is what made this test flaky: it waited on
+        // exactly that guarantee.
+        try
+        {
+            await FeedTestHarness.WaitForAsync(
+                () =>
+                {
+                    harness.Server.Publish(batch);
+                    offered += perBatch;
+                    return !received.IsEmpty;
+                },
+                Generous,
+                "the recovered session to accept and deliver a fresh batch");
+        }
+        catch (Exception)
+        {
+            // A diagnosable trail if this ever times out again: what state the session and its
+            // metrics were in, and the last things the server logged about it.
+            output.WriteLine(
+                $"ActiveSessionCount={harness.Server.ActiveSessionCount}, "
+                + $"SlowConsumerDisconnects={harness.Metrics.SlowConsumerDisconnects}, "
+                + $"TotalRecordsDropped={harness.Metrics.TotalRecordsDropped}, "
+                + $"TotalBytesWritten={harness.Metrics.TotalBytesWritten}");
 
-        await FeedTestHarness.WaitForAsync(
-            () =>
+            foreach (var record in harness.Logger.Collector.GetSnapshot())
             {
-                bool taken = harness.Server.Publish(batch) == 1;
-                offered += perBatch;
-                return taken;
-            },
-            Generous,
-            "the session to take batches again");
+                output.WriteLine($"[{record.Level}] {record.Message}");
+            }
+
+            throw;
+        }
 
         // Phase three: one final record, taken by a session that is running again. Its sequence
         // number is the assertion: it must be the total offered, not the total written.
@@ -285,19 +327,24 @@ public sealed class FeedServerSlowConsumerTests(ITestOutputHelper output)
             Generous,
             $"the final record to arrive numbered {finalSequence}");
 
-        // Let the socket go quiet so nothing is still in flight when the arithmetic below runs.
-        await FeedTestHarness.WaitForAsync(
-            () => HasGoneQuiet(received), Generous, "the stream to go quiet");
+        // Nothing more can still be in flight: frames arrive in wire order over one connection
+        // sent by one writer, so a client that has already decoded the final offered sequence
+        // number must already have decoded everything sent before it too. This pause is only a
+        // settling grace period for the drain task to return from its current await, not something
+        // the correctness of the count below depends on - and it costs no thread, unlike a
+        // synchronous sleep would under a contended thread pool.
+        await Task.Delay(150);
 
         await stop.CancelAsync();
         await drain;
 
         int delivered = received.Count;
         long dropped = harness.Metrics.TotalRecordsDropped;
+        ulong lastReceived = received.IsEmpty ? 0UL : received.Last();
 
         output.WriteLine(
             $"DropOldest: {offered} records offered, {delivered} delivered, {dropped} counted as dropped; "
-            + $"the last frame is numbered {received.Last()} of {offered}.");
+            + $"the last frame is numbered {lastReceived} of {offered}.");
 
         harness.Server.ActiveSessionCount.ShouldBe(1, "DropOldest keeps a session that is merely slow");
         harness.Metrics.SlowConsumerDisconnects.ShouldBe(0);
@@ -305,20 +352,19 @@ public sealed class FeedServerSlowConsumerTests(ITestOutputHelper output)
 
         // The whole point of the new numbering. The last record offered carries sequence number
         // `offered`, so numbering counts what the session was shown, not what it managed to send.
-        received.Last().ShouldBe(finalSequence);
+        lastReceived.ShouldBe(
+            finalSequence,
+            $"the last delivered sequence number should be the final offered one ({finalSequence}), "
+            + $"but the consumer's last frame was numbered {lastReceived}");
 
         // And the hole in the consumer's view is exactly the size of the loss the server counted -
         // no more (which would mean we lost something we did not admit to) and no less (which would
         // mean the gap understates the damage).
-        (offered - delivered).ShouldBe((int)dropped);
-    }
-
-    /// <summary>Samples the queue's length twice a beat apart; unchanged means nothing more is arriving.</summary>
-    private static bool HasGoneQuiet(ConcurrentQueue<ulong> queue)
-    {
-        int before = queue.Count;
-        Thread.Sleep(150);
-        return queue.Count == before;
+        int gap = offered - delivered;
+        gap.ShouldBe(
+            (int)dropped,
+            $"the consumer's gap ({offered} offered - {delivered} delivered = {gap}) should equal the "
+            + $"{dropped} records the server counted as dropped, so the gap is exactly the size of the loss");
     }
 
     [Fact]
