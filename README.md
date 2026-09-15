@@ -3,12 +3,12 @@
 Tckr is a real-time market-data fan-out system: one exchange connection carrying
 ~25,000 updates/sec for every symbol, split into a low-latency live path for
 subscribed users and a 15-minutes-delayed path for everyone else, delivered to
-horizontally scalable WebSocket gateways. It is being built as a structured answer to
-a specific system-design interview question — "design the real-time price-update
-system between the stock exchange and a Thndr user watching a symbol" — worked all the
-way to running, measured code rather than left as a whiteboard sketch. Full framing,
-every architectural decision, and the interview narrative the project is built to
-demonstrate live in [`docs/MASTER CONTEXT.md`](docs/MASTER%20CONTEXT.md).
+horizontally scalable WebSocket gateways. It is a structured answer to a system-design
+problem — "design the real-time price-update system between the stock exchange and a
+user watching a particular symbol" — worked all the way to running, measured code
+rather than left as a whiteboard sketch. What the system must do:
+[`docs/requirements.md`](docs/requirements.md). Why it is built this way:
+[`docs/MASTER CONTEXT.md`](docs/MASTER%20CONTEXT.md).
 
 ## Architecture
 
@@ -57,22 +57,32 @@ demonstrate live in [`docs/MASTER CONTEXT.md`](docs/MASTER%20CONTEXT.md).
        LIVE SUBSCRIBERS              NON-SUBSCRIBERS
 ```
 
-The governing rule (master context §36): *ingest once, persist the authoritative event
+The governing rule (master context §25): *ingest once, persist the authoritative event
 stream, create live and delayed products independently, route by symbol and
 entitlement, fan out locally at the gateway, and make all ephemeral gateway state
 reconstructable.*
 
 ## Status
 
-**Phase 2 of 17 is complete.** Phases 3–17 have not been started.
+**Phases 1 and 2 of 18 are complete.** Phase 3 — the market watch web client — is
+planned and specified but not yet built; phases 4–18 have not been started.
+
+Current state, verified build/test status, and where to pick up next live in
+[`STATE.md`](STATE.md) — read that first if you are starting a fresh session.
 
 | Phase | What | Status |
 |---|---|---|
-| 1 | Define the problem & requirements | Done |
+| 1 | Define the problem & requirements | Done — [`docs/requirements.md`](docs/requirements.md) |
 | 2 | Build the mock exchange | **Done** — this repo's only working component |
-| 3 | Market data ingestion | Not started |
-| 4 | Benchmark ingestion | Not started |
-| 5–17 | Kafka, partitioning, auth/entitlements, subscription registry, WebSocket gateways, fan-out, slow clients, snapshots, reconnection, observability, hot-symbol scaling, load test, demo client | Not started |
+| 3 | **Market watch web client** | Planned & specified — [plan](docs/phase-3-web-client/README.md), [contract](docs/phase-3-web-client/client-contract.md) |
+| 4 | Market data ingestion | Not started |
+| 5 | Benchmark ingestion | Not started |
+| 6–17 | Kafka, partitioning, auth/entitlements, subscription registry, WebSocket gateways, fan-out, slow clients, snapshots, reconnection, observability, hot-symbol scaling, load test | Not started |
+| 18 | Cut the client over to the live pipeline | Not started |
+
+> Phases 3–18 were renumbered on 2026-09-12 when the web client was inserted as Phase 3.
+> What used to be Phase 3 (ingestion) is now Phase 4, and the old Phase 17 demo-client
+> phase became Phase 18, the cutover. See [ADR 006](docs/decisions/006-client-data-source-contract.md).
 
 Full phase-by-phase plan: [`docs/MASTER CONTEXT.md`](docs/MASTER%20CONTEXT.md) (the
 implementation plan section, after the design narrative). Phase 2's own plan, task
@@ -138,26 +148,31 @@ dotnet test src/Tckr.slnx
 
 ```text
 docs/
-├── MASTER CONTEXT.md              full design narrative + 17-phase implementation plan
+├── requirements.md                what the system must do — FRs, NFRs, capacity, acceptance
+├── MASTER CONTEXT.md              design narrative + 18-phase implementation plan
 ├── decisions/                     ADRs — the *why* behind settled decisions
-└── phase-2-mock-exchange/         Phase 2's plan, ten task briefs, wire protocol reference
+├── phase-2-mock-exchange/         Phase 2's plan, ten task briefs, wire protocol reference
+└── phase-3-web-client/            Phase 3's plan + the frozen client-facing contract
 
 src/
 ├── Tckr.MockExchange/             Phase 2 — done. TCP feed server + generator.
-├── Tckr.MarketData.Ingestion/     Phase 3 — scaffolded, not built.
-├── Tckr.MarketData.Distribution/  Phase 5+ — scaffolded, not built.
-└── Tckr.MarketData.Gateway/       Phase 9+ — scaffolded, not built.
+├── Tckr.MarketData.Ingestion/     Phase 4 — scaffolded, not built.
+├── Tckr.MarketData.Distribution/  Phase 6+ — scaffolded, not built.
+└── Tckr.MarketData.Gateway/       Phase 10+ — scaffolded, not built.
 
 tools/Tckr.FeedProbe/              verification client for the mock exchange's feed
 tests/Unit/                        xUnit test suites, one per src project
 benchmarks/phase-2/                measured throughput/latency report for Phase 2
-client/                            Phase 17 — not built.
+client/Tckr.MarketWatch/           Phase 3 — specified, not built.
 ```
 
 ## Further reading
 
-- [`docs/MASTER CONTEXT.md`](docs/MASTER%20CONTEXT.md) — the full design: requirements,
-  architecture, every "why" question the interview raises, and the 17-phase plan.
+- [`docs/requirements.md`](docs/requirements.md) — what the system must do: functional
+  and non-functional requirements, delivery semantics, capacity numbers and acceptance
+  criteria.
+- [`docs/MASTER CONTEXT.md`](docs/MASTER%20CONTEXT.md) — the full design: architecture,
+  every "why" question the design raises, and the 18-phase plan.
 - [`docs/phase-2-mock-exchange/README.md`](docs/phase-2-mock-exchange/README.md) —
   Phase 2's problem definition, component design and task breakdown.
 - [`docs/phase-2-mock-exchange/wire-protocol.md`](docs/phase-2-mock-exchange/wire-protocol.md) —

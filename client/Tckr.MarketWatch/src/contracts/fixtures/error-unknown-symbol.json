@@ -1,0 +1,7 @@
+{
+  "v": 1,
+  "type": "error",
+  "code": "UNKNOWN_SYMBOL",
+  "message": "Symbol \"ZZZZ\" is not in the universe.",
+  "requestId": "r9"
+}

@@ -54,7 +54,7 @@ to decode.
   this alternative exists to do.
 - **Shared `FeedFrameReader` via `InternalsVisibleTo` (chosen).** One source of truth
   for the wire layout, reachable from the tests, the probe, and (per task 01's brief)
-  intended as the reference implementation Phase 3's ingestion parser will port from.
+  intended as the reference implementation Phase 4's ingestion parser will port from.
   Costs the independent-implementation evidence described above, in exchange for a
   probe that cannot itself introduce a second, undetected reading of the format.
 
@@ -73,7 +73,7 @@ to decode.
   across two live `DropOldest` runs (108,875 and 109,000) — that agreement is worth
   something because the counting logic, not the decoding logic, is what the two sides
   each did separately.
-- **Phase 3's ingestion parser is explicitly a port of `FeedFrameReader`, not an
+- **Phase 4's ingestion parser is explicitly a port of `FeedFrameReader`, not an
   independent implementation either** (task 01's remarks on the type). This decision is
   therefore consistent with the rest of Phase 2's posture toward this file: it is meant
   to be the one place the layout is known, not one of several.
@@ -88,7 +88,7 @@ to decode.
   duplicating the decoder, and if it stops doing its job this decision loses its
   premise.
 - A real, independent-language consumer (not a .NET process reachable via
-  `InternalsVisibleTo`) becomes part of Phase 2 or Phase 3's verification story — at
+  `InternalsVisibleTo`) becomes part of Phase 2 or Phase 4's verification story — at
   that point a from-scratch decoder in another language *would* be genuine independent
   evidence, for the same reason a same-language rewrite would not be.
 - The probe is ever used to validate a change to `FeedFrameReader` itself (rather than

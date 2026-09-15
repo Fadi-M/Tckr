@@ -8,7 +8,7 @@ namespace Tckr.MockExchange.Tests.Diagnostics;
 /// <remarks>
 /// <para>
 /// Not a style rule. Steady-state GC pressure from the load source lands in every downstream
-/// latency histogram Phase 4 onward produces, and it lands there as a tail the ingestion service
+/// latency histogram Phase 5 onward produces, and it lands there as a tail the ingestion service
 /// did not cause. A generator that allocates is a generator that measures itself.
 /// </para>
 /// <para>

@@ -1,0 +1,233 @@
+/**
+ * App shell layout — task 03 (docs/phase-3-web-client/03-app-shell.md).
+ *
+ * One breakpoint, 640px (see README §8 / the brief's "Responsive" section):
+ *   - above it, the header is one row (brand left, status+badge slots right);
+ *   - below it, the header collapses to two rows and page padding drops to 12px.
+ * No selector in this file sets a `min-width` above 320px.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--tckr-color-surface);
+  color: var(--tckr-color-text);
+  font-family: var(--tckr-font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.tckr-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* ---- Simulated data banner ------------------------------------------------ */
+/* Always the first element in .tckr-shell. Not dismissible: no button, no
+   affordance to hide it, on any route. */
+.tckr-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 16px;
+  background: color-mix(in oklab, var(--tckr-color-warning) 12%, var(--tckr-color-surface));
+  color: var(--tckr-color-text);
+  border-bottom: 1px solid var(--tckr-color-border);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.tckr-banner__icon {
+  flex: 0 0 auto;
+  color: var(--tckr-color-warning);
+}
+
+.tckr-banner__text {
+  flex: 1 1 auto;
+}
+
+/* ---- Header ---------------------------------------------------------------- */
+.tckr-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 20px;
+  background: var(--tckr-color-surface-raised);
+  border-bottom: 1px solid var(--tckr-color-border);
+}
+
+.tckr-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.tckr-header__brand-mark {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: var(--tckr-color-up);
+  flex: none;
+}
+
+.tckr-header__tape-tag {
+  font-family: var(--tckr-font-mono);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--tckr-color-warning);
+  white-space: nowrap;
+}
+
+.tckr-header__slots {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  font-family: var(--tckr-font-mono);
+}
+
+/* ---- Page container --------------------------------------------------------- */
+.tckr-page {
+  flex: 1 1 auto;
+  width: 100%;
+  padding: 16px;
+}
+
+/* ---- Shared badge / status-dot conventions ---------------------------------
+ * Reused by StreamBadge, ConnectionStatus (the dot only — its own textual span
+ * keeps an unstyled, test-asserted textContent), and StockDetail's header badges.
+ */
+.tckr-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--tckr-font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  padding: 5px 9px;
+  border-radius: 5px;
+  border: 1px solid var(--tckr-color-border);
+  white-space: nowrap;
+}
+
+.tckr-badge--live {
+  color: var(--tckr-color-up);
+  background: color-mix(in oklab, var(--tckr-color-up) 14%, transparent);
+  border-color: color-mix(in oklab, var(--tckr-color-up) 30%, transparent);
+}
+
+.tckr-badge--delayed {
+  color: var(--tckr-color-warning);
+  background: color-mix(in oklab, var(--tckr-color-warning) 13%, transparent);
+  border-color: color-mix(in oklab, var(--tckr-color-warning) 30%, transparent);
+}
+
+.tckr-badge--neutral {
+  color: var(--tckr-color-warning);
+  background: color-mix(in oklab, var(--tckr-color-warning) 13%, transparent);
+  border-color: color-mix(in oklab, var(--tckr-color-warning) 30%, transparent);
+}
+
+.tckr-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.tckr-connection-status {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  color: var(--tckr-color-text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.tckr-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--tckr-color-text-muted);
+}
+
+.tckr-status-dot[data-state='connected'] {
+  background: var(--tckr-color-up);
+}
+
+.tckr-status-dot[data-state='connecting'],
+.tckr-status-dot[data-state='reconnecting'] {
+  background: var(--tckr-color-warning);
+}
+
+.tckr-status-dot[data-state='closed'] {
+  background: var(--tckr-color-down);
+}
+
+/* ---- Non-colour up/down indicator ------------------------------------------
+ * `.tckr-delta--up` / `.tckr-delta--down` are the shared convention every later
+ * task (04's price cells, 06's detail header, 05's chart legend) should reuse
+ * rather than inventing their own: colour plus a leading arrow glyph, so the
+ * direction survives for a red/green colour-blind viewer.
+ */
+.tckr-delta--up {
+  color: var(--tckr-color-up);
+}
+
+.tckr-delta--up::before {
+  content: '\25B2 '; /* ▲ */
+}
+
+.tckr-delta--down {
+  color: var(--tckr-color-down);
+}
+
+.tckr-delta--down::before {
+  content: '\25BC '; /* ▼ */
+}
+
+/* ---- Responsive: 640px --------------------------------------------------- */
+@media (max-width: 640px) {
+  .tckr-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tckr-header__slots {
+    justify-content: flex-start;
+  }
+
+  .tckr-page {
+    padding: 12px;
+  }
+
+  .tckr-banner {
+    padding: 8px 12px;
+  }
+}

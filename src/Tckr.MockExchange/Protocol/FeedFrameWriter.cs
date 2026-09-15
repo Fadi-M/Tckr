@@ -9,7 +9,7 @@ namespace Tckr.MockExchange.Protocol;
 /// Every method writes into a <see cref="Span{T}"/> the caller owns &#8212; no
 /// <c>MemoryStream</c>, no <c>BinaryWriter</c>, no return-a-new-array. At 25,000 events per
 /// second an allocation per record is roughly a megabyte a second of pure garbage, and the
-/// resulting collections land in the middle of the latency measurements that Phase 4 onward
+/// resulting collections land in the middle of the latency measurements that Phase 5 onward
 /// exists to take. The publisher packs a batch of frames into one pooled buffer and issues a
 /// single write; these methods are the innermost step of that loop.
 /// <para>

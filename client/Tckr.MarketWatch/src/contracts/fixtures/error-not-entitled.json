@@ -1,0 +1,6 @@
+{
+  "v": 1,
+  "type": "error",
+  "code": "NOT_ENTITLED",
+  "message": "No market-data entitlement."
+}

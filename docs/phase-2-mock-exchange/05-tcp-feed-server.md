@@ -33,9 +33,9 @@ test is the one the master context calls out repeatedly:
 > A slow consumer must never slow down the source.
 
 If the feed server blocks on a slow socket, generation stalls, the achieved rate drops,
-and Phase 4's ingestion benchmark measures the mock exchange's write buffer instead of
+and Phase 5's ingestion benchmark measures the mock exchange's write buffer instead of
 ingestion. The isolation principle that protects exchange ingestion from slow WebSocket
-clients in Phase 11 is the same principle, applied one layer earlier — and this is the
+clients in Phase 12 is the same principle, applied one layer earlier — and this is the
 first place we get to prove we understand it.
 
 ---
@@ -121,7 +121,7 @@ internal enum SlowConsumerPolicy
 sequenced feed. Silently dropping frames from the middle produces a sequence gap that the
 consumer cannot distinguish from data loss in the network — it looks like corruption. A
 clean disconnect is unambiguous: the consumer reconnects and starts a fresh session at
-sequence 1. `DropOldest` exists so Phase 11 can experiment with coalescing semantics, and
+sequence 1. `DropOldest` exists so Phase 12 can experiment with coalescing semantics, and
 when it drops, it must log and count.
 
 Defaults: `SessionBufferBytes = 4 MB`, `SlowConsumerTimeoutMs = 2000`.
@@ -407,7 +407,7 @@ Three details worth recording:
    `SlowConsumerTimeoutMs` when the socket itself never drains. There is a test asserting this,
    because "DropOldest means the session survives" is the tempting and wrong reading.
 
-*A generalisable point for the ADR's closing paragraph, since Phase 11 hits the same fork.* The
+*A generalisable point for the ADR's closing paragraph, since Phase 12 hits the same fork.* The
 question "what should we do when a consumer is slow?" is downstream of "can the consumer tell what
 we did?". Fix the observability of the failure first, and the policy question gets smaller and more
 honest — it becomes a preference between two disclosed behaviours rather than a choice about whose

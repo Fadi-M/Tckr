@@ -20,8 +20,8 @@ Tckr's entire architecture starts from one assumption:
                    Feed Ingestion
 ```
 
-We do not have access to a real exchange. Before we can build ingestion (Phase 3),
-benchmark it (Phase 4), or prove anything downstream, we need a **credible source of
+We do not have access to a real exchange. Before we can build ingestion (Phase 4),
+benchmark it (Phase 5), or prove anything downstream, we need a **credible source of
 load** that behaves like an exchange rather than like a friendly test fixture.
 
 Phase 2 builds that source: `Tckr.MockExchange`.
@@ -61,7 +61,7 @@ That version fails Phase 2 for four separate reasons:
 | Unbounded write buffering | A slow consumer silently turns into exchange-side memory growth |
 
 Phase 2's real deliverable is therefore not "a thing that emits prices". It is
-**a load source whose achieved rate we can trust**, because Phase 4 onward compares
+**a load source whose achieved rate we can trust**, because Phase 5 onward compares
 every measurement against it.
 
 ---
@@ -117,7 +117,7 @@ every measurement against it.
                                                    │ TCP
                                                    ▼
                                         Tckr.MarketData.Ingestion
-                                        (Phase 3)  /  Tckr.FeedProbe
+                                        (Phase 4)  /  Tckr.FeedProbe
 ```
 
 ### Key design decisions
@@ -126,9 +126,9 @@ These are settled. Do not re-litigate them inside a task; if you believe one is 
 raise it in the task's *Notes* section and keep building.
 
 1. **TCP, not HTTP/WebSocket/gRPC.** The master context specifies a single TCP feed.
-   It also forces Phase 3 to implement real framing and reconnection logic.
+   It also forces Phase 4 to implement real framing and reconnection logic.
 2. **Binary, fixed-layout, little-endian records.** Realistic, cheap to encode, and
-   sufficiently unlike our internal JSON event model that Phase 3's normalization
+   sufficiently unlike our internal JSON event model that Phase 4's normalization
    layer has genuine work to do.
 3. **Fixed-point prices (`long`, 4 implied decimals).** Never floating point on a
    financial wire. `85.10` travels as `851000`.
@@ -401,6 +401,6 @@ Phase 2 is where several interview answers get their evidence:
 - *"What happens when a consumer is slow?"* — the exchange does not slow down; the
   consumer is disconnected. This is the same principle that later protects exchange
   ingestion from slow WebSocket clients, just one layer earlier.
-- *"What about hot symbols?"* — the tape is skewed from day one, so Phase 15 is testing
+- *"What about hot symbols?"* — the tape is skewed from day one, so Phase 16 is testing
   a real distribution rather than a uniform one we invented at the end.
 - *"How do you get reproducible benchmarks?"* — seeded generation.

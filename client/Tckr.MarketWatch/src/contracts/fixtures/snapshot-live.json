@@ -1,0 +1,20 @@
+{
+  "v": 1,
+  "type": "snapshot",
+  "snapshot": {
+    "v": 1,
+    "symbol": "COMI",
+    "stream": "LIVE",
+    "price": "85.42",
+    "change": "+1.05",
+    "changePercent": "+1.24",
+    "open": "84.37",
+    "high": "85.90",
+    "low": "84.10",
+    "volume": 216637,
+    "lastEventId": "evt-000000000216637",
+    "exchangeTimestamp": "2026-09-12T10:31:04.881Z",
+    "snapshotAge": 42,
+    "simulated": true
+  }
+}

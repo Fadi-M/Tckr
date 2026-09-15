@@ -17,7 +17,7 @@ namespace Tckr.MockExchange.Reference;
 /// At 25,000 picks/sec neither is slow. The reason to prefer the alias table is that its cost is
 /// <em>constant and independent of the distribution</em>: a skewed universe does not make picks
 /// cheaper for hot symbols and dearer for cold ones, so the generator's per-event cost does not
-/// correlate with which symbol it happens to produce. That keeps Phase 4's latency histograms
+/// correlate with which symbol it happens to produce. That keeps Phase 5's latency histograms
 /// honest.
 /// </para>
 /// </remarks>

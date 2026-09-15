@@ -27,15 +27,15 @@ looks wrong we can tell whether the *load source* was healthy.
 
 ## Why this matters
 
-Phase 14 adds observability to the platform. This task adds it to the instrument. Those
+Phase 15 adds observability to the platform. This task adds it to the instrument. Those
 are different jobs with the same tools.
 
-Without it, a Phase 4 result of "ingestion sustained 22K/sec" is unreadable: did ingestion
+Without it, a Phase 5 result of "ingestion sustained 22K/sec" is unreadable: did ingestion
 fall behind, or did the exchange never send 25K in the first place? The mock exchange must
 report its **achieved** rate, not just its configured target — and it must report when it
 capped, dropped, or disconnected someone.
 
-Name instruments to match the Phase 14 conventions in the master context now, so the
+Name instruments to match the Phase 15 conventions in the master context now, so the
 dashboards built later do not need renaming.
 
 ---
@@ -46,7 +46,7 @@ dashboards built later do not need renaming.
 
 A singleton wrapping a `System.Diagnostics.Metrics.Meter` named `Tckr.MockExchange`.
 Chosen over Prometheus client libraries directly because it is the .NET-native path and
-exports to Prometheus/OTLP later without code changes — a Phase 14 decision made early
+exports to Prometheus/OTLP later without code changes — a Phase 15 decision made early
 and cheaply.
 
 | Instrument | Type | Unit | Meaning |
@@ -109,9 +109,9 @@ Requirements:
 ### Optional: Prometheus endpoint
 
 If `Diagnostics.PrometheusPort` is set, expose `/metrics` via
-`OpenTelemetry.Exporter.Prometheus.HttpListener`. Nice-to-have — Phase 14 will do this
+`OpenTelemetry.Exporter.Prometheus.HttpListener`. Nice-to-have — Phase 15 will do this
 properly across all services. Implement only if it costs nothing; otherwise leave a
-`// Phase 14` note and move on.
+`// Phase 15` note and move on.
 
 ---
 
@@ -328,9 +328,9 @@ number taken from a `DEBUG` build is not a slower measurement, it is a different
   `RecordPacingLag` keeps the brief's named hot-path method exactly as specified and avoids
   recording a zero-lag sample on every call that has no lag to report. Both are per batch.
 - **No `/metrics` endpoint.** As the brief allows: it is a package reference, a listener socket, a
-  port to configure and a surface to secure, for a job Phase 14 does once across every service.
+  port to configure and a surface to secure, for a job Phase 15 does once across every service.
   Everything an exporter needs is already here — point one at the `Tckr.MockExchange` meter. A
-  `// Phase 14` note is in `FeedMetrics`'s remarks.
+  `// Phase 15` note is in `FeedMetrics`'s remarks.
 - **A `RollingRateWindow` type, and a `StartupSummary` type.** The brief's layout lists two files
   in `Diagnostics/`. The window is separated because it carries the one piece of non-obvious
   arithmetic in this task and deserved its own tests; `StartupSummary` exists so the single
@@ -386,7 +386,7 @@ the reporter itself is covered by a test that drives its timer against a `FakeTi
 
 **Is `session.id` acceptable as a metric dimension at all?** It is bounded by `MaxSessions` at any
 instant but unbounded over a run, since every reconnect mints a new GUID. For a Phase 2 benchmark
-lasting minutes that is fine and the attribution is worth having. For a Phase 14 Prometheus scrape
+lasting minutes that is fine and the attribution is worth having. For a Phase 15 Prometheus scrape
 of a long-lived process it is a slow leak. Two options if it is judged unacceptable later: drop the
 tag and rely on the per-session close log line, which already carries bytes written and records
 dropped; or replace the GUID with a small monotonic session ordinal, which is bounded by reconnect

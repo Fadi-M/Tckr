@@ -1,16 +1,12 @@
 # MASTER CONTEXT
 
-> **Read this section first.** This is the canonical context for the Tckr project. It explains the interview problem, the assumptions we are making, the architecture we are building, the important trade-offs, and the reasoning behind the implementation phases.
+> **Read this section first.** This is the canonical context for the Tckr project. It explains the  problem, the assumptions we are making, the architecture we are building, the important trade-offs, and the reasoning behind the implementation phases.
 
 ---
 
 ## 1. Why We Are Building Tckr
 
-Tckr is a technical demonstration project created to prepare for and support a **Thndr — Tech Lead, Trading Squad** system-design interview.
-
-The purpose is **not** to reproduce Thndr's proprietary architecture or claim that this is how Thndr actually implements market-data distribution.
-
-Instead, Tckr demonstrates how we would approach a realistic version of the interview problem:
+Tckr demonstrates how we would approach a realistic version of the  problem:
 
 - Start from the exchange's single market-data connection.
 - Sustain approximately **25,000 market-data events per second**.
@@ -24,22 +20,15 @@ Instead, Tckr demonstrates how we would approach a realistic version of the inte
 - Preserve ordering and provide durable recovery where required.
 - Demonstrate the design with an actual working implementation.
 
-The repository should therefore be both:
-
-1. A working technical project.
-2. A concrete artifact that can be discussed during the Thndr interview.
-
 ---
 
-# 2. The Original Interview Problem
+# 2. The Original  Problem
 
-The core interview scenario is:
+The core  scenario is:
 
-> **Design the real-time price-update system between the stock exchange and a Thndr user who wants to look at live updates for a particular stock symbol.**
+> **Design the real-time price-update system between the stock exchange and a user who wants to look at live updates for a particular stock symbol.**
 
-The interviewer explained that:
-
-- Thndr has **one connection to the exchange**.
+- App has **one connection to the exchange**.
 - That connection receives approximately **25,000 updates per second**.
 - Those updates contain market data for **all symbols**.
 - Users are interested in individual symbols.
@@ -74,36 +63,11 @@ Non-subscribed → DELAYED by 15 minutes
 
 ---
 
-# 3. Thndr Trading Squad Context
-
-The role is **Tech Lead — Trading Squad**.
-
-The job description emphasizes:
-
-- Systems at the core of the trading platform.
-- Direct connectivity to exchanges and asset managers.
-- In-house OMS and back-office systems.
-- High throughput.
-- Low latency.
-- Correctness.
-- Operational excellence.
-- Distributed systems.
-- C# / .NET.
-- SQL Server.
-- PostgreSQL.
-- Redis.
-- RabbitMQ.
-- Python.
-- Hybrid infrastructure.
-- Working with exchanges, regulators, senior engineers, and leadership.
-
-This means the interviewer is unlikely to care only about whether we can draw:
+# 3. Squad Context
 
 ```text
 Kafka → WebSocket
 ```
-
-They are likely evaluating whether we think like a Tech Lead operating a **high-stakes financial system**.
 
 Our design should therefore explicitly reason about:
 
@@ -165,250 +129,28 @@ Those can be mentioned as adjacent systems, but market-data distribution is the 
 
 ---
 
-# 5. Core Requirements
+# 5. Requirements
 
-## 5.1 Exchange Connectivity
+The measurable requirements — functional, non-functional, capacity, delivery semantics
+and acceptance criteria — live in their own document:
 
-There is exactly one logical connection between the platform and the exchange:
+> **[`requirements.md`](requirements.md)**
 
-```text
-                    Stock Exchange
-                         │
-                         │
-                 Single Market Feed
-                         │
-                         ▼
-                 Feed Ingestion
-```
+They were extracted from this document so that "what must the system do?" has one
+answer in one place, and so that Phase 1 has the deliverable its plan names. This
+document is the *why and how*: the architecture, the trade-offs, the reasoning and the
+phase plan. Where the two documents touch the same ground, `requirements.md` is
+authoritative on the requirement and this one on the rationale.
 
-The exchange sends approximately:
-
-```text
-25,000 events / second
-```
-
-covering all symbols.
-
-This means we must ingest the entire feed once and avoid creating one exchange connection per symbol or per customer.
+What moved: exchange connectivity, the normalized event model, the two customer types
+and the semantics of the 15-minute delay, authentication vs. entitlement vs.
+subscription, the rule that the client never chooses its entitlement, event ordering,
+the late-event policy, backpressure, capacity and throughput numbers, the optimization
+priorities, and the definition of success.
 
 ---
 
-# 6. Market-Data Event Model
-
-The exchange-specific protocol should be isolated from the rest of the system.
-
-The ingestion/parser layer converts exchange messages into an internal normalized event.
-
-Example:
-
-```json
-{
-  "eventId": "evt-12345",
-  "symbol": "COMI",
-  "eventType": "TRADE",
-  "price": 85.10,
-  "quantity": 500,
-  "exchangeTimestamp": "2026-08-08T10:00:00.100Z"
-}
-```
-
-Important fields include:
-
-- `eventId`
-- `symbol`
-- `eventType`
-- `price`
-- `quantity`
-- `exchangeTimestamp`
-
-The internal event should not depend on the exchange's wire format.
-
----
-
-# 7. Two Customer Types
-
-This is one of the most important requirements.
-
-## Subscribed users
-
-Subscribed users receive:
-
-```text
-LIVE MARKET DATA
-```
-
-The desired path is:
-
-```text
-Exchange
-   ↓
-Ingestion
-   ↓
-Kafka RAW
-   ↓
-Live Broadcaster
-   ↓
-WebSocket Gateway
-   ↓
-Subscribed Client
-```
-
-The live path should minimize additional latency.
-
----
-
-## Non-subscribed users
-
-Non-subscribed users receive:
-
-```text
-THE SAME MARKET EVENTS
-15 MINUTES LATER
-```
-
-This is explicitly a **delayed tick stream**.
-
-It is NOT:
-
-```text
-"show me the current price minus 15 minutes"
-```
-
-and it is NOT simply:
-
-```text
-"send live data to the client and wait 15 minutes before displaying it"
-```
-
-The intended semantics are:
-
-```text
-Exchange event:
-
-10:00:00.100
-COMI = 85.10
-
-Delayed stream:
-
-10:15:00.100
-COMI = 85.10
-```
-
-The event retains its original:
-
-```text
-eventId
-exchangeTimestamp
-symbol
-price
-quantity
-event type
-```
-
-Only its customer-facing availability is delayed.
-
----
-
-# 8. Authentication vs Entitlement vs Subscription
-
-These are three different concepts.
-
-## Authentication
-
-Answers:
-
-> Who is this user?
-
-Example:
-
-```text
-JWT
- ↓
-User ID = 12345
-```
-
-## Entitlement / Authorization
-
-Answers:
-
-> What market-data stream is this user allowed to receive?
-
-```text
-User 12345
-     ↓
-LIVE
-```
-
-or:
-
-```text
-User 67890
-     ↓
-DELAYED
-```
-
-## Subscription
-
-Answers:
-
-> Which symbols does this user want?
-
-```text
-User 12345
-   │
-   ├── LIVE
-   │
-   └── COMI, CIB, ORAS
-```
-
-These concerns must not be conflated.
-
----
-
-# 9. The Client Must Never Choose Its Entitlement
-
-A malicious client must not be able to send:
-
-```json
-{
-  "stream": "LIVE",
-  "symbol": "COMI"
-}
-```
-
-and receive live data.
-
-Instead:
-
-```text
-Client
-   ↓
-JWT
-   ↓
-Gateway
-   ↓
-Authenticate user
-   ↓
-Resolve entitlement
-   ↓
-Determine stream
-```
-
-The server decides:
-
-```text
-LIVE user
-   → LIVE:COMI
-
-DELAYED user
-   → DELAYED:COMI
-```
-
-This is an authorization boundary.
-
----
-
-# 10. Proposed High-Level Architecture
+# 6. Proposed High-Level Architecture
 
 The current architecture is:
 
@@ -471,7 +213,7 @@ Persistence/snapshot storage is an independent consumer of the authoritative str
 
 ---
 
-# 11. Why Kafka?
+# 7. Why Kafka?
 
 Kafka is the durable internal boundary between exchange ingestion and downstream consumers.
 
@@ -513,7 +255,7 @@ The raw Kafka stream is the authoritative internal market-data event stream.
 
 ---
 
-# 12. Why Two Kafka/Data Paths?
+# 8. Why Two Kafka/Data Paths?
 
 The same raw market event must support two customer products:
 
@@ -553,7 +295,7 @@ and lets each path scale independently.
 
 ---
 
-# 13. Why We Do Not Delay Per Client
+# 9. Why We Do Not Delay Per Client
 
 At 25K events/sec:
 
@@ -609,7 +351,7 @@ The delayed stream is generated once.
 
 ---
 
-# 14. Delayed Processor Design
+# 10. Delayed Processor Design
 
 The delayed processor consumes the raw Kafka stream.
 
@@ -642,87 +384,7 @@ Do not make an unbounded in-memory queue the source of truth.
 
 ---
 
-# 15. Event Ordering
-
-Market data ordering matters.
-
-For a symbol:
-
-```text
-10:00:00.001 COMI = 85.10
-10:00:00.002 COMI = 85.12
-10:00:00.003 COMI = 85.09
-```
-
-the delayed stream should preserve:
-
-```text
-10:15:00.001 COMI = 85.10
-10:15:00.002 COMI = 85.12
-10:15:00.003 COMI = 85.09
-```
-
-Kafka partitioning should therefore provide ordering for events belonging to the same symbol.
-
-A natural strategy is:
-
-```text
-partition key = symbol
-```
-
-This gives ordering within a symbol while allowing different symbols to be processed in parallel.
-
----
-
-# 16. Late Events
-
-We need an explicit policy for events where:
-
-```text
-exchangeTimestamp
-```
-
-and:
-
-```text
-ingestionTimestamp
-```
-
-differ.
-
-Example:
-
-```text
-Exchange timestamp: 10:00:00
-Received by Tckr:  10:00:05
-```
-
-If delay is defined relative to exchange time:
-
-```text
-releaseAt = 10:15:00
-```
-
-not:
-
-```text
-releaseAt = 10:15:05
-```
-
-If an event arrives after its intended release time, the implementation needs a documented policy.
-
-For the demo, a reasonable policy is:
-
-```text
-if now >= releaseAt:
-    publish as soon as possible
-```
-
-The exact semantics should be explicitly confirmed with the real product owner in a production implementation.
-
----
-
-# 17. WebSocket Gateway Model
+# 11. WebSocket Gateway Model
 
 The gateway is a .NET application.
 
@@ -757,7 +419,7 @@ We do not query Redis for every socket message.
 
 ---
 
-# 18. Redis Routing Model
+# 12. Redis Routing Model
 
 Redis maintains distributed routing metadata.
 
@@ -783,7 +445,7 @@ The gateway then performs local fan-out.
 
 ---
 
-# 19. Why Gateway State Is Not Durable
+# 13. Why Gateway State Is Not Durable
 
 A WebSocket connection is tied to:
 
@@ -811,7 +473,7 @@ Instead, make gateway state reconstructable.
 
 ---
 
-# 20. Gateway Restart / Deployment Lifecycle
+# 14. Gateway Restart / Deployment Lifecycle
 
 If Gateway 1 restarts:
 
@@ -859,7 +521,7 @@ The key principle is:
 
 ---
 
-# 21. Client Reconnection
+# 15. Client Reconnection
 
 The client lifecycle is:
 
@@ -899,7 +561,7 @@ The authoritative event stream remains available for systems that do require eve
 
 ---
 
-# 22. Snapshot Recovery
+# 16. Snapshot Recovery
 
 A client reconnecting to a live stream could miss:
 
@@ -927,7 +589,7 @@ This is different from the delayed tick stream, where the exact delayed event se
 
 ---
 
-# 23. Hot Symbols
+# 17. Hot Symbols
 
 A symbol can have a disproportionate number of subscribers.
 
@@ -963,44 +625,7 @@ This is a later optimization and should be driven by load-test data.
 
 ---
 
-# 24. Backpressure
-
-A slow WebSocket client must not block the gateway.
-
-Bad:
-
-```text
-Market Event
-   ↓
-Slow Client
-   ↓
-Gateway blocked
-   ↓
-Other clients affected
-```
-
-Instead:
-
-```text
-Market Event
-   ↓
-Gateway
-   ├── Fast client → send
-   ├── Fast client → send
-   └── Slow client → bounded buffer / disconnect policy
-```
-
-The system needs explicit policies for:
-
-- Maximum per-connection buffer.
-- Slow-consumer detection.
-- Disconnect thresholds.
-- Backpressure metrics.
-- Recovery/reconnect.
-
----
-
-# 25. Authentication Architecture
+# 18. Authentication Architecture
 
 For the demo:
 
@@ -1042,7 +667,7 @@ For Tckr, a mock identity/entitlement service is enough.
 
 ---
 
-# 26. Entitlement Changes
+# 19. Entitlement Changes
 
 Suppose a user starts as:
 
@@ -1079,145 +704,7 @@ The exact implementation can be simplified for the demo.
 
 ---
 
-# 27. Important Capacity Numbers
-
-Starting assumptions:
-
-```text
-25,000 events/sec
-```
-
-Per minute:
-
-```text
-25,000 × 60
-=
-1.5M events/minute
-```
-
-Per hour:
-
-```text
-25,000 × 3,600
-=
-90M events/hour
-```
-
-Per day:
-
-```text
-25,000 × 86,400
-=
-2.16B events/day
-```
-
-15-minute window:
-
-```text
-25,000 × 900
-=
-22.5M events
-```
-
-These calculations drive:
-
-- Kafka sizing.
-- Partition count.
-- Retention.
-- Network throughput.
-- Delayed-stream buffering.
-- Load-testing targets.
-- Persistence decisions.
-
----
-
-# 28. Approximate Network Throughput
-
-If an average normalized event is 200 bytes:
-
-```text
-25,000 × 200
-=
-5,000,000 bytes/sec
-≈ 5 MB/sec
-≈ 40 Mbps
-```
-
-This is only the payload estimate.
-
-Real throughput is higher because of:
-
-- Protocol overhead.
-- Kafka record overhead.
-- Replication.
-- Serialization.
-- WebSocket framing.
-- Multiple downstream consumers.
-
-The actual system should be benchmarked rather than relying on estimates.
-
----
-
-# 29. What We Are Optimizing For
-
-The primary optimization priorities are:
-
-### 1. Correctness
-
-A financial system must not silently mix:
-
-```text
-LIVE
-```
-
-and:
-
-```text
-DELAYED
-```
-
-data.
-
-### 2. Isolation
-
-A slow client should not affect exchange ingestion.
-
-A gateway failure should not stop the market feed.
-
-A delayed-processing problem should not stop live market data.
-
-### 3. Scalability
-
-The system must scale by adding:
-
-```text
-Kafka consumers
-Broadcasters
-Gateways
-```
-
-rather than creating additional exchange connections.
-
-### 4. Low latency
-
-The live path should be short:
-
-```text
-Exchange
-→ Ingestion
-→ Kafka
-→ Live Broadcaster
-→ Gateway
-→ Client
-```
-
-### 5. Recoverability
-
-Critical state should be recoverable from durable systems.
-
----
-
-# 30. What We Explicitly Do NOT Do
+# 20. What We Explicitly Do NOT Do
 
 We should avoid these designs unless requirements force us to reconsider them.
 
@@ -1297,7 +784,7 @@ DELAYED
 
 ---
 
-# 31. Core Data-Flow Contracts
+# 21. Core Data-Flow Contracts
 
 ## Live
 
@@ -1377,7 +864,7 @@ Resume stream
 
 ---
 
-# 32. Interview Questions We Should Be Ready For
+# 22. Questions We Should Be Ready For
 
 The implementation should prepare us to answer:
 
@@ -1437,7 +924,7 @@ The implementation should prepare us to answer:
 
 ---
 
-# 33. The Core Interview Narrative
+# 23. The Core  Narrative
 
 The simplest way to explain the architecture verbally is:
 
@@ -1453,36 +940,7 @@ This is the core story that the implementation should prove.
 
 ---
 
-# 34. Definition of Success
-
-Tckr is complete when we can demonstrate:
-
-- A mock exchange.
-- A single exchange/feed connection.
-- Approximately 25K events/sec ingestion target.
-- Normalized market-data events.
-- Kafka RAW stream.
-- Symbol-based partitioning.
-- Live broadcaster.
-- 15-minute delayed processor.
-- Kafka DELAYED stream.
-- Delayed broadcaster.
-- JWT authentication.
-- Server-side LIVE/DELAYED entitlement.
-- Symbol subscriptions.
-- Multiple .NET WebSocket gateways.
-- Redis distributed routing.
-- Local in-memory socket fan-out.
-- Gateway restart/reconnect.
-- Delayed processor recovery.
-- Backpressure.
-- Observability.
-- Load testing.
-- Real demo clients showing both customer types.
-
----
-
-# 35. Implementation Philosophy
+# 24. Implementation Philosophy
 
 Build the system incrementally.
 
@@ -1516,7 +974,7 @@ Every phase should produce something demonstrable.
 
 ---
 
-# 36. Final Mental Model
+# 25. Final Mental Model
 
 Keep this diagram in mind throughout the project:
 
@@ -1593,7 +1051,7 @@ And the most important architectural rule is:
 
 ## Phase 1 — Define the Problem & Requirements
 
-Document the interview scenario and establish measurable requirements.
+Document the  scenario and establish measurable requirements.
 
 - 25K market updates/sec
 - Single exchange connection
@@ -1606,7 +1064,8 @@ Document the interview scenario and establish measurable requirements.
 - Horizontal scalability
 - Observability
 
-**Output:** `requirements.md`
+**Output:** [`requirements.md`](requirements.md) — written, and now the home of every
+measurable requirement (see §5).
 
 ---
 
@@ -1625,7 +1084,64 @@ Simulate the stock exchange.
 
 ---
 
-## Phase 3 — Build Market Data Ingestion
+## Phase 3 — Build the Market Watch Web Client
+
+Build the customer-facing client first, against a frozen contract, so that every later
+phase has a real consumer to satisfy rather than an imagined one.
+
+A browser application over the mock exchange's own symbol universe:
+
+```text
+┌────────────────────────────────────────────┐        ┌──────────────────────────────┐
+│  Tckr — Market Watch          ● SIMULATED  │        │  ← COMI                      │
+├────────┬──────────┬────────────┬───────────┤        │  Commercial International    │
+│ Symbol │ Price    │ Change     │ Volume    │        │                              │
+├────────┼──────────┼────────────┼───────────┤        │  85.42   +1.24%   ● LIVE     │
+│ COMI   │ 85.42    │ +1.24%     │ 216,637   │  ───▶  │      ╭─╮      ╭╮            │
+│ CIB    │ 62.71    │ -0.31%     │ 134,257   │        │  ╭───╯ ╰─╮╭───╯╰──╮         │
+│ ORAS   │ 245.60   │ +2.18%     │ 101,773   │        │ ─╯       ╰╯       ╰─        │
+│ SWDY   │  18.42   │ +0.72%     │  84,912   │        │  10:31         10:36        │
+└────────┴──────────┴────────────┴───────────┘        │  price vs. time, live ticks  │
+                                                       └──────────────────────────────┘
+```
+
+The client is written against the **contract the gateway will serve**, not against
+whatever is convenient today. All market data reaches it through one interface with two
+implementations:
+
+```text
+Phase 3    UI ──▶ MarketDataSource ──▶ SimulatedSource   (in-browser, no backend)
+Phase 11+  UI ──▶ MarketDataSource ──▶ TckrGatewaySource (ws://gateway/ws/market-data)
+                 ^^^^^^^^^^^^^^^^
+                 same interface, same JSON shapes; configuration picks one
+```
+
+Requirements:
+
+- A stock list over the mock exchange's symbol universe, with live price, change and
+  activity, sorted and searchable.
+- A detail view per symbol: current price, change, and a **price-vs-time chart** that
+  updates as ticks arrive.
+- Subscribe on entering a symbol, unsubscribe on leaving it.
+- Show the stream the server assigned — LIVE or DELAYED — never a stream the client
+  chose (this is [ADR 006](decisions/006-client-data-source-contract.md) and §5's FR-6,
+  enforced in the client's own types so a later gateway cannot be wired in wrongly).
+- Connection status, reconnect with backoff, and snapshot-then-resume on reconnect.
+- Coalesce updates for rendering rather than queueing every tick (FR/NFR-3.1).
+- Label simulated data as simulated, visibly, on every screen.
+
+The deliverable that outlives this phase is the **contract**, not the pixels:
+[`docs/phase-3-web-client/client-contract.md`](phase-3-web-client/client-contract.md)
+freezes the REST and WebSocket message shapes that Phases 8–13 must serve. The
+earliest a real gateway can satisfy it is Phase 11 (fan-out); Phase 18 makes the swap
+formally.
+
+**Output:** `client/Tckr.MarketWatch` — a running client, plus the frozen client-facing
+contract every later phase builds toward.
+
+---
+
+## Phase 4 — Build Market Data Ingestion
 
 Implement the single connection between Tckr and the exchange.
 
@@ -1647,7 +1163,7 @@ Initially keep it simple—no Kafka or Redis.
 
 ---
 
-## Phase 4 — Benchmark Ingestion
+## Phase 5 — Benchmark Ingestion
 
 Prove the ingestion layer can handle the target load.
 
@@ -1666,7 +1182,7 @@ Measure:
 
 ---
 
-## Phase 5 — Introduce Kafka
+## Phase 6 — Introduce Kafka
 
 Decouple ingestion from downstream processing.
 
@@ -1695,7 +1211,7 @@ This creates a critical architectural boundary:
 
 ---
 
-## Phase 6 — Partition Market Data
+## Phase 7 — Partition Market Data
 
 Optimize Kafka for the market-data workload.
 
@@ -1713,7 +1229,7 @@ Document why **per-symbol ordering** is more important than global ordering.
 
 ---
 
-## Phase 7 — Build Authentication & Market-Data Entitlements
+## Phase 8 — Build Authentication & Market-Data Entitlements
 
 Introduce authentication and server-side authorization before building subscription routing.
 
@@ -1769,7 +1285,7 @@ For the demo, a mock identity/entitlement service is sufficient.
 
 ---
 
-## Phase 8 — Build the Distributed Subscription Registry
+## Phase 9 — Build the Distributed Subscription Registry
 
 
 Support multiple WebSocket gateways while keeping socket fan-out local to each gateway.
@@ -1820,7 +1336,7 @@ Implement:
 The Broadcaster should use Redis to determine **which gateways** need an update, not which individual sockets need it.
 
 **Output:** Horizontally scalable distributed subscription registry.
-## Phase 9 — Build the WebSocket Gateway Cluster
+## Phase 10 — Build the WebSocket Gateway Cluster
 
 Create the scalable client connection layer.
 
@@ -1875,7 +1391,7 @@ Gateway-1
 ```
 
 **Output:** Horizontally scalable WebSocket gateway cluster.
-## Phase 10 — Implement Real-Time Fan-Out
+## Phase 11 — Implement Real-Time Fan-Out
 
 Connect the complete market-data pipeline using the distributed subscription registry.
 
@@ -1928,10 +1444,10 @@ Gateway-level fan-out
 Socket-level local fan-out
 ```
 
-This is the **core interview problem**.
+This is the **core  problem**.
 
 **Output:** End-to-end horizontally scalable real-time price delivery.
-## Phase 11 — Handle Slow Clients
+## Phase 12 — Handle Slow Clients
 
 Solve backpressure.
 
@@ -1957,7 +1473,7 @@ Implement:
 
 ---
 
-## Phase 12 — Add Current Price Snapshots & Persistence
+## Phase 13 — Add Current Price Snapshots & Persistence
 
 Solve the initial-screen problem without putting persistence in the real-time delivery path.
 
@@ -1995,7 +1511,7 @@ Implement:
 **Important:** Persistence must not sit between Kafka and WebSocket delivery.
 
 **Output:** REST snapshot + WebSocket streaming + independent persistence pipeline.
-## Phase 13 — Handle Reconnection & Failures
+## Phase 14 — Handle Reconnection & Failures
 
 Test the system as if things are actually breaking.
 
@@ -2073,7 +1589,7 @@ Verify that:
 
 ---
 
-## Phase 14 — Add Observability
+## Phase 15 — Add Observability
 
 Make the system operable.
 
@@ -2104,7 +1620,7 @@ Add:
 
 ---
 
-## Phase 15 — Solve Scaling & Hot Symbols
+## Phase 16 — Solve Scaling & Hot Symbols
 
 Now challenge the architecture.
 
@@ -2134,7 +1650,7 @@ This is where we'll decide whether Redis belongs in the hot path.
 
 ---
 
-## Phase 16 — Load Test the Entire System
+## Phase 17 — Load Test the Entire System
 
 Build a proper load-testing environment.
 
@@ -2173,42 +1689,34 @@ Measure:
 
 ---
 
-## Phase 17 — Build the Real Demo Client
+## Phase 18 — Cut the Client Over to the Live System
 
-Finally, make the project visually impressive.
-
-A simple market-watch application:
+The client was built in Phase 3. This phase performs the swap it was designed for and
+proves the whole pipeline end to end with a real user in front of it.
 
 ```text
-┌──────────────────────────────────┐
-│             Tckr                 │
-│        Live Market Data          │
-├────────┬─────────┬───────────────┤
-│ Symbol │ Price   │ Change        │
-├────────┼─────────┼───────────────┤
-│ COMI   │ 85.42   │ +1.24%        │
-│ CIB    │ 91.20   │ -0.31%        │
-│ ORAS   │ 312.50  │ +2.18%        │
-│ SWDY   │ 52.10   │ +0.72%        │
-└────────┴─────────┴───────────────┘
-
-● LIVE
-
-Updates/sec: 27
-Latency:     42ms
+Mock Exchange → Ingestion → Kafka → Distribution → Redis routing → Gateway
+                                                                      │
+                                                          ws://gateway/ws/market-data
+                                                                      │
+                                                          TckrGatewaySource
+                                                                      │
+                                                            Tckr.MarketWatch
 ```
 
-The demo should allow you to:
+Implement:
 
-- Search symbols
-- Subscribe/unsubscribe
-- Watch multiple symbols
-- See prices update live
-- Disconnect/reconnect
-- Display connection status
-- Display latency
+- Point `MarketDataSource` at `TckrGatewaySource` by configuration alone — no UI change,
+  no contract change. If either is needed, the Phase 3 contract was wrong and the
+  discrepancy is the finding.
+- Two demo users, side by side: one entitled LIVE, one DELAYED, watching the same symbol,
+  visibly 15 minutes apart.
+- Real end-to-end latency displayed from real timestamps.
+- Kill a gateway with the client connected; watch it reconnect, resubscribe, take a
+  snapshot and resume.
 
-**Output:** A real working demonstration of the architecture.
+**Output:** the architecture demonstrated end to end, through the client built in
+Phase 3 against a contract frozen before any of the server existed.
 
 ---
 
@@ -2240,7 +1748,7 @@ GET /symbols/{symbol}/snapshot
 WebSocket /ws/market-data
 ```
 
-This keeps the implementation focused on the interview problem instead of creating microservices for the sake of decomposition. A separate API can be introduced later only when there is a concrete reason for independent HTTP scaling, ownership, deployment, or security boundaries.
+This keeps the implementation focused on the  problem instead of creating microservices for the sake of decomposition. A separate API can be introduced later only when there is a concrete reason for independent HTTP scaling, ownership, deployment, or security boundaries.
 
 ## Current application types
 

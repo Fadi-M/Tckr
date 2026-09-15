@@ -14,7 +14,7 @@ namespace Tckr.MockExchange.Feed;
 /// <see cref="Publish"/> is the whole point of this class. It runs on the generation thread, and if
 /// it can be made to wait &#8212; on a lock, on a socket, on a slow consumer's flush &#8212; then
 /// the achieved rate of the mock exchange becomes a function of the slowest consumer attached to
-/// it, and every Phase 4 measurement taken against it is measuring our write buffer rather than
+/// it, and every Phase 5 measurement taken against it is measuring our write buffer rather than
 /// ingestion. So the publish path holds no lock, awaits nothing, allocates nothing, and skips a
 /// session that is behind on the strength of one volatile read.
 /// <para>

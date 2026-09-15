@@ -5,7 +5,7 @@ namespace Tckr.MockExchange.Protocol;
 /// </summary>
 /// <remarks>
 /// The values are explicit and permanent: they are a wire contract, not an implementation
-/// detail, and Phase 3's ingestion parser is written against these exact numbers. The gap
+/// detail, and Phase 4's ingestion parser is written against these exact numbers. The gap
 /// between the tick types (1&#8211;3) and the session types (10&#8211;11) leaves room for
 /// further tick kinds without renumbering anything a consumer already understands.
 /// </remarks>

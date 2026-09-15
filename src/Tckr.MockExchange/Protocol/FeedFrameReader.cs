@@ -8,7 +8,7 @@ namespace Tckr.MockExchange.Protocol;
 /// </summary>
 /// <remarks>
 /// This is the reference implementation of the protocol's consuming half. The verification probe
-/// (task 08) uses it directly, and Phase 3's ingestion parser is a port of it, so the validation
+/// (task 08) uses it directly, and Phase 4's ingestion parser is a port of it, so the validation
 /// rules here define what "a protocol error" means for the whole system.
 /// <para>
 /// Every rejection throws <see cref="InvalidDataException"/> rather than returning a sentinel. A
