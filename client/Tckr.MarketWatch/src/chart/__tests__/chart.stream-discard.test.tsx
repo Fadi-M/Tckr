@@ -8,11 +8,21 @@
  * directly, exactly as the production discard path would (a stream-switch caller clears
  * the store, which then notifies `PriceChart` via `onStreamDiscard`). `uplot` is still
  * mocked — jsdom has no canvas — but the store integration is real.
+ *
+ * The discard handler itself calls `uPlot.setData` directly (see `PriceChart.tsx`'s
+ * module doc) — it is not gated by the redraw interval, since a stream switch must
+ * clear stale points immediately, not wait for the next `DISPLAY_REFRESH_INTERVAL_MS`
+ * sample. A burst of raw ticks reaches the plot as at most one immediate point (the
+ * first time the buffer goes empty -> non-empty, e.g. right after a discard clears it)
+ * plus exactly one sample per fixed interval after that — never one point per raw tick
+ * — so this test uses fake timers to advance it, exactly like
+ * `chart.sampled-redraw.test.tsx`.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render } from '@testing-library/react';
 import { toDecimal } from '../../contracts/decimal.ts';
 import { applyTick, resetStore, resetStream } from '../../data/store.ts';
+import { DISPLAY_REFRESH_INTERVAL_MS } from '../../display/throttle.ts';
 import { tick } from './chartTestSupport.ts';
 
 vi.mock('uplot', async () => {
@@ -30,29 +40,15 @@ function priceAt(i: number) {
   return toDecimal(`${intPart}.${frac}`);
 }
 
-let rafQueue: FrameRequestCallback[] = [];
-
-function flushOneFrame(): void {
-  const queued = rafQueue;
-  rafQueue = [];
-  for (const cb of queued) {
-    cb(performance.now());
-  }
-}
-
 beforeEach(() => {
   resetStore();
   resetUplotMock();
-  rafQueue = [];
-  vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
-    rafQueue.push(cb);
-    return rafQueue.length;
-  });
+  vi.useFakeTimers();
 });
 
 afterEach(() => {
   cleanup();
-  vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe('PriceChart stream-discard correctness', () => {
@@ -67,21 +63,29 @@ describe('PriceChart stream-discard correctness', () => {
         applyTick(tick({ id: `old-${i}`, p: priceAt(i) }));
       }
     });
-    act(() => {
-      flushOneFrame();
-    });
+    // The first of the burst paints immediately (buffer was empty, so it's preceded by
+    // a synthetic point — see chart.seeded-from-store.test.tsx); the rest are raw ticks,
+    // not individually recorded — only one sample per interval is.
     expect(instance?.setData).toHaveBeenCalledTimes(1);
-    const [preXs] = instance!.setData.mock.calls[0]![0] as [Float64Array, Float64Array];
-    expect(preXs.length).toBe(oldCount);
+    act(() => {
+      vi.advanceTimersByTime(DISPLAY_REFRESH_INTERVAL_MS);
+    });
+    const preCall = instance!.setData.mock.calls.at(-1)![0] as [Float64Array, Float64Array];
+    // 2 seeded points plus exactly 1 sampled point (the burst's latest price), not
+    // `oldCount` raw ticks.
+    expect(preCall[0].length).toBe(3);
+    expect(preCall[1][2]).toBeCloseTo(Number(priceAt(oldCount - 1)));
 
     // The discard fires via the real store: `resetStream()` clears every per-symbol
     // view and then fires `onStreamDiscard` — old-stream ticks must be gone
-    // immediately, before any new-stream tick arrives.
+    // immediately, before any new-stream tick arrives, and independently of the
+    // sampling interval above.
+    const callsBeforeDiscard = instance!.setData.mock.calls.length;
     act(() => {
       resetStream();
     });
-    expect(instance?.setData).toHaveBeenCalledTimes(2);
-    const [clearedXs, clearedYs] = instance!.setData.mock.calls[1]![0] as [Float64Array, Float64Array];
+    expect(instance!.setData.mock.calls.length).toBe(callsBeforeDiscard + 1);
+    const [clearedXs, clearedYs] = instance!.setData.mock.calls.at(-1)![0] as [Float64Array, Float64Array];
     expect(clearedXs.length).toBe(0);
     expect(clearedYs.length).toBe(0);
 
@@ -90,21 +94,21 @@ describe('PriceChart stream-discard correctness', () => {
     act(() => {
       for (let i = 0; i < newCount; i += 1) {
         // Deliberately disjoint price range from the old stream — the assertion below
-        // checks the series length and every value comes from the new-stream range
-        // only, so any old value found here would prove a leak.
+        // checks every value comes from the new-stream range only, so any old value
+        // found here would prove a leak.
         applyTick(tick({ id: `new-${i}`, p: priceAt(1000 + i) }));
       }
     });
     act(() => {
-      flushOneFrame();
+      vi.advanceTimersByTime(DISPLAY_REFRESH_INTERVAL_MS);
     });
 
-    expect(instance?.setData).toHaveBeenCalledTimes(3);
-    const [postXs, postYs] = instance!.setData.mock.calls[2]![0] as [Float64Array, Float64Array];
+    const [postXs, postYs] = instance!.setData.mock.calls.at(-1)![0] as [Float64Array, Float64Array];
 
-    // Exactly the M new-stream points, none of the N old-stream ones.
-    expect(postXs.length).toBe(newCount);
-    expect(postYs.length).toBe(newCount);
+    // 2 seeded points plus exactly 1 sampled point from the new-stream burst — none of
+    // the old-stream ones.
+    expect(postXs.length).toBe(3);
+    expect(postYs.length).toBe(3);
     for (const value of Array.from(postYs)) {
       // Old-stream prices were 85.00..85.19 (priceAt(0..19)); new-stream prices are
       // 95.00..95.06 (priceAt(1000..1006)) — disjoint ranges.
@@ -118,9 +122,6 @@ describe('PriceChart stream-discard correctness', () => {
     const instance = instances[0];
     act(() => {
       applyTick(tick({ p: priceAt(0) }));
-    });
-    act(() => {
-      flushOneFrame();
     });
     const callsBeforeUnmount = instance?.setData.mock.calls.length ?? 0;
     unmount();

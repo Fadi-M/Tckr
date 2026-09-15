@@ -21,6 +21,19 @@
  *  - `indicateSign`: persistent colour + arrow using task 03's `.tckr-delta--up` /
  *    `.tckr-delta--down` convention (global.css), based on the sign of `value` itself —
  *    for fields that are inherently signed (Change), never for a raw trade price.
+ *
+ * `flashDirectionOverride` ("Tckr First Run" design pass follow-up — a real user-
+ * reported bug, not a stylistic choice): a raw trade price's own tick-to-tick delta and
+ * the adjacent Change field's since-open delta are *different comparisons* that can
+ * legitimately disagree — a price that just ticked down a hair can still be net up for
+ * the day. Left to its own tick-to-tick comparison, the price's flash arrow would then
+ * show red/down right beside a green/up Change arrow, which reads as a flat-out
+ * contradiction to anyone glancing at the two together, even though both are
+ * individually "correct" by their own definition. Callers displaying a raw price next
+ * to a persistent Change indicator (`StockDetail`'s header, `StockList`'s Price column)
+ * pass the Change's own sign here so the two arrows can never disagree — the flash
+ * still only plays when `value` itself changes (so it still means "this just ticked"),
+ * it is just recoloured to match the trend the viewer actually cares about.
  */
 import { useEffect, useRef, type ReactNode } from 'react';
 import { compare, format, toDecimal, type DecimalString } from '../contracts/decimal.ts';
@@ -48,17 +61,17 @@ function ensureStylesInjected(): void {
   padding: 0 2px;
   margin: 0 -2px;
 }
-.tckr-price-cell__flash--up { animation: tckr-price-flash-up-bg 900ms ease-out; }
-.tckr-price-cell__flash--down { animation: tckr-price-flash-down-bg 900ms ease-out; }
+.tckr-price-cell__flash--up { animation: tckr-price-flash-up-bg 500ms cubic-bezier(0.23, 1, 0.32, 1); }
+.tckr-price-cell__flash--down { animation: tckr-price-flash-down-bg 500ms cubic-bezier(0.23, 1, 0.32, 1); }
 .tckr-price-cell__flash-arrow--up::before {
   content: '\\25B2 ';
   color: var(--tckr-color-up);
-  animation: tckr-price-flash-arrow 900ms ease-out;
+  animation: tckr-price-flash-arrow 500ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 .tckr-price-cell__flash-arrow--down::before {
   content: '\\25BC ';
   color: var(--tckr-color-down);
-  animation: tckr-price-flash-arrow 900ms ease-out;
+  animation: tckr-price-flash-arrow 500ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 @keyframes tckr-price-flash-up-bg {
   from { background-color: color-mix(in oklab, var(--tckr-color-up) 28%, transparent); }
@@ -70,7 +83,7 @@ function ensureStylesInjected(): void {
 }
 @keyframes tckr-price-flash-arrow {
   from { opacity: 1; }
-  70% { opacity: 1; }
+  60% { opacity: 1; }
   to { opacity: 0; }
 }
 `;
@@ -92,6 +105,13 @@ export interface PriceCellProps {
   /** Persistent colour + arrow (task 03's `.tckr-delta--up`/`--down`) based on the sign
    * of `value` itself. Use for signed fields (Change); never for the raw trade price. */
   readonly indicateSign?: boolean;
+  /** Recolours the transient flash to this direction instead of computing it from
+   * `value`'s own tick-to-tick delta — see the module doc. Pass the sign of whatever
+   * persistent Change indicator sits beside this cell; omit for a cell with no such
+   * neighbour (e.g. the Change cell itself, which already carries its own sign via
+   * `indicateSign`). `null` suppresses the flash's directional colour entirely (flat/
+   * zero change) without suppressing the flash animation itself. */
+  readonly flashDirectionOverride?: 'up' | 'down' | null | undefined;
   /** Accessible label override. Defaults to the formatted text itself. */
   readonly ariaLabel?: string;
 }
@@ -102,6 +122,7 @@ export function PriceCell({
   sign,
   muted = false,
   indicateSign = false,
+  flashDirectionOverride,
   ariaLabel,
 }: PriceCellProps): ReactNode {
   const previousRef = useRef<DecimalString | null>(null);
@@ -109,8 +130,12 @@ export function PriceCell({
 
   let flashDirection: 'up' | 'down' | null = null;
   if (!muted && previous !== null && previous !== value) {
-    const cmp = compare(value, previous);
-    flashDirection = cmp === 1 ? 'up' : cmp === -1 ? 'down' : null;
+    if (flashDirectionOverride !== undefined) {
+      flashDirection = flashDirectionOverride;
+    } else {
+      const cmp = compare(value, previous);
+      flashDirection = cmp === 1 ? 'up' : cmp === -1 ? 'down' : null;
+    }
   }
 
   useEffect(() => {

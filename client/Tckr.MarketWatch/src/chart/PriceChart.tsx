@@ -4,17 +4,40 @@
  *
  * Render-path discipline (README.md design decision #4/#8/#9, and the whole reason this
  * task exists): exactly **one** `uPlot` instance is created per mount, destroyed on
- * unmount, and never re-created except when `symbol` changes. Ticks arrive through the
- * store's per-symbol subscription (`subscribeSymbol`/`getSymbolSnapshot` — already
- * coalesced to at most one store write per animation frame by `TickDispatcher`
- * upstream) and are pushed into a bounded `RingBuffer` on every notification, but the
- * expensive part — `uPlot.setData` — is scheduled through `requestAnimationFrame` and
- * runs at most once per frame no matter how many notifications land in between. A
- * `useSyncExternalStore` subscription (as the brief asks for) drives only the cheap,
- * rarely-changing "do we have data yet" boolean that toggles the empty-state
- * placeholder — it is not on the hot path, and does not gate the buffer push or the
- * frame-scheduling logic below, which run from a second, plain subscription so they are
- * never at the mercy of React's render/batching behaviour.
+ * unmount, and never re-created except when `symbol` changes.
+ *
+ * The plotted series is a *sample* of the price, taken at most once per
+ * `DISPLAY_REFRESH_INTERVAL_MS` (`src/display/throttle.ts` — the same human-readable
+ * cadence every other price on the page repaints at) — it is deliberately **not** a
+ * record of every raw tick. A hot symbol's raw tape can carry hundreds of ticks inside
+ * one window; pushing every one of them into the bounded `RingBuffer` (as an earlier
+ * version of this file did) meant the buffer — sized for "N recent *samples*", not "N
+ * recent *ticks*" — filled up and evicted its own contents *within a single window*, so
+ * each scheduled redraw showed a completely different, much shorter slice of time than
+ * the one before it: a flat stub one moment, a wildly different few-hundred-millisecond
+ * sliver the next, even though the underlying price had simply drifted smoothly. That is
+ * the opposite of what a price history chart is for. Sampling once per window instead
+ * means every redraw only ever *appends* one point to what was already there — the line
+ * never reshuffles or jumps to an unrelated window, it just grows, exactly like the
+ * text prices elsewhere on the page.
+ *
+ * The very first sample is taken as soon as data exists, not on the first interval tick:
+ * immediately on mount if the store already has this symbol's snapshot (`seed` below),
+ * or otherwise on the first store notification after mount (`StockDetail` fetches its
+ * snapshot asynchronously, so the store is frequently still empty when this component
+ * mounts; waiting a full window to show data that already arrived would mean sitting on
+ * an empty chart for no reason). That first sample is paired with one synthetic point a
+ * second earlier at the same price (`seedFirstPoint` below) — a single point cannot
+ * render a visible line, since uPlot needs two x-values to draw a segment, and
+ * `points: { show: false }` means there is no marker fallback either. Every sample after
+ * that is real, taken by the fixed `setInterval` below reading whatever the store's
+ * *current* price is at that moment — this is the same "read fresh state when the timer
+ * fires" contract `StockListRow`'s "Last update" clock uses, not a queue of buffered
+ * values. A `useSyncExternalStore` subscription (as the brief asks for) drives only the
+ * cheap, rarely-changing "do we have data yet" boolean that toggles the empty-state
+ * placeholder — it is not on the hot path, and does not gate the sampling below, which
+ * runs from a second, plain subscription so it is never at the mercy of React's
+ * render/batching behaviour.
  *
  * The only place a `DecimalString` price becomes a JS `number` is `ringBuffer.ts`'s
  * `toPlotValue`, called here once per pushed point. Every value this component renders
@@ -43,6 +66,7 @@ import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
 import type { DecimalString } from '../contracts/decimal.ts';
 import { getSymbolSnapshot, onStreamDiscard, subscribeSymbol } from '../data/store.ts';
+import { DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
 import { RingBuffer, toPlotValue } from './ringBuffer.ts';
 import { X_AXIS_INCREMENTS_MS, formatXAxisLabel, formatYAxisLabel } from './axes.ts';
 import './priceChart.css';
@@ -74,7 +98,6 @@ export function PriceChart({
   const readoutRef = useRef<HTMLDivElement | null>(null);
   const plotRef = useRef<uPlot | null>(null);
   const bufferRef = useRef<RingBuffer | null>(null);
-  const frameScheduledRef = useRef(false);
 
   // Read via refs inside the mount effect (below) rather than as effect dependencies:
   // per the brief, only a `symbol` change may recreate the uPlot instance. tickSize,
@@ -106,7 +129,6 @@ export function PriceChart({
 
     const buffer = new RingBuffer(capacityRef.current);
     bufferRef.current = buffer;
-    frameScheduledRef.current = false;
 
     const accent = readCssVar(container, '--tckr-color-accent', '#2f6fed');
     const border = readCssVar(container, '--tckr-color-border', '#d8dbe1');
@@ -180,43 +202,76 @@ export function PriceChart({
     );
     plotRef.current = plot;
 
+    // A single point cannot render a visible line — uPlot needs two x-values to draw a
+    // segment, and `points: { show: false }` above means there is no marker fallback
+    // either. The very first time this chart ever has a price for `symbol`, a synthetic
+    // second point one second earlier at that same price is pushed first, so the first
+    // paint is already a (flat) line instead of nothing. Every real point after that is
+    // pushed on its own.
+    function seedFirstPoint(timeMs: number, price: number): void {
+      buffer.push(timeMs - 1000, price);
+      buffer.push(timeMs, price);
+    }
+
     const seed = getSymbolSnapshot(symbol);
     if (seed) {
-      buffer.push(seed.lastUpdate, toPlotValue(seed.price));
+      seedFirstPoint(seed.lastUpdate, toPlotValue(seed.price));
       plot.setData([buffer.times.subarray(0, buffer.length), buffer.values.subarray(0, buffer.length)]);
     }
 
-    const scheduleRedraw = (): void => {
-      if (frameScheduledRef.current) {
+    const redraw = (): void => {
+      const current = bufferRef.current;
+      const activePlot = plotRef.current;
+      if (!current || !activePlot || current.length === 0) {
         return;
       }
-      frameScheduledRef.current = true;
-      requestAnimationFrame(() => {
-        frameScheduledRef.current = false;
-        const current = bufferRef.current;
-        const activePlot = plotRef.current;
-        if (!current || !activePlot) {
-          return;
-        }
-        activePlot.setData([
-          current.times.subarray(0, current.length),
-          current.values.subarray(0, current.length),
-        ]);
-      });
+      activePlot.setData([
+        current.times.subarray(0, current.length),
+        current.values.subarray(0, current.length),
+      ]);
     };
 
-    // Plain store subscription (not useSyncExternalStore): this must fire synchronously
-    // on every notification and push into the buffer regardless of how React would
-    // batch renders, so the "at most one setData per frame" guarantee never depends on
-    // React's scheduling behaviour, only on the requestAnimationFrame gate above.
+    // Takes exactly one sample of the store's *current* price and appends it — never a
+    // queue of every notification since the last sample (see module doc for why: a
+    // bounded buffer sized for "N recent samples" cannot also hold "every raw tick",
+    // and trying to do both is what made the line reshuffle on every redraw). Returns
+    // whether a sample was taken, so the first-data path below knows whether to redraw.
+    function sampleLatest(): boolean {
+      const view = getSymbolSnapshot(symbol);
+      if (!view) {
+        return false;
+      }
+      buffer.push(view.lastUpdate, toPlotValue(view.price));
+      return true;
+    }
+
+    // Plain store subscription (not useSyncExternalStore): this exists for exactly one
+    // purpose — noticing the very first time this chart has data to show, whichever of
+    // `seed` above or a live tick gets there first (see module doc). Once the buffer
+    // holds anything, every further raw notification is ignored here: real samples are
+    // taken only by the fixed interval below, at most once per
+    // `DISPLAY_REFRESH_INTERVAL_MS`, exactly like every other visible price on the page.
     const unsubscribe = subscribeSymbol(symbol, () => {
+      if (buffer.length > 0) {
+        return;
+      }
       const view = getSymbolSnapshot(symbol);
       if (!view) {
         return;
       }
-      buffer.push(view.lastUpdate, toPlotValue(view.price));
-      scheduleRedraw();
+      seedFirstPoint(view.lastUpdate, toPlotValue(view.price));
+      redraw();
     });
+
+    // The chart already painted once, synchronously, from `seed` (or the first live
+    // tick) above. From here on it takes one fresh sample and repaints on a fixed
+    // cadence — never on tick arrival — so the line only ever grows, in the same,
+    // predictable 30s steps as every other visible price on the page, no matter how
+    // bursty the underlying tape is.
+    const intervalId = setInterval(() => {
+      sampleLatest();
+      redraw();
+    }, DISPLAY_REFRESH_INTERVAL_MS);
 
     let resizeObserver: ResizeObserver | undefined;
     if (typeof ResizeObserver !== 'undefined') {
@@ -236,6 +291,7 @@ export function PriceChart({
     return () => {
       resizeObserver?.disconnect();
       unsubscribe();
+      clearInterval(intervalId);
       plot.destroy();
       plotRef.current = null;
       bufferRef.current = null;

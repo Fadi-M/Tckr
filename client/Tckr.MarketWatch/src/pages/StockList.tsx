@@ -59,7 +59,7 @@ import { getSharedSource } from '../data/config.ts';
 import type { ConnectionState } from '../data/MarketDataSource.ts';
 import { getSymbolSnapshot, subscribeSymbol } from '../data/store.ts';
 import { PriceCell } from '../components/PriceCell.tsx';
-import { createThrottle, DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
+import { DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
 
 const ZERO_DECIMAL: DecimalString = toDecimal('0');
 
@@ -309,7 +309,7 @@ function TickerTape({ universe, held }: { universe: readonly SymbolDefinition[];
 
   useEffect(() => {
     setItems(readTapeItems(universe));
-    const id = setInterval(() => setItems(readTapeItems(universe)), 1000);
+    const id = setInterval(() => setItems(readTapeItems(universe)), DISPLAY_REFRESH_INTERVAL_MS);
     return () => clearInterval(id);
   }, [universe]);
 
@@ -326,7 +326,19 @@ function TickerTape({ universe, held }: { universe: readonly SymbolDefinition[];
           <span key={`${item.symbol}-${index}`} className="tckr-tape__item">
             {item.symbol}{' '}
             <span className="tckr-tape__price">
-              <PriceCell value={item.price} muted={held} />
+              <PriceCell
+                value={item.price}
+                muted={held}
+                flashDirectionOverride={
+                  item.changePercent === undefined
+                    ? undefined
+                    : item.changePercent > 0
+                      ? 'up'
+                      : item.changePercent < 0
+                        ? 'down'
+                        : null
+                }
+              />
             </span>{' '}
             <span
               className={
@@ -384,6 +396,8 @@ const STOCK_LIST_STYLES = `
   padding: 9px 0;
   margin-bottom: 14px;
   position: relative;
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 32px, black calc(100% - 32px), transparent);
+  mask-image: linear-gradient(90deg, transparent, black 32px, black calc(100% - 32px), transparent);
 }
 .tckr-tape__track {
   display: flex;
@@ -391,6 +405,7 @@ const STOCK_LIST_STYLES = `
   width: max-content;
   white-space: nowrap;
   animation: tckr-tape-scroll 32s linear infinite;
+  transition: opacity 250ms ease, filter 250ms ease;
 }
 .tckr-tape--held .tckr-tape__track { opacity: 0.32; filter: saturate(0.3); animation-play-state: paused; }
 .tckr-tape__held-label {
@@ -405,6 +420,11 @@ const STOCK_LIST_STYLES = `
   letter-spacing: 0.14em;
   color: var(--tckr-color-warning);
   background: linear-gradient(90deg, color-mix(in oklab, var(--tckr-color-surface) 88%, transparent), transparent, color-mix(in oklab, var(--tckr-color-surface) 88%, transparent));
+  animation: tckr-fade-in 200ms ease-out;
+}
+@keyframes tckr-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 .tckr-tape__item { font-family: var(--tckr-font-mono); font-size: 0.72rem; color: var(--tckr-color-text-muted); }
 .tckr-tape__price { color: var(--tckr-color-text); }
@@ -421,6 +441,11 @@ const STOCK_LIST_STYLES = `
   padding: 12px 14px;
   border-radius: 9px;
   margin-bottom: 14px;
+  animation: tckr-banner-in 220ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+@keyframes tckr-banner-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .tckr-conn-banner--warning {
   background: color-mix(in oklab, var(--tckr-color-warning) 9%, transparent);
@@ -446,7 +471,10 @@ const STOCK_LIST_STYLES = `
   background: var(--tckr-color-text);
   color: var(--tckr-color-surface);
   cursor: pointer;
+  transition: transform 120ms ease-out, opacity 150ms ease;
 }
+.tckr-conn-banner__action:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; }
+.tckr-conn-banner__action:active { transform: scale(0.96); }
 
 .tckr-stocklist__toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
 .tckr-stocklist__pills { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -460,8 +488,11 @@ const STOCK_LIST_STYLES = `
   background: transparent;
   color: var(--tckr-color-text-muted);
   cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, transform 120ms ease-out;
 }
 .tckr-pill--active { background: var(--tckr-color-text); color: var(--tckr-color-surface); border-color: var(--tckr-color-text); font-weight: 600; }
+.tckr-pill:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; }
+.tckr-pill:active { transform: scale(0.96); }
 .tckr-stocklist__search-wrap {
   flex: 1 1 240px;
   min-width: 160px;
@@ -472,7 +503,9 @@ const STOCK_LIST_STYLES = `
   border: 1px solid var(--tckr-color-border);
   border-radius: 8px;
   background: var(--tckr-color-surface-raised);
+  transition: border-color 150ms ease;
 }
+.tckr-stocklist__search-wrap:focus-within { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; }
 .tckr-stocklist__search-icon { color: var(--tckr-color-text-muted); font-size: 13px; flex: none; }
 .tckr-stocklist__search {
   all: unset;
@@ -522,24 +555,27 @@ const STOCK_LIST_STYLES = `
   gap: 2px;
 }
 .tckr-stocklist__sort-button:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; }
-.tckr-stocklist__row { cursor: pointer; }
-.tckr-stocklist__row:hover { background: var(--tckr-color-surface-raised); }
+.tckr-stocklist__row { cursor: pointer; transition: background-color 120ms ease; }
+@media (hover: hover) and (pointer: fine) {
+  .tckr-stocklist__row:hover { background: var(--tckr-color-surface-raised); }
+}
 .tckr-stocklist__row:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: -2px; }
-.tckr-stocklist--stale .tckr-stocklist__table-wrap { opacity: 0.72; }
+.tckr-stocklist--stale .tckr-stocklist__table-wrap { transition: opacity 250ms ease; opacity: 0.72; }
 .tckr-stocklist__changepct {
   display: inline-block;
   padding: 4px 8px;
   border-radius: 5px;
   background: var(--tckr-color-surface-raised);
 }
+.tckr-stocklist__changepct { transition: background-color 200ms ease; }
 .tckr-stocklist__changepct.tckr-delta--up { background: color-mix(in oklab, var(--tckr-color-up) 14%, transparent); }
 .tckr-stocklist__changepct.tckr-delta--down { background: color-mix(in oklab, var(--tckr-color-down) 14%, transparent); }
 .tckr-sparkline { width: 100%; height: 34px; display: block; }
-.tckr-sparkline__line { stroke-width: 1.6; }
+.tckr-sparkline__line { stroke-width: 1.6; transition: stroke 200ms ease; }
 .tckr-sparkline__line--up { stroke: var(--tckr-color-up); }
 .tckr-sparkline__line--down { stroke: var(--tckr-color-down); }
 .tckr-sparkline__line--flat { stroke: var(--tckr-color-text-muted); }
-.tckr-stocklist__empty { text-align: center; color: var(--tckr-color-text-muted); padding: 44px 16px; white-space: normal; }
+.tckr-stocklist__empty { text-align: center; color: var(--tckr-color-text-muted); padding: 44px 16px; white-space: normal; animation: tckr-fade-in 200ms ease-out; }
 .tckr-stocklist__empty-count { font-family: var(--tckr-font-mono); font-size: 0.78rem; letter-spacing: 0.04em; }
 .tckr-stocklist__empty-title { margin-top: 12px; font-weight: 700; font-size: 1.05rem; color: var(--tckr-color-text); }
 .tckr-stocklist__empty-detail { margin: 8px auto 0; max-width: 340px; font-size: 0.82rem; line-height: 1.55; }
@@ -551,9 +587,12 @@ const STOCK_LIST_STYLES = `
   padding: 9px 14px;
   border-radius: 7px;
   cursor: pointer;
+  transition: transform 120ms ease-out, opacity 150ms ease;
 }
+.tckr-stocklist__empty-actions button:active { transform: scale(0.96); }
 .tckr-stocklist__empty-actions button:first-child { border: none; background: var(--tckr-color-text); color: var(--tckr-color-surface); }
 .tckr-stocklist__empty-actions button:last-child { border: 1px solid var(--tckr-color-border); background: transparent; color: var(--tckr-color-text); }
+.tckr-stocklist__empty-actions button:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; }
 .tckr-stocklist__loading { color: var(--tckr-color-text-muted); }
 @media (max-width: 640px) {
   .tckr-stocklist__col--narrow-hide { display: none; }
@@ -571,30 +610,57 @@ function StockListRow({ definition, priceDecimals, onActivate }: StockListRowPro
 
   // A hot symbol can tick dozens of times/sec even after `TickDispatcher`'s per-frame
   // coalescing (that cap is a data-correctness contract, not a readability one — see
-  // `src/display/throttle.ts`). Throttling the *re-render*, not the underlying store
-  // subscription, keeps this row's displayed value at a human-trackable cadence: the
-  // subscribe callback always fires immediately for an isolated update (so a quiet
-  // symbol still feels instant) and at most once more per window during a burst,
-  // reading whatever `getSymbolSnapshot` returns at that moment — always the latest
-  // value, never a stale one from earlier in the burst.
+  // `src/display/throttle.ts`). This row must repaint at most once per
+  // `DISPLAY_REFRESH_INTERVAL_MS`, from *either* of two triggers: a real store
+  // notification (for instant feedback on an isolated tick after a quiet spell) or a
+  // fallback clock (so "Last update" keeps advancing, and a burst gets an eventual
+  // repaint, even if no single tick alone would have qualified as "isolated"). An
+  // earlier version of this file ran those two triggers as fully independent timers —
+  // `createThrottle`'s own internal one for the subscription, plus a separate
+  // `setInterval` for the clock — anchored at different moments (first-tick time vs.
+  // mount time). Independent timers drift apart and can land within milliseconds of
+  // each other, producing two back-to-back renders that are each individually correct
+  // but together read as a rapid, contradictory-looking double-flash.
+  //
+  // `lastRenderAtRef` is the single shared gate that replaces both timers' own
+  // bookkeeping: a candidate render (from either trigger) proceeds only if at least one
+  // full window has passed since the last one *from either source*, so the two
+  // triggers can never both fire within the same window. It starts at `-Infinity` so
+  // the very first tick this row ever sees is never suppressed — a quiet symbol still
+  // feels instant the moment it starts ticking.
+  const lastRenderAtRef = useRef(-Infinity);
+
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
-      const throttled = createThrottle(onStoreChange, DISPLAY_REFRESH_INTERVAL_MS);
-      const unsubscribe = subscribeSymbol(symbol, throttled);
-      return () => {
-        throttled.cancel();
-        unsubscribe();
-      };
+      const unsubscribe = subscribeSymbol(symbol, () => {
+        const now = Date.now();
+        if (now - lastRenderAtRef.current < DISPLAY_REFRESH_INTERVAL_MS) {
+          return;
+        }
+        lastRenderAtRef.current = now;
+        onStoreChange();
+      });
+      return unsubscribe;
     },
     [symbol],
   );
   const view = useSyncExternalStore(subscribe, () => getSymbolSnapshot(symbol));
 
-  // "Last update" is relative time, recomputed on a 1s timer — not per tick (this
-  // task's brief, "Columns" table). A local interval re-renders only this row.
+  // The fallback clock: guarantees a repaint at least once per window even during a
+  // burst too continuous to ever look "isolated" to the subscription above, and keeps
+  // "Last update" advancing when the symbol goes fully quiet. Gated by the same
+  // `lastRenderAtRef`, so it never doubles up with a real update that already
+  // refreshed the row this window.
   const [, forceClockTick] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
-    const id = setInterval(() => forceClockTick(), 1000);
+    const id = setInterval(() => {
+      const now = Date.now();
+      if (now - lastRenderAtRef.current < DISPLAY_REFRESH_INTERVAL_MS) {
+        return;
+      }
+      lastRenderAtRef.current = now;
+      forceClockTick();
+    }, DISPLAY_REFRESH_INTERVAL_MS);
     return () => clearInterval(id);
   }, []);
 
@@ -652,7 +718,14 @@ function StockListRow({ definition, priceDecimals, onActivate }: StockListRowPro
       </td>
       <td className="tckr-stocklist__cell tckr-stocklist__col--narrow-hide">{name}</td>
       <td className="tckr-stocklist__cell tckr-stocklist__cell--numeric">
-        <PriceCell value={price} decimals={priceDecimals} muted={priceMuted} />
+        <PriceCell
+          value={price}
+          decimals={priceDecimals}
+          muted={priceMuted}
+          flashDirectionOverride={
+            changePercent === undefined ? undefined : changePercent > 0 ? 'up' : changePercent < 0 ? 'down' : null
+          }
+        />
       </td>
       <td className="tckr-stocklist__cell tckr-stocklist__cell--numeric tckr-stocklist__col--narrow-hide">
         <PriceCell value={change} decimals={priceDecimals} sign muted={priceMuted} indicateSign />
