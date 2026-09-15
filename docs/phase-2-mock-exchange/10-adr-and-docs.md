@@ -74,10 +74,10 @@ The most defensible decision in Phase 2, and the one most likely to be challenge
   exists to prevent); drop oldest / coalesce (fine for a *display* stream, wrong for a
   *sequenced* one — a gap is indistinguishable from corruption); disconnect (chosen).
 - **Decision:** bounded buffer, then disconnect; `DropOldest` retained as a configurable
-  alternative for Phase 11 experiments.
-- **Consequences:** the consumer must implement reconnection — which is Phase 3's job
+  alternative for Phase 12 experiments.
+- **Consequences:** the consumer must implement reconnection — which is Phase 4's job
   anyway; sequence integrity is preserved; the failure is loud.
-- **The connection to Phase 11:** the gateway faces the same choice with slow WebSocket
+- **The connection to Phase 12:** the gateway faces the same choice with slow WebSocket
   clients and will likely answer it *differently* — a price display genuinely wants
   latest-value-wins coalescing. Articulating why the same problem gets opposite answers at
   two layers is a strong interview moment: the semantics of the stream decide the policy,
@@ -93,7 +93,7 @@ The most defensible decision in Phase 2, and the one most likely to be challenge
   (best realism, no data available).
 - **Decision:** weighted alias-method selection, Zipf-like tail, weights in `symbols.json`.
 - **Consequences:** hot symbols are visible from Phase 2 rather than discovered in
-  Phase 15; Kafka partition imbalance will be real when we get there; benchmarks are
+  Phase 16; Kafka partition imbalance will be real when we get there; benchmarks are
   harder to hit, which is the point.
 
 ### ADR 004 — Deterministic seeded generation
@@ -111,7 +111,7 @@ The most defensible decision in Phase 2, and the one most likely to be challenge
 
 Extract the protocol spec from task 01 into a standalone reference — layouts, message
 types, sequence semantics, symbol encoding, worked byte-level example of a single encoded
-`COMI` trade. This is what whoever implements Phase 3 ingestion reads. It should be
+`COMI` trade. This is what whoever implements Phase 4 ingestion reads. It should be
 complete enough that they never need to open the C# to understand the format.
 
 ### Repository README

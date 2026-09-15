@@ -20,7 +20,7 @@ public class FeedFrameWriterTests
     };
 
     /// <summary>
-    /// The regression guard for the wire contract. Phase 3 is written against these exact bytes,
+    /// The regression guard for the wire contract. Phase 4 is written against these exact bytes,
     /// so a field reordering that round-trips perfectly is still a breaking change; only a
     /// hard-coded expectation catches it.
     /// </summary>
@@ -209,7 +209,7 @@ public class FeedFrameWriterTests
 
     /// <summary>
     /// The encode path runs 25,000 times a second for the life of a benchmark. Anything it
-    /// allocates lands as GC pressure inside the latency numbers Phase 4 onward is trying to
+    /// allocates lands as GC pressure inside the latency numbers Phase 5 onward is trying to
     /// measure, so zero is the only acceptable figure.
     /// </summary>
     [Fact]
@@ -237,7 +237,7 @@ public class FeedFrameWriterTests
         (after - before).ShouldBe(0);
     }
 
-    /// <summary>The decode path is on Phase 3's hot path, so it carries the same requirement.</summary>
+    /// <summary>The decode path is on Phase 4's hot path, so it carries the same requirement.</summary>
     [Fact]
     public void DecodingIsAllocationFree()
     {

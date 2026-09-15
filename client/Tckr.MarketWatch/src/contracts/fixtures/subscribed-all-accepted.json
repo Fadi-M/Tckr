@@ -1,0 +1,8 @@
+{
+  "v": 1,
+  "type": "subscribed",
+  "requestId": "r1",
+  "stream": "LIVE",
+  "accepted": ["COMI", "CIB"],
+  "rejected": []
+}

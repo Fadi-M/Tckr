@@ -1,0 +1,6 @@
+{
+  "v": 1,
+  "type": "error",
+  "code": "RATE_LIMITED",
+  "message": "Too many control messages; back off."
+}

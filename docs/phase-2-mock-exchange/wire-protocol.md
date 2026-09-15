@@ -4,7 +4,7 @@
 > Complete enough to write a decoder against without opening the C# source. The
 > reference implementation lives at `src/Tckr.MockExchange/Protocol/` — `FeedFrameWriter.cs`
 > (encoder), `FeedFrameReader.cs` (decoder), `FeedRecord.cs` (the tick type and the
-> `Symbol8` packed-symbol type), `FeedMessageType.cs`, `PriceScale.cs`. Phase 3's
+> `Symbol8` packed-symbol type), `FeedMessageType.cs`, `PriceScale.cs`. Phase 4's
 > ingestion parser is expected to port `FeedFrameReader.cs`, not reimplement it from
 > this document alone — but this document should be enough to check that port against,
 > or to write a decoder in a different language entirely.
@@ -92,7 +92,7 @@ other bits are reserved and must be `0` in this version.
 
 At 25,000 ticks/sec, 44 bytes/tick is ≈1.1 MB/sec of wire traffic — see ADR 001 for why
 this is roughly 4.5x smaller than the master context's ~200-byte estimate for a
-*normalized* internal event (the inflation happens at Phase 3's parse/normalize step,
+*normalized* internal event (the inflation happens at Phase 4's parse/normalize step,
 not on this wire).
 
 ## 5. Fixed-point prices
@@ -165,7 +165,7 @@ gap-detection logic against it.
   a "everything up to N has left the exchange process" checkpoint. A hole *below*
   `LastSequenceNumber` is loss you can already see directly from the tick stream
   itself.
-- **Phase 3 derives its internal event id from the pair `(SessionId, SequenceNumber)`.**
+- **Phase 4 derives its internal event id from the pair `(SessionId, SequenceNumber)`.**
   This is why the counter is scoped per session rather than global: reusing session-less
   global numbering would make that identity collide across reconnects.
 

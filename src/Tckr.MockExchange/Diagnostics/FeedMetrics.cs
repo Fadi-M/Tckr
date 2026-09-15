@@ -16,10 +16,10 @@ namespace Tckr.MockExchange.Diagnostics;
 /// </para>
 /// <para>
 /// <b>Why <c>System.Diagnostics.Metrics</c> rather than a Prometheus client.</b> It is the
-/// .NET-native instrument API, so Phase 14 can point an OTLP or Prometheus exporter at this meter
+/// .NET-native instrument API, so Phase 15 can point an OTLP or Prometheus exporter at this meter
 /// without touching a line of this file. The instrument names are dotted OpenTelemetry names; the
 /// Prometheus exporter renders <c>mockexchange.events.generated</c> as
-/// <c>mockexchange_events_generated_total</c>, which is the shape the master context's Phase 14
+/// <c>mockexchange_events_generated_total</c>, which is the shape the master context's Phase 15
 /// metric list is written in. Naming them now means the dashboards built later do not need
 /// renaming.
 /// </para>
@@ -47,8 +47,8 @@ namespace Tckr.MockExchange.Diagnostics;
 /// <b>No <c>/metrics</c> endpoint here.</b> The task brief offers a Prometheus scrape endpoint via
 /// <c>OpenTelemetry.Exporter.Prometheus.HttpListener</c> if it costs nothing; it does not &#8212;
 /// it is a package reference, a listener socket, a port to configure and a surface to secure, for
-/// a job Phase 14 does once across every service. Everything an exporter needs is already here:
-/// point one at the <c>Tckr.MockExchange</c> meter. // Phase 14
+/// a job Phase 15 does once across every service. Everything an exporter needs is already here:
+/// point one at the <c>Tckr.MockExchange</c> meter. // Phase 15
 /// </para>
 /// </remarks>
 internal sealed class FeedMetrics : IFeedServerMetrics, IDisposable

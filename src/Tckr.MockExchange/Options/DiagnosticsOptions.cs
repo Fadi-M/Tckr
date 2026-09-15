@@ -9,7 +9,7 @@ namespace Tckr.MockExchange.Options;
 /// </summary>
 /// <remarks>
 /// There is no metrics-exporter setting here on purpose. Everything the process measures is on the
-/// <c>Tckr.MockExchange</c> meter already; pointing an exporter at it is a Phase 14 job done once
+/// <c>Tckr.MockExchange</c> meter already; pointing an exporter at it is a Phase 15 job done once
 /// across every service, not a port for this component to open on its own.
 /// </remarks>
 internal sealed class DiagnosticsOptions

@@ -193,7 +193,7 @@ internal readonly record struct FeedRecord
     /// is exactly the size of the loss. Under the default <c>Disconnect</c> policy a gap should
     /// never be observed at all, because a session that withholds anything is closed; under
     /// <c>DropOldest</c> a gap is the exchange disclosing what it dropped, and the session
-    /// continues. Phase 3 derives its <c>eventId</c> from the pair (session id, sequence number),
+    /// continues. Phase 4 derives its <c>eventId</c> from the pair (session id, sequence number),
     /// which is why the counter is per session: reusing it globally would make that identity
     /// collide across reconnects.
     /// </remarks>

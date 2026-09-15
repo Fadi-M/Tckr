@@ -424,27 +424,27 @@ errors.
 
 ---
 
-## 6. Implications for Phase 3 and Phase 4
+## 6. Implications for Phase 4 and Phase 5
 
 - **Ingestion benchmarks against this mock exchange are valid for any target rate up to at
   least 100,000 events/sec on equivalent hardware** — that is the highest rate verified at
-  ≥99% of target with zero gaps (§4). A Phase 4 ingestion result quoting a rate above that
+  ≥99% of target with zero gaps (§4). A Phase 5 ingestion result quoting a rate above that
   is testing something this benchmark has not characterized; a result at or below it is
   testing against a load source with confirmed headroom, not a source that is itself the
   bottleneck.
 - **Co-location is a real caveat, not a formality.** Every latency figure in this document
-  is same-host-clock latency (§1, §5(c)). The moment Phase 4 puts ingestion and the exchange
+  is same-host-clock latency (§1, §5(c)). The moment Phase 5 puts ingestion and the exchange
   on separate machines, these delivery-latency numbers stop being comparable — they will
   include real network transit that this session's numbers cannot, by construction, contain.
-  Phase 4 needs its own latency baseline once it's on separate hosts; this document's latency
+  Phase 5 needs its own latency baseline once it's on separate hosts; this document's latency
   figures should not be reused as a cross-host expectation.
-- **The exchange's CPU floor (~60% of one core) is fixed, not scaling.** If Phase 4 runs the
+- **The exchange's CPU floor (~60% of one core) is fixed, not scaling.** If Phase 5 runs the
   exchange and the ingestion service on the same box, budget that ~60% floor (rising to
   ~73–81% at 8 concurrent consumers per scenario 5) as unavailable to ingestion regardless of
   the rate ingestion asks for — it is `RateGovernor` pacing overhead, not something that
   frees up at lower rates.
 - **The scenario-8 result is a caution about tolerance checks, not a caution about the
-  exchange.** Any Phase 3/4 tooling that reuses `Tckr.FeedProbe`'s ±2% target-rate check
+  exchange.** Any Phase 4/4 tooling that reuses `Tckr.FeedProbe`'s ±2% target-rate check
   against a session running `CompressedDay` (or any future non-flat rate mode) needs a
   phase-aware tolerance check, or it will report a "failure" on a healthy run, exactly as
   happened here. §3.8 documents the correct reading; the fix (a phase-aware check) is out of

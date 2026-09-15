@@ -1,0 +1,83 @@
+/**
+ * PriceChart styling — task 05. Reuses task 03's theme tokens exclusively; this file is
+ * the only stylesheet `src/chart/**` owns (task 03 owns `src/styles/**`).
+ *
+ * Design choices made after loading the `dataviz` skill (see PriceChart.tsx's Notes for
+ * the write-up task 09 reads):
+ *   - One series, one hue (`--tckr-color-accent`) for the line itself. The up/down
+ *     colour + glyph convention (`.tckr-delta--up`/`--down`) is for discrete gain/loss
+ *     indicators (price cells, headers) — a continuously drawn line is not a delta, so
+ *     it is not recoloured per-tick; recolouring a line by its last move would repaint
+ *     the whole series on every frame, which the "colour follows the entity, never a
+ *     transient state" rule warns against.
+ *   - uPlot's own legend is switched off (`legend.show: false` in PriceChart.tsx) in
+ *     favour of a plain-text readout row: for a single series a colour-swatch legend is
+ *     redundant chrome (dataviz: "a single series needs no legend box"), and the
+ *     readout text itself uses text tokens, never the series colour, per "text wears
+ *     text tokens, never series colour."
+ *   - Grid and axis ink are deliberately recessive (`--tckr-color-border`,
+ *     `--tckr-color-text-muted`) so the line — the one thing that matters — is the only
+ *     saturated mark on the chart.
+ */
+
+.tckr-price-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+.tckr-price-chart__readout {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--tckr-font-mono);
+  font-size: 0.8rem;
+  color: var(--tckr-color-text-muted);
+  min-height: 1.2em;
+}
+
+.tckr-price-chart__body {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--tckr-color-border);
+  border-radius: 10px;
+  background: var(--tckr-color-surface-raised);
+  overflow: hidden;
+}
+
+.tckr-price-chart__canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.tckr-price-chart__empty {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tckr-color-text-muted);
+  background: var(--tckr-color-surface-raised);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 12px;
+}
+
+/* uPlot's own DOM: keep the cursor crosshair and hover point on-brand without touching
+   task 03's global stylesheet. */
+.tckr-price-chart .u-cursor-x {
+  border-left-color: var(--tckr-color-text-muted) !important;
+}
+
+.tckr-price-chart .u-cursor-pt {
+  border-color: var(--tckr-color-accent) !important;
+  background: var(--tckr-color-accent) !important;
+}
+
+@media (max-width: 400px) {
+  .tckr-price-chart__readout {
+    font-size: 0.8rem;
+  }
+}

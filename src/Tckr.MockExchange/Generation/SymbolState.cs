@@ -29,7 +29,7 @@ internal struct SymbolState
     /// Separate from <see cref="LastTradePriceScaled"/> on purpose. If the walk resumed from the
     /// last <em>printed</em> trade, each step would carry the print's own offset inside the spread
     /// as well as the tick move, and the per-symbol price could travel further between consecutive
-    /// events than <c>MaxTickMove</c> allows. Continuity is the property Phase 3 onward asserts
+    /// events than <c>MaxTickMove</c> allows. Continuity is the property Phase 4 onward asserts
     /// per-symbol ordering against, so it is bounded here rather than approximately true.
     /// </remarks>
     internal long MidPriceScaled;

@@ -23,7 +23,7 @@
 Define and implement the exchange-side wire protocol: the frame layout, the message
 types, and a zero-allocation encoder/decoder pair.
 
-This is the contract every other Phase 2 task and all of Phase 3 depends on. Get it
+This is the contract every other Phase 2 task and all of Phase 4 depends on. Get it
 right and freeze it; downstream tasks will be written against the layout below.
 
 ---
@@ -31,7 +31,7 @@ right and freeze it; downstream tasks will be written against the layout below.
 ## Why this shape
 
 The protocol is deliberately **binary, fixed-layout and exchange-specific**. It is not
-our internal event model. Phase 3 must do real parsing and normalization work to turn
+our internal event model. Phase 4 must do real parsing and normalization work to turn
 this into `MarketDataEvent`, which is the whole point of having an ingestion boundary.
 
 Fixed-point prices are non-negotiable: `double` cannot represent `85.10` exactly, and a
@@ -128,7 +128,7 @@ Offset  Size  Type      Field
 - Per **session**, not global. Each accepted connection starts at 1.
 - Incremented for tick messages only. Heartbeats and `SessionStart` do not consume one.
 - A gap observed by a consumer means data loss and must be treated as an error.
-- Phase 3 will derive its `eventId` from `(SessionId, SequenceNumber)`. Say so in the
+- Phase 4 will derive its `eventId` from `(SessionId, SequenceNumber)`. Say so in the
   XML docs on `FeedRecord.SequenceNumber` so the coupling is discoverable.
 
 ### Symbol encoding
@@ -180,7 +180,7 @@ Each returns bytes written. Each throws `ArgumentException` if the destination i
 small. No allocations, no `MemoryStream`, no `BinaryWriter`.
 
 **`FeedFrameReader.cs`** — the decoding half, used by tests, the probe (task 08) and as
-the reference implementation Phase 3 will port:
+the reference implementation Phase 4 will port:
 ```csharp
 internal static class FeedFrameReader
 {

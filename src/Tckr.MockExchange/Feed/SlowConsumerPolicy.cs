@@ -32,7 +32,7 @@ internal enum SlowConsumerPolicy
     /// </summary>
     /// <remarks>
     /// For consumers that would rather have current data with holes than a disconnection: the
-    /// Phase 11 coalescing experiments, where "the newest quote for a symbol" is worth more than
+    /// Phase 12 coalescing experiments, where "the newest quote for a symbol" is worth more than
     /// "every quote in order". The contract here is the opposite of
     /// <see cref="Disconnect"/>'s &#8212; you may lose records, and you will see precisely which
     /// ones, because the discarded records keep the sequence numbers they were assigned. Every

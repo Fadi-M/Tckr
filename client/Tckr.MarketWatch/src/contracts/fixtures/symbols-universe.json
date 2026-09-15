@@ -1,0 +1,23 @@
+{
+  "v": 1,
+  "asOf": "2026-09-12T09:15:00.000Z",
+  "simulated": true,
+  "symbols": [
+    {
+      "symbol": "COMI",
+      "name": "Commercial International Holding",
+      "currency": "EGP",
+      "tickSize": "0.05",
+      "lotSize": 100,
+      "referencePrice": "85.10"
+    },
+    {
+      "symbol": "CIB",
+      "name": "Cairo Investment Bank",
+      "currency": "EGP",
+      "tickSize": "0.05",
+      "lotSize": 100,
+      "referencePrice": "62.75"
+    }
+  ]
+}

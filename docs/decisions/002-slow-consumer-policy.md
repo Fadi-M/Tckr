@@ -24,7 +24,7 @@ Bounded per-session buffer (`SessionBufferBytes`, default 4 MiB). When a session
 drain fast enough and stays behind past `SlowConsumerTimeoutMs`, the default policy is
 **`Disconnect`**: the session is closed. `DropOldest` — discard the oldest still-queued
 bytes and keep the session alive — exists as a configurable alternative, off by
-default, intended for Phase 11 experiments where a different consumer semantics is the
+default, intended for Phase 12 experiments where a different consumer semantics is the
 whole point.
 
 ## The claim that did not survive implementation
@@ -128,24 +128,24 @@ size (108,875 and 109,000 records in two live runs) matched the server's own
 ## Consequences
 
 - The consumer must implement reconnection to use the default policy at all — which is
-  Phase 3's job regardless of this decision, so it costs nothing new.
+  Phase 4's job regardless of this decision, so it costs nothing new.
 - Sequence integrity is preserved under `Disconnect`: a consumer that stays connected
   has, by construction, a complete tape.
 - The failure is loud in both policies now, in the specific sense that matters: a
   consumer can always tell precisely what happened to its stream, whether that is "you
   were disconnected" or "here is the gap."
 - `DropOldest` is not dead weight kept for symmetry — it is the direct evidence that
-  Phase 11's WebSocket gateway is allowed to answer the same question differently. See
+  Phase 12's WebSocket gateway is allowed to answer the same question differently. See
   below.
 
-## The connection to Phase 11
+## The connection to Phase 12
 
 The gateway faces the identical fork with slow WebSocket clients, and it will very
 likely answer it *differently*: a price display genuinely wants latest-value-wins
 coalescing, not a reconnect. The reason the two layers can reach opposite answers to
 the same-shaped question is not that one layer is right and the other wrong — it is
 that **the semantics of the stream decide the policy, not a general preference for
-"always disconnect" or "always coalesce."** A sequenced feed that Phase 3 treats as the
+"always disconnect" or "always coalesce."** A sequenced feed that Phase 4 treats as the
 authoritative source of an event stream wants a complete tape or a clean failure; a
 UI subscription that only ever renders the newest price for a symbol has no use for a
 queue of stale ones and every reason to coalesce.
@@ -156,16 +156,16 @@ consumer tell what we did?"**. Fix the observability of the failure first — ma
 self-describing, whichever policy applies — and the policy question gets smaller and
 more honest: a preference between two disclosed behaviours, not a choice about whose
 data to lose silently. Phase 2 got this backwards on the first pass and corrected it
-before it shipped; Phase 11 should not have to rediscover the same lesson.
+before it shipped; Phase 12 should not have to rediscover the same lesson.
 
 ## Revisit If
 
-- Phase 11's gateway needs a policy this feed's numbering cannot express (for example,
+- Phase 12's gateway needs a policy this feed's numbering cannot express (for example,
   "tell me how *stale* my latest value is," not just "how many I missed") — that is a
   different disclosure contract and belongs in its own ADR, not a reuse of this one.
 - A consumer genuinely wants partial delivery with disclosed loss as its *primary* mode
   rather than an opt-in experiment — at that point `DropOldest` stops being "the
-  alternative for Phase 11 experiments" and becomes a first-class supported policy,
+  alternative for Phase 12 experiments" and becomes a first-class supported policy,
   which changes what "default" should mean here.
 - The blind spot noted in task 05's notes — records withheld *after* the last one
   actually written are invisible until the next record arrives, so a feed that goes

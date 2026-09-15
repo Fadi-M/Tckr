@@ -1,0 +1,20 @@
+{
+  "v": 1,
+  "type": "snapshot",
+  "snapshot": {
+    "v": 1,
+    "symbol": "CIB",
+    "stream": "DELAYED",
+    "price": "62.80",
+    "change": "-0.15",
+    "changePercent": "-0.24",
+    "open": "62.95",
+    "high": "63.10",
+    "low": "62.55",
+    "volume": 98214,
+    "lastEventId": "evt-000000000114220",
+    "exchangeTimestamp": "2026-09-12T10:16:04.881Z",
+    "snapshotAge": 15234,
+    "simulated": true
+  }
+}

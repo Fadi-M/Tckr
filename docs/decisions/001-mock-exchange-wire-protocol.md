@@ -8,8 +8,8 @@
 ## Context
 
 `Tckr.MockExchange` has to be exchange-*like*, not a convenience format. If the wire
-format is something Phase 3's ingestion service can parse with `JsonSerializer.Deserialize`,
-Phase 3 has no real parsing or normalization work to do, and every measurement taken
+format is something Phase 4's ingestion service can parse with `JsonSerializer.Deserialize`,
+Phase 4 has no real parsing or normalization work to do, and every measurement taken
 downstream of it is measuring something easier than the real problem. The master
 context's whole premise is a single 25,000-events/sec exchange connection carrying
 market data in a format the rest of the system does not natively speak — the format
@@ -74,7 +74,7 @@ one place is the right trade.
 - **JSON lines.** Human-readable, trivial to debug with `nc` or a browser. Rejected:
   roughly 4x the bytes of the binary layout, and allocation-heavy to parse at 25,000/sec
   — a `JsonDocument` per tick is exactly the GC pressure the rate governor and generator
-  spend their whole design avoiding one allocation at a time. It also gives Phase 3
+  spend their whole design avoiding one allocation at a time. It also gives Phase 4
   nothing to normalize; a JSON tick is already shaped like an internal event.
 - **Protobuf / Avro.** Real schema evolution story, code-generated types, wide language
   support. Rejected for Phase 2: it is a dependency and a build step for a component
@@ -108,14 +108,14 @@ one place is the right trade.
   and as a day-to-day smoke-test client.
 - **Real inflation happens downstream, not here.** The wire record is 44 bytes; the
   master context estimates roughly 200 bytes for a *normalized* internal event. That
-  ~4.5x growth happens entirely at Phase 3's parse/normalize step — symbol expands from
+  ~4.5x growth happens entirely at Phase 4's parse/normalize step — symbol expands from
   8 packed bytes to a lookup key plus metadata, the record gains an internal event id,
   routing fields, and whatever envelope Kafka serialization adds. Worth stating
   explicitly because it changes the capacity arithmetic between the exchange link
   (≈1.1 MB/sec at 44 bytes × 25,000/sec) and Kafka (≈4.5x that once normalized) — a
   capacity plan that sizes Kafka off the wire byte count would be wrong by that factor.
 - **Session identifiers are RFC 4122 (big-endian) byte order on the wire**, not .NET's
-  native mixed-endian `Guid` layout, because Phase 3 and any other consumer will not all
+  native mixed-endian `Guid` layout, because Phase 4 and any other consumer will not all
   be .NET processes reading a `Guid` the way .NET does. This is a small decision buried
   in `FeedFrameWriter.WriteSessionStart`, recorded here because it is exactly the kind
   of interoperability detail that is invisible until a second-language client tries to
@@ -123,7 +123,7 @@ one place is the right trade.
 
 ## Revisit If
 
-- Phase 3 (or any consumer) needs the wire format to evolve while old and new versions
+- Phase 4 (or any consumer) needs the wire format to evolve while old and new versions
   are both in flight — the version byte supports rejection, not negotiation, and adding
   real schema evolution would mean redesigning around that.
 - A named real-world protocol (ITCH, FIX) becomes a literal requirement rather than a

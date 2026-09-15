@@ -5,7 +5,7 @@
 | **Phase** | 2 — Mock Exchange |
 | **Status** | Done — see [`benchmarks/phase-2/results.md`](../../benchmarks/phase-2/results.md): scenarios 1–8 and 10 executed (n=3 each) under `caffeinate`, scenario-6 corruption from the original interrupted session repaired, generator-throughput README claim sourced; scenario 9 (30-min soak) explicitly deferred, not a DoD item |
 | **Depends on** | 06, 07, 08 |
-| **Blocks** | Phase 4 |
+| **Blocks** | Phase 5 |
 | **Parallel with** | 10 |
 | **Owns** | `benchmarks/phase-2/**` |
 
@@ -31,8 +31,8 @@ The master context is blunt about this:
 
 > **Important:** These numbers must be actual measurements.
 
-Phase 4 benchmarks ingestion against this load source. If the source tops out at 18K/sec
-on the benchmark machine, then a Phase 4 result of "ingestion handled 18K/sec" says
+Phase 5 benchmarks ingestion against this load source. If the source tops out at 18K/sec
+on the benchmark machine, then a Phase 5 result of "ingestion handled 18K/sec" says
 nothing about ingestion. **We must know the ceiling of the instrument before trusting any
 measurement taken with it.**
 
@@ -97,7 +97,7 @@ From the probe (task 08) and the process itself:
 
 Note the GC counters explicitly. The Phase 2 target is **zero allocation per event in
 steady state**; if Gen0 collections are occurring during a 60-second run at a steady rate,
-something on the hot path is allocating and it needs finding before Phase 3 builds on it.
+something on the hot path is allocating and it needs finding before Phase 4 builds on it.
 
 ### Report
 
@@ -108,7 +108,7 @@ something on the hot path is allocating and it needs finding before Phase 3 buil
 3. Per-scenario detail with the full metric set.
 4. **The ceiling** — the highest rate sustained at ≥ 99% of target with zero gaps.
 5. Observations and anomalies, written plainly.
-6. Implications for Phase 3 and Phase 4 — specifically, the maximum rate at which
+6. Implications for Phase 4 and Phase 5 — specifically, the maximum rate at which
    ingestion benchmarks can be considered valid on this hardware.
 
 Keep raw probe JSON under `benchmarks/phase-2/raw/` so results can be re-derived.

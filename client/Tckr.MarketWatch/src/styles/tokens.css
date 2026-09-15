@@ -1,0 +1,69 @@
+/**
+ * Theme tokens for Tckr Market Watch — task 03 (docs/phase-3-web-client/03-app-shell.md).
+ *
+ * All custom properties are prefixed `--tckr-`. Light values live on the bare `:root`;
+ * dark values are redefined twice, once for an explicit "system" preference
+ * (`@media (prefers-color-scheme: dark)`, guarded so an explicit `data-theme="light"`
+ * can still win) and once for an explicit `[data-theme="dark"]` toggle, so a future
+ * theme switcher can override the system preference in either direction.
+ *
+ * Nine colour tokens, each defined in all three scopes:
+ *   surface, surface-raised, text, text-muted, border, accent, up, down, warning.
+ * Plus two typography tokens (not scope-sensitive, but declared in all three blocks
+ * for consistency): font-sans, font-mono — Archivo/Roboto Mono, the "Tckr First Run"
+ * design's typeface pairing (docs/decisions/006-client-data-source-contract.md's design
+ * import). Dark is the primary, "first-run" look (mint/coral tape on near-black
+ * surfaces); light is a plain daytime fallback for an explicit `data-theme="light"`.
+ *
+ * `up` / `down` are never the *only* signal for a price direction — see
+ * `.tckr-delta--up` / `.tckr-delta--down` in global.css, which also prefix an arrow
+ * glyph so the meaning survives for a colour-blind viewer (client-contract.md and
+ * 03-app-shell.md both call this out; roughly 1 in 12 men has a red/green deficiency).
+ */
+
+:root {
+  --tckr-color-surface: #ffffff;
+  --tckr-color-surface-raised: #f4f5f7;
+  --tckr-color-text: #14181f;
+  --tckr-color-text-muted: #5b6472;
+  --tckr-color-border: #d8dbe1;
+  --tckr-color-accent: #1a8f5c;
+  --tckr-color-up: #1a8f5c;
+  --tckr-color-down: #c73e2c;
+  --tckr-color-warning: #8a5a00;
+  --tckr-font-sans: 'Archivo', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --tckr-font-mono: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Explicit "system" dark preference. `:not([data-theme="light"])` lets a future
+   light-mode toggle override the OS preference. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --tckr-color-surface: #0c0d0e;
+    --tckr-color-surface-raised: #17181a;
+    --tckr-color-text: #f2f1ee;
+    --tckr-color-text-muted: #9296a0;
+    --tckr-color-border: rgba(255, 255, 255, 0.1);
+    --tckr-color-accent: #3fd79c;
+    --tckr-color-up: #3fd79c;
+    --tckr-color-down: #f2705f;
+    --tckr-color-warning: #d9a441;
+    --tckr-font-sans: 'Archivo', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --tckr-font-mono: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+}
+
+/* Explicit dark toggle. Wins in both directions regardless of OS preference. */
+:root[data-theme="dark"] {
+  --tckr-color-surface: #0c0d0e;
+  --tckr-color-surface-raised: #17181a;
+  --tckr-color-text: #f2f1ee;
+  --tckr-color-text-muted: #9296a0;
+  --tckr-color-border: rgba(255, 255, 255, 0.1);
+  --tckr-color-accent: #3fd79c;
+  --tckr-color-up: #3fd79c;
+  --tckr-color-down: #f2705f;
+  --tckr-color-warning: #d9a441;
+  --tckr-font-sans: 'Archivo', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --tckr-font-mono: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}

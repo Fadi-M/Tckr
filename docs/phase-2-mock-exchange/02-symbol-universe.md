@@ -29,7 +29,7 @@ Provide the tradable universe — symbols, reference prices, tick sizes — and 
 
 Uniform symbol distribution is the single most misleading simplification a mock feed can
 make. It makes fan-out look cheap, makes Kafka partitions look balanced, and makes hot
-symbols invisible until Phase 15, at which point every earlier measurement has to be
+symbols invisible until Phase 16, at which point every earlier measurement has to be
 redone.
 
 The master context is explicit:
@@ -290,7 +290,7 @@ Two decisions here are worth recording:
 - **Vose's alias method over cumulative-weight binary search.** The argument is not raw speed at
   25K/sec; it is that the alias table's cost is constant *and independent of the distribution*.
   Binary search makes hot symbols cheaper to pick than cold ones, so per-event cost would
-  correlate with which symbol came out, and Phase 4's latency histograms would carry a
+  correlate with which symbol came out, and Phase 5's latency histograms would carry a
   distribution-shaped artefact.
 - **The picker does not own an RNG.** `Next(ulong)` takes the caller's draw so that one seed
   reproduces a tape end to end. A picker with its own `Random` would be a second, unseeded source

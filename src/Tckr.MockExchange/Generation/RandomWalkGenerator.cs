@@ -13,9 +13,9 @@ namespace Tckr.MockExchange.Generation;
 /// <remarks>
 /// <para>
 /// Two properties are being bought here and only two. <b>Reproducibility</b>, so that a benchmark
-/// taken in Phase 4 can be compared against one taken in Phase 16 &#8212; without it every
+/// taken in Phase 5 can be compared against one taken in Phase 17 &#8212; without it every
 /// downstream measurement is a measurement of a different market. And <b>continuity</b>, so that
-/// prices walk rather than teleport: Phase 3 onward asserts per-symbol ordering through Kafka
+/// prices walk rather than teleport: Phase 4 onward asserts per-symbol ordering through Kafka
 /// partitions, and against a tape of independent random prices a broken ordering guarantee and a
 /// working one produce output that looks identical. Statistical realism beyond that is explicitly
 /// not a goal; there is no volatility clustering here and no matching engine.
@@ -34,7 +34,7 @@ namespace Tckr.MockExchange.Generation;
 /// <b>Cost per event.</b> Four 64-bit draws (a fifth on trade prints), each sliced into independent
 /// fields; one alias-table pick; one clock read; a handful of multiplies and compares. No
 /// division, no dictionary, no string, no branch on a symbol's identity, and no allocation. The
-/// per-event cost is therefore independent of which symbol was drawn, which is what keeps Phase 4's
+/// per-event cost is therefore independent of which symbol was drawn, which is what keeps Phase 5's
 /// latency histograms from measuring the symbol distribution instead of the pipeline.
 /// </para>
 /// <para>

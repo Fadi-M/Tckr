@@ -91,7 +91,7 @@ public class FeedPublisherServiceTests
 
     /// <remarks>
     /// An auction print is a print. Flagging a bid update as one would describe something that
-    /// does not happen, and Phase 3's normalisation would have to decide what to do with it.
+    /// does not happen, and Phase 4's normalisation would have to decide what to do with it.
     /// </remarks>
     [Fact]
     public void StampingAnAuctionBatchMarksTradesAndLeavesQuotesAlone()

@@ -1,0 +1,7 @@
+{
+  "v": 1,
+  "type": "entitlementChanged",
+  "stream": "DELAYED",
+  "resubscribeRequired": true,
+  "effectiveFrom": "2026-09-12T10:40:00.000Z"
+}

@@ -11,7 +11,7 @@ Real tapes are dominated by a handful of names — a small number of symbols acc
 most of the traffic, and a mock exchange that emits every symbol with equal probability
 quietly invalidates every fan-out and partitioning measurement taken against it. Phase
 15 ("Solve Scaling & Hot Symbols") exists specifically because hot symbols are a real
-production problem for this architecture; a uniform tape would mean Phase 15 discovers
+production problem for this architecture; a uniform tape would mean Phase 16 discovers
 the problem for the first time fifteen phases in, on synthetic data that never modelled
 it.
 
@@ -33,8 +33,8 @@ Two implementation choices matter enough to record alongside the headline decisi
   is *constant and independent of the distribution*. Binary search over cumulative
   weights makes hot symbols cheaper to reach than cold ones (fewer comparisons to the
   boundary), which means per-event cost would correlate with *which symbol* the draw
-  produced — and Phase 4's latency histograms downstream would then carry a
-  distribution-shaped artefact that has nothing to do with what Phase 4 is trying to
+  produced — and Phase 5's latency histograms downstream would then carry a
+  distribution-shaped artefact that has nothing to do with what Phase 5 is trying to
   measure.
 - **The picker does not own an RNG.** `WeightedSymbolPicker.Next(ulong random)` takes
   the caller's draw rather than generating its own. A picker with an internal `Random`
@@ -64,10 +64,10 @@ Two implementation choices matter enough to record alongside the headline decisi
 ## Consequences
 
 - Hot symbols are visible from Phase 2 onward instead of being discovered as a surprise
-  in Phase 15 — every fan-out, partitioning and caching decision from Phase 5 onward can
+  in Phase 16 — every fan-out, partitioning and caching decision from Phase 6 onward can
   be benchmarked against a distribution that already looks like the problem it is meant
   to solve.
-- Kafka partition imbalance (Phase 6) will be a real, measurable effect once that phase
+- Kafka partition imbalance (Phase 7) will be a real, measurable effect once that phase
   exists, not something introduced synthetically to demonstrate the mitigation.
 - Benchmarks are harder to make look good — a partitioning scheme that only performs
   well under uniform load will visibly underperform here, which is the point of building
@@ -96,6 +96,6 @@ Measured (1,000,000 draws, universe of 250, fixed seed; `02-symbol-universe.md`)
   for example, a symbol's activity spiking in response to a simulated news event, or
   activity correlated across symbols in the same sector. The alias method draws each
   event's symbol independently of history; it has no notion of a symbol "heating up."
-- The universe size or weight shape stops matching whatever Phase 15's actual scaling
+- The universe size or weight shape stops matching whatever Phase 16's actual scaling
   work needs to demonstrate — the weights here were picked to be plausible, not derived
-  from a specific target imbalance ratio Phase 15 requires.
+  from a specific target imbalance ratio Phase 16 requires.
