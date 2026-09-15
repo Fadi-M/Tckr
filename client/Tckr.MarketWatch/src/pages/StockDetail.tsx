@@ -58,16 +58,21 @@ type Timeframe = (typeof TIMEFRAMES)[number];
 const TIMEFRAME_CAPACITY: Record<Timeframe, number> = { '60S': 60, '5M': 300, SESSION: 600 };
 
 const DETAIL_STYLES = `
-.tckr-detail { max-width: 760px; }
+.tckr-detail { max-width: 760px; margin: 0 auto; }
 .tckr-detail__topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
-.tckr-detail__back { font-size: 0.8rem; color: var(--tckr-color-text-muted); text-decoration: none; }
+.tckr-detail__back { font-size: 0.8rem; color: var(--tckr-color-text-muted); text-decoration: none; border-radius: 3px; transition: color 150ms ease; }
 .tckr-detail__back:hover { color: var(--tckr-color-text); }
+.tckr-detail__back:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; }
 .tckr-detail__topbar-badges { display: flex; align-items: center; gap: 8px; }
 .tckr-detail__identity { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
 .tckr-detail__symbol { font-family: var(--tckr-font-mono); font-weight: 700; font-size: 1.4rem; letter-spacing: -0.01em; }
 .tckr-detail__name { font-size: 0.85rem; color: var(--tckr-color-text-muted); }
 .tckr-detail__loading { color: var(--tckr-color-text-muted); }
-.tckr-detail__quote { margin-top: 16px; }
+.tckr-detail__quote { margin-top: 16px; animation: tckr-detail-reveal 220ms cubic-bezier(0.23, 1, 0.32, 1); }
+@keyframes tckr-detail-reveal {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 .tckr-detail__price-row { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
 .tckr-detail__price { font-family: var(--tckr-font-mono); font-weight: 600; font-size: 2.4rem; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .tckr-detail__price-delta { font-family: var(--tckr-font-mono); font-weight: 600; font-size: 1rem; font-variant-numeric: tabular-nums; }
@@ -96,8 +101,11 @@ const DETAIL_STYLES = `
   background: transparent;
   color: var(--tckr-color-text-muted);
   cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, transform 120ms ease-out;
 }
 .tckr-detail__tf--active { background: var(--tckr-color-text); color: var(--tckr-color-surface); border-color: var(--tckr-color-text); }
+.tckr-detail__tf:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; }
+.tckr-detail__tf:active { transform: scale(0.96); }
 .tckr-detail__stats {
   margin-top: 20px;
   display: grid;
@@ -106,6 +114,7 @@ const DETAIL_STYLES = `
   background: var(--tckr-color-border);
   border-radius: 9px;
   overflow: hidden;
+  animation: tckr-detail-reveal 220ms cubic-bezier(0.23, 1, 0.32, 1) 40ms backwards;
 }
 .tckr-detail__stat { background: var(--tckr-color-surface-raised); padding: 12px 12px; }
 .tckr-detail__stat-label { display: block; font-family: var(--tckr-font-mono); font-size: 0.6rem; letter-spacing: 0.1em; color: var(--tckr-color-text-muted); text-transform: uppercase; }
@@ -146,11 +155,21 @@ function formatOffset(ms: number): string {
   return `${ms}ms`;
 }
 
-function deltaClassName(change: DecimalString): string | undefined {
+/** 'up'/'down' for a nonzero signed change, `null` at exactly zero — the single
+ * source of truth for "is this symbol up or down since open" that both the Change
+ * indicator's persistent colour and the raw price's flash colour key off of (see
+ * `PriceCell`'s `flashDirectionOverride` doc for why the price must not compute its
+ * own, different, tick-to-tick answer to that question). */
+function deltaDirection(change: DecimalString): 'up' | 'down' | null {
   const direction = compare(change, ZERO_DECIMAL);
-  if (direction > 0) return 'tckr-delta--up';
-  if (direction < 0) return 'tckr-delta--down';
-  return undefined;
+  if (direction > 0) return 'up';
+  if (direction < 0) return 'down';
+  return null;
+}
+
+function deltaClassName(change: DecimalString): string | undefined {
+  const direction = deltaDirection(change);
+  return direction ? `tckr-delta--${direction}` : undefined;
 }
 
 // ---------------------------------------------------------------------------------
@@ -430,7 +449,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
         <div className="tckr-detail__quote">
           <div className="tckr-detail__price-row">
             <span className="tckr-detail__price" data-testid="stock-detail-price">
-              <PriceCell value={quote.price} />
+              <PriceCell value={quote.price} flashDirectionOverride={deltaDirection(quote.change)} />
             </span>
             <span className="tckr-detail__price-delta">
               <span data-testid="stock-detail-change">

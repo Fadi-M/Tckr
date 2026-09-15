@@ -1,0 +1,196 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-15T08:56:38Z",
+  "title": "Design System: Tckr Market Watch",
+  "extensions": {
+    "colorMeta": {
+      "terminal-mint": {
+        "role": "primary",
+        "displayName": "Terminal Mint",
+        "canonical": "oklch(78% 0.15 155)",
+        "tonalRamp": [
+          "oklch(18% 0.04 155)",
+          "oklch(30% 0.08 155)",
+          "oklch(42% 0.11 155)",
+          "oklch(54% 0.13 155)",
+          "oklch(66% 0.15 155)",
+          "oklch(78% 0.15 155)",
+          "oklch(88% 0.11 155)",
+          "oklch(95% 0.05 155)"
+        ]
+      },
+      "alert-coral": {
+        "role": "secondary",
+        "displayName": "Alert Coral",
+        "canonical": "oklch(70% 0.17 25)",
+        "tonalRamp": [
+          "oklch(18% 0.05 25)",
+          "oklch(30% 0.09 25)",
+          "oklch(42% 0.13 25)",
+          "oklch(54% 0.16 25)",
+          "oklch(63% 0.17 25)",
+          "oklch(70% 0.17 25)",
+          "oklch(84% 0.11 25)",
+          "oklch(95% 0.05 25)"
+        ]
+      },
+      "amber-caution": {
+        "role": "tertiary",
+        "displayName": "Amber Caution",
+        "canonical": "oklch(75% 0.13 75)",
+        "tonalRamp": [
+          "oklch(18% 0.04 75)",
+          "oklch(30% 0.07 75)",
+          "oklch(42% 0.10 75)",
+          "oklch(54% 0.12 75)",
+          "oklch(66% 0.13 75)",
+          "oklch(75% 0.13 75)",
+          "oklch(87% 0.09 75)",
+          "oklch(95% 0.04 75)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Near-Black Surface",
+        "canonical": "oklch(15% 0.003 250)",
+        "tonalRamp": [
+          "oklch(15% 0.003 250)",
+          "oklch(22% 0.003 250)",
+          "oklch(30% 0.003 250)",
+          "oklch(42% 0.003 250)",
+          "oklch(55% 0.003 250)",
+          "oklch(68% 0.003 250)",
+          "oklch(82% 0.003 250)",
+          "oklch(95% 0.003 250)"
+        ]
+      },
+      "surface-raised": {
+        "role": "neutral",
+        "displayName": "Raised Surface",
+        "canonical": "oklch(19% 0.003 250)"
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Off-White Text",
+        "canonical": "oklch(96% 0.004 90)"
+      },
+      "text-muted": {
+        "role": "neutral",
+        "displayName": "Muted Slate Text",
+        "canonical": "oklch(65% 0.006 260)"
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Hairline Border",
+        "canonical": "rgba(255, 255, 255, 0.1)"
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display (Hero Price)", "purpose": "The stock-detail page's headline price — the largest, most weighted text in the system, and the only 'display' moment given to a number rather than a headline." },
+      "headline": { "displayName": "Headline (Symbol Identity)", "purpose": "The traded symbol on the detail page (e.g. COMI)." },
+      "body": { "displayName": "Body", "purpose": "Table cells, copy, buttons, search input — anything a human wrote." },
+      "label": { "displayName": "Label", "purpose": "Uppercase-tracked micro-labels: table headers, badges, stat labels, the tape tag." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "tape-scroll", "value": "translateX(0) to translateX(-50%), 32s linear infinite", "purpose": "The ticker tape's continuous marquee loop; duplicated content makes the loop seamless." },
+      { "name": "price-flash", "value": "900ms ease-out background-color pulse + arrow fade", "purpose": "Fires on every Price Cell value change — the system's primary 'something just happened' signal. Kept brief and non-repeating." },
+      { "name": "tape-held-pause", "value": "animation-play-state: paused, opacity 0.32, saturate(0.3)", "purpose": "Freezes and desaturates the ticker tape when the connection is stale, with a fading 'TAPE HELD' overlay label." }
+    ],
+    "breakpoints": [
+      { "name": "narrow", "value": "640px" },
+      { "name": "compact-chart", "value": "400px" },
+      { "name": "stats-wide", "value": "480px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Action Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Inverted-color call-to-action: active filter pill, active timeframe tab, banner/empty-state CTAs (Retry now, Reconnect, Clear search).",
+      "html": "<button class=\"ds-btn-primary\">Retry now</button>",
+      "css": ".ds-btn-primary { font: inherit; font-weight: 600; font-size: 0.75rem; padding: 7px 13px; border-radius: 6px; border: none; background: var(--tckr-color-text, #f2f1ee); color: var(--tckr-color-surface, #0c0d0e); cursor: pointer; transition: opacity 0.15s ease-out; } .ds-btn-primary:hover { opacity: 0.85; } .ds-btn-primary:focus-visible { outline: 2px solid var(--tckr-color-accent, #3fd79c); outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost Pill",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Inactive filter/preset pill — becomes the Primary Action Button's color pair on selection, never on hover.",
+      "html": "<button class=\"ds-pill\">Gainers</button>",
+      "css": ".ds-pill { font: inherit; font-size: 0.72rem; font-weight: 500; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--tckr-color-border, rgba(255,255,255,0.1)); background: transparent; color: var(--tckr-color-text-muted, #9296a0); cursor: pointer; } .ds-pill:focus-visible { outline: 2px solid var(--tckr-color-accent, #3fd79c); outline-offset: 2px; } .ds-pill--active { background: var(--tckr-color-text, #f2f1ee); color: var(--tckr-color-surface, #0c0d0e); border-color: var(--tckr-color-text, #f2f1ee); font-weight: 600; }"
+    },
+    {
+      "name": "Live Badge",
+      "kind": "chip",
+      "refersTo": "badge-live",
+      "description": "The system's assertion that a stream is LIVE — sourced only from server entitlement, never a client default.",
+      "html": "<span class=\"ds-badge ds-badge--live\"><span class=\"ds-badge__dot\"></span>LIVE</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; gap: 6px; font-family: 'Roboto Mono', ui-monospace, monospace; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.09em; padding: 5px 9px; border-radius: 5px; border: 1px solid; white-space: nowrap; } .ds-badge--live { color: var(--tckr-color-up, #3fd79c); background: color-mix(in oklab, var(--tckr-color-up, #3fd79c) 14%, transparent); border-color: color-mix(in oklab, var(--tckr-color-up, #3fd79c) 30%, transparent); } .ds-badge__dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }"
+    },
+    {
+      "name": "Delayed Badge",
+      "kind": "chip",
+      "refersTo": "badge-delayed",
+      "description": "Marks a DELAYED stream with its simulated offset — always labelled as a simulation artifact, never presented as the real 15-minute delay.",
+      "html": "<span class=\"ds-badge ds-badge--delayed\">◷ DELAYED — 15s simulated delay</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; gap: 6px; font-family: 'Roboto Mono', ui-monospace, monospace; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.09em; padding: 5px 9px; border-radius: 5px; border: 1px solid; white-space: nowrap; } .ds-badge--delayed { color: var(--tckr-color-warning, #d9a441); background: color-mix(in oklab, var(--tckr-color-warning, #d9a441) 13%, transparent); border-color: color-mix(in oklab, var(--tckr-color-warning, #d9a441) 30%, transparent); }"
+    },
+    {
+      "name": "Price Cell",
+      "kind": "custom",
+      "refersTo": "price-cell",
+      "description": "The one component every price/signed decimal renders through. Flashes a 900ms directional pulse on value change; shows a de-emphasized italic state before the first tick.",
+      "html": "<span class=\"ds-price-cell\"><span class=\"ds-price-cell__flash ds-price-cell__flash--up\">84.20</span></span>",
+      "css": ".ds-price-cell { font-variant-numeric: tabular-nums; font-family: 'Roboto Mono', ui-monospace, monospace; } .ds-price-cell--muted { color: var(--tckr-color-text-muted, #9296a0); font-style: italic; } .ds-price-cell__flash { display: inline-block; border-radius: 3px; padding: 0 2px; margin: 0 -2px; } .ds-price-cell__flash--up { animation: ds-flash-up 900ms ease-out; } .ds-price-cell__flash--down { animation: ds-flash-down 900ms ease-out; } @keyframes ds-flash-up { from { background-color: color-mix(in oklab, var(--tckr-color-up, #3fd79c) 28%, transparent); } to { background-color: transparent; } } @keyframes ds-flash-down { from { background-color: color-mix(in oklab, var(--tckr-color-down, #f2705f) 28%, transparent); } to { background-color: transparent; } }"
+    },
+    {
+      "name": "Stat Card",
+      "kind": "card",
+      "refersTo": "stat-card",
+      "description": "One cell in the detail page's OHLC/volume/lot/tick grid — hairline-separated, tonal, no shadow.",
+      "html": "<div class=\"ds-stat\"><span class=\"ds-stat__label\">Open</span><span class=\"ds-stat__value\">84.20</span></div>",
+      "css": ".ds-stat { background: var(--tckr-color-surface-raised, #17181a); padding: 12px; } .ds-stat__label { display: block; font-family: 'Roboto Mono', ui-monospace, monospace; font-size: 0.6rem; letter-spacing: 0.1em; color: var(--tckr-color-text-muted, #9296a0); text-transform: uppercase; } .ds-stat__value { display: block; margin-top: 6px; font-family: 'Roboto Mono', ui-monospace, monospace; font-size: 0.9rem; font-variant-numeric: tabular-nums; color: var(--tckr-color-text, #f2f1ee); }"
+    },
+    {
+      "name": "Connection Banner",
+      "kind": "custom",
+      "refersTo": "conn-banner",
+      "description": "Tinted, bordered alert for a reconnecting/closed data stream, with an inverted-color retry action.",
+      "html": "<div class=\"ds-conn-banner ds-conn-banner--warning\"><span class=\"ds-conn-banner__icon\">◴</span><div><div class=\"ds-conn-banner__title\">The stream dropped — retrying in 4s</div><div class=\"ds-conn-banner__detail\">Attempt 1. Prices below are the last values received.</div></div><button class=\"ds-btn-primary\">Retry now</button></div>",
+      "css": ".ds-conn-banner { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 9px; } .ds-conn-banner--warning { background: color-mix(in oklab, var(--tckr-color-warning, #d9a441) 9%, transparent); border: 1px solid color-mix(in oklab, var(--tckr-color-warning, #d9a441) 26%, transparent); } .ds-conn-banner__icon { font-size: 15px; color: var(--tckr-color-warning, #d9a441); } .ds-conn-banner__title { font-weight: 600; font-size: 0.85rem; color: var(--tckr-color-text, #f2f1ee); } .ds-conn-banner__detail { margin-top: 3px; font-size: 0.78rem; color: var(--tckr-color-text-muted, #9296a0); } .ds-btn-primary { font: inherit; font-weight: 600; font-size: 0.75rem; padding: 7px 13px; border-radius: 6px; border: none; background: var(--tckr-color-text, #f2f1ee); color: var(--tckr-color-surface, #0c0d0e); cursor: pointer; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Night Terminal",
+    "overview": "Tckr Market Watch reads like a professional trading terminal built for a dim room, not a consumer finance app. The page opens dark by construction — data-theme=\"dark\" is hard-coded on <html>, so this is the software's resting state, not a toggle a user finds later. Every surface is near-black and bordered rather than shadowed; every number is set in a monospace face with tabular figures so a column of prices lines up like a ledger; a scrolling ticker tape and per-row sparklines give the page a pulse without ever becoming its subject. The two signal colors that matter — Terminal Mint for \"up\" and \"live,\" Alert Coral for \"down\" — never appear as decoration; they only ever mark a real state change, and they never appear alone: a ▲/▼ glyph rides with every colored delta so the meaning survives for a colorblind viewer. Nothing in this system uses a shadow, a gradient (beyond the tape's edge-fade mask), or a solid saturated fill outside of a badge/pill — depth comes from tone (surface vs. surface-raised) and hairline borders, never elevation. The system is quietly technical and unhurried: motion exists (the tape's 32-second loop, a 900ms price-flash pulse) but is calm and rhythmic, never urgent or flashy — it earns trust by looking like an instrument, not a toy.",
+    "keyCharacteristics": [
+      "Dark-by-default, not dark-as-option — the light theme is a plain daytime fallback for an explicit override, not the primary experience.",
+      "Every number is monospace with tabular figures; every UI label/heading is Archivo. The two faces never swap roles.",
+      "Color never carries meaning alone — every up/down signal pairs a color with a ▲/▼ glyph.",
+      "Flat by construction: zero box-shadow anywhere in the codebase. Depth is tonal layering plus 1px hairline borders.",
+      "Status surfaces (LIVE, DELAYED, warnings, errors) are always a translucent tint over the base surface (color-mix, 9–14% strength), never a solid fill."
+    ],
+    "rules": [
+      { "name": "The Color-Plus-Glyph Rule", "body": "No price direction is ever shown by color alone. Every .tckr-delta--up/.tckr-delta--down pairs its color with a leading ▲/▼ glyph, so the ~1-in-12 colorblind viewer still reads the direction. This is a hard product requirement, not a style preference.", "section": "colors" },
+      { "name": "The Tinted-Never-Solid Rule", "body": "A status surface (LIVE/DELAYED badges, the simulated banner, connection warning/danger banners) is always its accent color mixed into the base surface at 9–14% strength, bordered at roughly double that strength. A solid accent fill is reserved for the inverted primary-button/active-pill pattern only.", "section": "colors" },
+      { "name": "The Mono-Is-For-Machines Rule", "body": "Anything a machine produced or a user would compare digit-by-digit is set in Roboto Mono with tabular-nums. Anything a human wrote is Archivo. The two never trade places.", "section": "typography" },
+      { "name": "The No-Shadow Rule", "body": "This system conveys \"this is a distinct surface\" with a border and/or a tone shift, never a shadow. A future component that reaches for box-shadow has left the system.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do pair every colored delta with its ▲/▼ glyph — never color alone.",
+      "Do render every status surface as a color-mix tint at 9–14% strength, bordered at roughly double that strength — never a solid accent fill.",
+      "Do route every displayed price or signed decimal through Price Cell.",
+      "Do keep Roboto Mono for anything numeric or machine-read and Archivo for anything a human wrote.",
+      "Do separate surfaces with a 1px Border hairline or a tone shift — never a shadow."
+    ],
+    "donts": [
+      "Don't introduce a box-shadow anywhere — this system has none, by construction.",
+      "Don't give a status badge or banner a solid, fully-opaque accent background.",
+      "Don't let a decorative element (the ticker tape, a sparkline) become a second source of truth for a price.",
+      "Don't shorten the 900ms price-flash duration or swap its ease-out timing without checking it still reads as \"quietly technical, unhurried.\"",
+      "Don't use a 0px (sharp) corner anywhere — the system's radius floor is 2px.",
+      "Don't treat the dark theme as optional chrome — it is the shipped default, not the design's secondary expression."
+    ]
+  }
+}

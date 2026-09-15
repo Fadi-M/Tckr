@@ -12,10 +12,9 @@
  * refresh at roughly 1-4 updates/sec (e.g. most retail market-data UIs — Google
  * Finance, brokerage watchlists — visibly refresh on the order of once a second even
  * when their backend feed is much faster; beyond ~4-5 Hz, sequential value changes stop
- * being individually readable and blur into flicker). `DISPLAY_REFRESH_INTERVAL_MS`
- * picks 1 Hz — the low, unambiguously-readable end of that range: every visible number
- * changes at most once a second, giving a viewer a full second to register each value
- * before the next one lands.
+ * being individually readable and blur into flicker). `DISPLAY_REFRESH_INTERVAL_MS` is
+ * set well below even that low end — one update per 30 seconds — so a value change is
+ * never faster than a human can comfortably catch it landing.
  *
  * This is a presentation-layer concern only, layered *on top of* the data layer's own
  * coalescing, not a replacement for it: `StockListRow` still gets the freshest snapshot
@@ -23,8 +22,8 @@
  * "newer wins" semantics — only how often that result is *painted* is capped here.
  */
 
-/** 1 update/sec — see module doc for why. */
-export const DISPLAY_REFRESH_INTERVAL_MS = 1000;
+/** 1 update/30s — see module doc for why. */
+export const DISPLAY_REFRESH_INTERVAL_MS = 30_000;
 
 export interface Throttled<Args extends readonly unknown[]> {
   (...args: Args): void;
