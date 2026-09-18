@@ -14,26 +14,33 @@
  * `main.tsx` wiring lines.
  *
  * ---------------------------------------------------------------------------------
- * The entitlement-change discard
+ * The entitlement-change discard — now guaranteed by the data layer, not this badge
  * ---------------------------------------------------------------------------------
  * client-contract.md §3.3: on `entitlementChanged` the client must discard any
  * buffered ticks from the old stream before any new-stream tick renders — mixing LIVE
  * and DELAYED data in one view is the failure the whole system exists to prevent.
- * `store.ts` now owns this end to end: `resetStream()` clears every symbol's live view
- * back to "no tick yet", re-anchors each baseline on the pristine static
- * `referencePrice`, and — as its last step, strictly after all of that — fans the
- * discard out to every listener registered via `store.onStreamDiscard` (task 05's chart
- * clears its ring buffer through that same hook). This file therefore does the minimum
- * on `entitlementChanged`: call `resetStream()`, then re-render to the new stream. The
- * "old stream visible from inside a discard listener, new stream only after" ordering
- * is now guaranteed by the store, not by this component's call sequence — proved by
- * `badge.entitlement-change.test.tsx`, which registers a `store.onStreamDiscard`
- * listener and reads both the store and the live badge DOM from inside it.
+ * `store.ts` owns the mechanism end to end (`resetStream()` clears every symbol's live
+ * view back to "no tick yet", re-anchors each baseline on the pristine static
+ * `referencePrice`, and — as its last step — fans the discard out to every listener
+ * registered via `store.onStreamDiscard`, e.g. the chart clearing its ring buffer).
+ *
+ * This component used to be the one thing that *called* `resetStream()`, on its own
+ * `source.on.entitlement` handler — which meant the entire mixed-stream guarantee only
+ * held because `StreamBadge` happened to be mounted in the app shell. That call has
+ * moved into the data layer itself: `SimulatedSource.simulateEntitlementChange` and
+ * `TckrGatewaySource`'s own entitlement handling both call `resetStream()` directly, on
+ * every real stream transition, independent of any UI. See
+ * `src/data/__tests__/simulated.entitlement-discard.test.ts` and
+ * `src/data/__tests__/gateway.entitlement-discard.test.ts`, which prove this with no
+ * `StreamBadge` (or any component) mounted at all.
+ *
+ * `StreamBadge` is back to being purely decorative/informational, as its name implies:
+ * on `entitlementChanged` it only re-reads `identity()` to flip which label it renders.
+ * It does not need to, and no longer does, discard anything itself.
  */
 import { useEffect, useState } from 'react';
 import { getSharedSource, resolveClientConfig } from '../data/config.ts';
 import type { Identity } from '../data/MarketDataSource.ts';
-import { resetStream } from '../data/store.ts';
 
 function formatOffset(ms: number): string {
   if (ms > 0 && ms % 1000 === 0) {
@@ -54,7 +61,9 @@ export function StreamBadge() {
       setIdentity(source.identity());
     });
     const unsubEntitlement = source.on.entitlement(() => {
-      resetStream(); // clears + re-anchors state and fans the discard out itself
+      // The data layer (SimulatedSource / TckrGatewaySource) has already called
+      // resetStream() before this handler ever runs — this component just re-renders
+      // to whatever the new identity() says.
       setIdentity(source.identity());
     });
     return () => {

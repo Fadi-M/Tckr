@@ -44,6 +44,7 @@ const INTERFACE_METHOD_NAMES = [
   'unsubscribe',
   'getUniverse',
   'getSnapshot',
+  'getHistory',
 ] as const;
 
 function ownKeys(instance: object): readonly string[] {

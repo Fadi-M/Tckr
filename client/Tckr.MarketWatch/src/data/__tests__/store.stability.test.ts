@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { toDecimal } from '../../contracts/decimal.ts';
 import type { Tick } from '../../contracts/messages.ts';
-import { applyTick, getSymbolSnapshot, resetStore } from '../store.ts';
+import { applyTick, getSymbolSnapshot, primeUniverse, resetStore } from '../store.ts';
 
 function tick(overrides: Partial<Tick> = {}): Tick {
   return {
@@ -21,6 +21,9 @@ function tick(overrides: Partial<Tick> = {}): Tick {
 describe('store.getSymbolSnapshot reference stability', () => {
   beforeEach(() => {
     resetStore();
+    // applyTick now drops a tick for any symbol not in the primed universe (security
+    // fix) — prime COMI so this file's ticks are accepted.
+    primeUniverse([{ symbol: 'COMI', name: 'Commercial International Holding', referencePrice: toDecimal('85.10') }]);
   });
 
   it('returns undefined for a symbol that has never received a snapshot or tick', () => {

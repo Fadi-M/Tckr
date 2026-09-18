@@ -9,85 +9,18 @@
  * COMI is at 2 and the other 33 remain at 1 — asserted generically below via a
  * before/after diff so the test does not depend on the exact baseline count.
  */
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { toDecimal } from '../../contracts/decimal.ts';
-import type { IsoUtc, Tick } from '../../contracts/messages.ts';
-import type { SymbolDefinition, SymbolUniverseResponse } from '../../contracts/rest.ts';
-import type { MarketDataSource } from '../../data/MarketDataSource.ts';
-import { applyTick, resetStore } from '../../data/store.ts';
+import { applyTick, primeUniverse, resetStore } from '../../data/store.ts';
+import { loadUniverseFixture, makeFakeSource, tickFixture } from './testSupport.ts';
 
 const { mockGetSharedSource } = vi.hoisted(() => ({ mockGetSharedSource: vi.fn() }));
 vi.mock('../../data/config.ts', () => ({ getSharedSource: mockGetSharedSource }));
 
 import { StockList } from '../StockList.tsx';
-
-const here = dirname(fileURLToPath(import.meta.url));
-
-interface RawSymbol {
-  readonly symbol: string;
-  readonly name: string;
-  readonly referencePrice: number;
-  readonly tickSize: number;
-  readonly lotSize: number;
-}
-
-function loadUniverseFixture(): readonly SymbolDefinition[] {
-  const raw = readFileSync(resolve(here, '../../../public/symbols.json'), 'utf-8');
-  const parsed = JSON.parse(raw) as { symbols: readonly RawSymbol[] };
-  return parsed.symbols.map((s) => ({
-    symbol: s.symbol,
-    name: s.name,
-    currency: 'EGP',
-    tickSize: toDecimal(s.tickSize.toString()),
-    lotSize: s.lotSize,
-    referencePrice: toDecimal(s.referencePrice.toString()),
-  }));
-}
-
-function makeFakeSource(symbols: readonly SymbolDefinition[]): MarketDataSource {
-  return {
-    connect: () => Promise.resolve(),
-    disconnect: () => {},
-    subscribe: () => {},
-    unsubscribe: () => {},
-    getUniverse: () =>
-      Promise.resolve<SymbolUniverseResponse>({
-        v: 1,
-        asOf: new Date().toISOString() as IsoUtc,
-        simulated: true,
-        symbols,
-      }),
-    getSnapshot: () => Promise.reject(new Error('not used')),
-    on: {
-      tick: () => () => {},
-      snapshot: () => () => {},
-      status: () => () => {},
-      error: () => () => {},
-      entitlement: () => () => {},
-    },
-    identity: () => null,
-  };
-}
-
-function makeTick(symbol: string, price: string): Tick {
-  return {
-    v: 1,
-    type: 'tick',
-    s: symbol,
-    p: toDecimal(price),
-    q: 500,
-    k: 'TRADE',
-    t: '2026-09-12T10:31:04.881Z' as IsoUtc,
-    id: 'evt-000000000000001',
-    st: 'LIVE',
-  };
-}
 
 describe('StockList render isolation', () => {
   beforeEach(() => {
@@ -106,7 +39,12 @@ describe('StockList render isolation', () => {
 
   it('a tick for COMI increments exactly COMI’s render count by 1, leaving the other 33 rows unchanged', async () => {
     const universeSymbols = loadUniverseFixture();
-    mockGetSharedSource.mockReturnValue(makeFakeSource(universeSymbols));
+    // A real `MarketDataSource` primes the store's universe itself before any tick can
+    // be accepted (store.ts's "real universe, not whatever the wire claims" guard).
+    // This fake source is a plain object, not a real source instance, so the test
+    // primes it explicitly to match that contract.
+    primeUniverse(universeSymbols);
+    mockGetSharedSource.mockReturnValue(makeFakeSource(universeSymbols).source);
 
     render(
       <MemoryRouter>
@@ -131,7 +69,7 @@ describe('StockList render isolation', () => {
     );
 
     act(() => {
-      applyTick(makeTick('COMI', '85.42'));
+      applyTick(tickFixture({ s: 'COMI', p: toDecimal('85.42'), q: 500 }));
     });
 
     const rowsAfter = screen.getAllByRole('row').filter((row) => row.hasAttribute('data-symbol'));

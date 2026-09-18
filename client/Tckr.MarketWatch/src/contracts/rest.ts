@@ -26,6 +26,25 @@ export interface SymbolUniverseResponse {
   readonly symbols: readonly SymbolDefinition[];
 }
 
+/** One session-history sample: a price at a point in time. `t` is the exchange's UTC
+ * timestamp the sample was taken at (a server-defined sampling cadence, not every
+ * tick), not the time the client happened to receive it. */
+export interface HistoryPoint {
+  readonly t: IsoUtc;
+  readonly p: DecimalString;
+}
+
+/** `GET /symbols/{symbol}/history` (client-contract.md). Every price sample recorded
+ * for `symbol` since the session began, oldest first — lets a client that opens a
+ * symbol mid-session (e.g. at noon, for a session that opened at 9:30) render the full
+ * session line immediately, instead of only the samples that happen to arrive after it
+ * starts watching. `points` may be empty for a symbol with no samples yet. */
+export interface SymbolHistoryResponse {
+  readonly v: 1;
+  readonly symbol: string;
+  readonly points: readonly HistoryPoint[];
+}
+
 export interface Snapshot {
   readonly v: 1;
   readonly symbol: string;

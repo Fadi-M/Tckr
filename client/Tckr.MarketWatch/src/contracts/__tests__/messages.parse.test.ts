@@ -51,4 +51,39 @@ describe('parseServerMessage', () => {
     expect(parsed.snapshot.price).toBe('85.42');
     expect(parsed.snapshot.change).toBe('+1.05');
   });
+
+  describe('connected.heartbeatIntervalMs bounds', () => {
+    function connectedWith(heartbeatIntervalMs: unknown): string {
+      return JSON.stringify({ ...(FIXTURES['connected-live'] as object), heartbeatIntervalMs });
+    }
+
+    it('accepts the fixture value unchanged (a normal, well-above-floor interval)', () => {
+      const parsed = parseServerMessage(JSON.stringify(FIXTURES['connected-live']));
+      if (parsed.type !== 'connected') throw new Error('expected a connected message');
+      expect(parsed.heartbeatIntervalMs).toBe(15000);
+    });
+
+    it('throws on a zero heartbeatIntervalMs', () => {
+      expect(() => parseServerMessage(connectedWith(0))).toThrow();
+    });
+
+    it('throws on a negative heartbeatIntervalMs', () => {
+      expect(() => parseServerMessage(connectedWith(-500))).toThrow();
+    });
+
+    it('throws on a heartbeatIntervalMs below the 1000ms floor', () => {
+      expect(() => parseServerMessage(connectedWith(1))).toThrow();
+    });
+
+    // NaN/Infinity cannot survive a JSON round trip (JSON.stringify emits `null` for
+    // both), so they are already rejected by requireNumber's `typeof` check before
+    // reaching the finite check below — covered by the "missing/wrong-type" cases
+    // elsewhere in this file, not repeated here.
+
+    it('accepts a heartbeatIntervalMs exactly at the floor', () => {
+      const parsed = parseServerMessage(connectedWith(1000));
+      if (parsed.type !== 'connected') throw new Error('expected a connected message');
+      expect(parsed.heartbeatIntervalMs).toBe(1000);
+    });
+  });
 });

@@ -3,11 +3,16 @@ import { CloseCode } from '../../contracts/closeCodes.ts';
 import type { ConnectionState } from '../MarketDataSource.ts';
 import { SimulatedSource } from '../SimulatedSource.ts';
 import { resetStore } from '../store.ts';
-import { baseConfig } from './testSupport.ts';
+import { baseConfig, KNOWN_OPEN_NOW_MS } from './testSupport.ts';
 
 describe('SimulatedSource.simulateDrop', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    // Pinned to a known-open EGX instant — see KNOWN_OPEN_NOW_MS's doc. Not load-bearing
+    // for most assertions here (connection lifecycle, not price data), but `connect()`
+    // now backfills on every call, so a deterministic `now` keeps this suite's timing
+    // assertions (delay/jitter) independent of real wall-clock time too.
+    vi.setSystemTime(KNOWN_OPEN_NOW_MS);
     resetStore();
   });
 

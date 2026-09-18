@@ -168,12 +168,29 @@ export function primeUniverse(
 
 /** Applies a full `Snapshot` (from `getSnapshot()` or an unprompted `snapshot` push) to
  * the store, replacing that symbol's view and re-anchoring its change baseline on
- * `snapshot.open`. `now` is injectable for deterministic tests. */
+ * `snapshot.open`. `now` is injectable for deterministic tests.
+ *
+ * Security: `snapshot.symbol` is server-controlled and only shape-validated (a string)
+ * by `parseServerMessage` — it is never checked against membership in anything before
+ * reaching here. An unprompted WS `snapshot` push (client-contract.md §3.3) reaches
+ * this function the same way a tick does (`TckrGatewaySource#handleMessage`'s
+ * `'snapshot'` case calls it unconditionally), so a compromised/misbehaving gateway
+ * could otherwise push an unbounded number of distinct, arbitrary symbols and grow
+ * `meta`/`records` without limit — the same unbounded-heap-growth risk `applyTick`
+ * guards against below, and arguably worse here since this function is also the only
+ * writer (besides `primeUniverse`) that can create a brand-new `meta` entry. Guarded
+ * the same way: drop anything for a symbol that was never primed into `meta` by the
+ * real tradeable universe, rather than trusting the wire to say what's real. */
 export function applySnapshot(snapshot: Snapshot, now: number = Date.now()): void {
   const existing = meta.get(snapshot.symbol);
-  const name = existing?.name ?? snapshot.symbol;
-  const referencePrice = existing?.referencePrice ?? snapshot.open;
-  meta.set(snapshot.symbol, { name, referencePrice, baseline: snapshot.open });
+  if (!existing) {
+    console.warn(
+      `store: dropping snapshot for symbol "${snapshot.symbol}" not in the primed universe`,
+    );
+    return;
+  }
+  const name = existing.name;
+  meta.set(snapshot.symbol, { name, referencePrice: existing.referencePrice, baseline: snapshot.open });
   const record = recordFor(snapshot.symbol);
   record.view = {
     symbol: snapshot.symbol,
@@ -190,12 +207,29 @@ export function applySnapshot(snapshot: Snapshot, now: number = Date.now()): voi
 
 /** Applies one (already-coalesced-per-frame) tick to the store. Volume accumulates
  * across ticks, seeded from the last snapshot's cumulative volume if any. `now` is
- * injectable for deterministic tests. */
+ * injectable for deterministic tests.
+ *
+ * Security: `tick.s` is server-controlled and only shape-validated (a string) by
+ * `parseServerMessage` — nothing upstream checks it against the actual
+ * subscribed/universe symbol set. Without this guard, a compromised or misbehaving
+ * gateway could send `tick` frames for an unbounded number of distinct, arbitrary `s`
+ * values, each one creating a permanent `records` entry that is never evicted —
+ * unbounded heap growth and an eventual tab crash. `meta` is populated only from the
+ * real tradeable universe (`primeUniverse`, called from `SimulatedSource`'s
+ * constructor and `TckrGatewaySource#fetchUniverse`), so "not in `meta`" is this
+ * module's only trustworthy definition of "not a real symbol" — mirroring how
+ * `SimulatedSource.subscribe()` rejects an unrecognized symbol with `UNKNOWN_SYMBOL`
+ * rather than acting on it. `store.ts` has no error-handler surface to raise an
+ * equivalent error on, so this drops silently (bar the warning) instead. */
 export function applyTick(tick: Tick, now: number = Date.now()): void {
-  const record = recordFor(tick.s);
   const symbolMeta = meta.get(tick.s);
-  const baseline = symbolMeta?.baseline ?? tick.p;
-  const name = symbolMeta?.name ?? tick.s;
+  if (!symbolMeta) {
+    console.warn(`store: dropping tick for symbol "${tick.s}" not in the primed universe`);
+    return;
+  }
+  const record = recordFor(tick.s);
+  const baseline = symbolMeta.baseline;
+  const name = symbolMeta.name;
   const previousVolume = record.view?.volume ?? 0;
   record.view = {
     symbol: tick.s,

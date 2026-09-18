@@ -3,13 +3,13 @@ import { toDecimal } from '../../contracts/decimal.ts';
 import type { Tick } from '../../contracts/messages.ts';
 import { TickDispatcher, type ScheduleFrame } from '../TickDispatcher.ts';
 
-function tick(price: string, id: string): Tick {
+function tick(price: string, id: string, q = 100): Tick {
   return {
     v: 1,
     type: 'tick',
     s: 'COMI',
     p: toDecimal(price),
-    q: 100,
+    q,
     k: 'TRADE',
     t: '2026-09-12T10:31:04.881Z' as Tick['t'],
     id,
@@ -83,6 +83,18 @@ describe('TickDispatcher coalescing', () => {
     dispatcher.push(tick('85.10', 'evt-c'));
     scheduler.runFrame();
     expect(flushed).toHaveLength(1);
+  });
+
+  it('sums the quantity of every coalesced tick into the single flush, never dropping volume', () => {
+    for (let i = 0; i < 3750; i += 1) {
+      dispatcher.push(tick((85 + i * 0.0001).toFixed(4), `evt-${i}`, 10));
+    }
+    scheduler.runFrame();
+
+    expect(flushed).toHaveLength(1);
+    expect(flushed[0]?.q).toBe(3750 * 10);
+    // Every other field still reflects the latest tick, not some merged/summed value.
+    expect(flushed[0]?.id).toBe('evt-3749');
   });
 
   it('flushNow is a synchronous test hook independent of the scheduled frame', () => {

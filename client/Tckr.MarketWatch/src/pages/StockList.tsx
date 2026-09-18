@@ -29,17 +29,22 @@
  *    shared `MarketDataSource`, exactly like `ConnectionStatus`/`StreamBadge` already
  *    are (multiple independent subscribers to the same singleton is an established
  *    pattern, not a new one). Its "Retry now"/"Reconnect" buttons call
- *    `source.connect()` directly — a one-off user action, distinct from the automatic
- *    backoff loop `ConnectionStatus`'s doc comment says a *display* component must
- *    never drive itself.
+ *    `reconnectSharedSource()` (`src/data/config.ts`) — the one sanctioned way a call
+ *    site may force a fresh connection attempt, for exactly this "one-off user action"
+ *    case. A bare `source.connect()` is deliberately NOT used here: it is not safe on
+ *    `TckrGatewaySource` while `reconnecting` (see `config.ts`'s doc comment on
+ *    `reconnectSharedSource()` for why), so `config.ts` keeps `.connect()` itself off
+ *    limits to every call site, with no exception.
  *  - Per-row sparklines — a small bounded (20-point) price history kept in a ref on
  *    each `StockListRow`, persisted in a `useEffect` (same "commit after render, guard
  *    on the value actually changing" shape `PriceCell` already uses for its flash
  *    animation, so it stays StrictMode-safe) and rendered as a tiny inline SVG. Purely
  *    decorative: every price a user can read as *text* still goes through `PriceCell`/
  *    `format()` — the sparkline's own numeric conversion never reaches the page as
- *    text, only as pixel geometry (the same boundary `chart/ringBuffer.ts` draws for
- *    the detail page's chart).
+ *    text, only as pixel geometry, and reuses `chart/ringBuffer.ts`'s `toPlotValue`
+ *    (the one sanctioned `DecimalString` -> `number` conversion for exactly this
+ *    purpose) rather than inlining a second, duplicate string-to-number conversion of
+ *    its own.
  */
 import {
   useCallback,
@@ -55,11 +60,14 @@ import { useNavigate } from 'react-router-dom';
 import { compare, toDecimal, type DecimalString } from '../contracts/decimal.ts';
 import type { SymbolDefinition } from '../contracts/rest.ts';
 import { CloseCode } from '../contracts/closeCodes.ts';
-import { getSharedSource } from '../data/config.ts';
+import { getSharedSource, reconnectSharedSource } from '../data/config.ts';
 import type { ConnectionState } from '../data/MarketDataSource.ts';
 import { getSymbolSnapshot, subscribeSymbol } from '../data/store.ts';
+import { formatNextOpen, type MarketStatus } from '../data/marketCalendar.ts';
 import { PriceCell } from '../components/PriceCell.tsx';
-import { DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
+import { useMarketStatus } from '../components/useMarketStatus.ts';
+import { createThrottle, DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
+import { toPlotValue } from '../chart/ringBuffer.ts';
 
 const ZERO_DECIMAL: DecimalString = toDecimal('0');
 
@@ -78,17 +86,26 @@ interface ColumnSpec {
   /** Hidden below the 640px breakpoint (task 03's convention) so the page stays
    * scroll-free at 400px — only Symbol, Price and Change % remain. */
   readonly hideNarrow?: boolean;
+  /** `table-layout: fixed` (kept for perf/no-reflow — a symbol's price can repaint
+   * every `DISPLAY_REFRESH_INTERVAL_MS` and must never trigger a table-wide reflow)
+   * otherwise divides the table into 8 *equal* columns regardless of content, which
+   * hard-truncates `Name` even when other columns (e.g. `Symbol`, `Volume`) are
+   * sitting on unused whitespace, and truncates short headers like "Last update" at
+   * narrower widths too. These weights — rendered as a `<colgroup>` below — give
+   * `table-layout: fixed`'s perf benefit without its equal-width side effect. They
+   * must sum to 100 and stay in the same order as this array. */
+  readonly widthPercent: number;
 }
 
 const COLUMNS: readonly ColumnSpec[] = [
-  { key: 'symbol', label: 'Symbol', sortable: true },
-  { key: 'trend', label: 'Last 60s', sortable: false, hideNarrow: true },
-  { key: 'name', label: 'Name', sortable: true, hideNarrow: true },
-  { key: 'price', label: 'Price', sortable: true },
-  { key: 'change', label: 'Change', sortable: true, hideNarrow: true },
-  { key: 'changePercent', label: 'Change %', sortable: true },
-  { key: 'volume', label: 'Volume', sortable: true, hideNarrow: true },
-  { key: 'lastUpdate', label: 'Last update', sortable: true, hideNarrow: true },
+  { key: 'symbol', label: 'Symbol', sortable: true, widthPercent: 8 },
+  { key: 'trend', label: 'Trend', sortable: false, hideNarrow: true, widthPercent: 10 },
+  { key: 'name', label: 'Name', sortable: true, hideNarrow: true, widthPercent: 22 },
+  { key: 'price', label: 'Price', sortable: true, widthPercent: 12 },
+  { key: 'change', label: 'Change', sortable: true, hideNarrow: true, widthPercent: 10 },
+  { key: 'changePercent', label: 'Change %', sortable: true, widthPercent: 10 },
+  { key: 'volume', label: 'Volume', sortable: true, hideNarrow: true, widthPercent: 12 },
+  { key: 'lastUpdate', label: 'Last update', sortable: true, hideNarrow: true, widthPercent: 16 },
 ];
 
 type Preset = 'most-active' | 'gainers' | 'losers' | 'az';
@@ -247,7 +264,7 @@ function ConnectionBanner({ state, remainingSecs }: { state: ConnectionState; re
           type="button"
           className="tckr-conn-banner__action"
           onClick={() => {
-            void getSharedSource().connect();
+            reconnectSharedSource();
           }}
         >
           Retry now
@@ -270,7 +287,7 @@ function ConnectionBanner({ state, remainingSecs }: { state: ConnectionState; re
           type="button"
           className="tckr-conn-banner__action"
           onClick={() => {
-            void getSharedSource().connect();
+            reconnectSharedSource();
           }}
         >
           Reconnect
@@ -280,6 +297,34 @@ function ConnectionBanner({ state, remainingSecs }: { state: ConnectionState; re
   }
 
   return null;
+}
+
+// ---------------------------------------------------------------------------------
+// Market-closed banner — an independent observer of `marketCalendar.getMarketStatus()`
+// (via `useMarketStatus`), not the connection/transport (`ConnectionBanner` above).
+// EGX being closed overnight/on the weekend/outside session hours is routine, expected
+// state, distinct from a dropped WebSocket — the two must never be conflated into one
+// banner, since a user restarting a healthy connection can't do anything about market
+// hours, and vice versa.
+// ---------------------------------------------------------------------------------
+
+function MarketClosedBanner({ status }: { status: MarketStatus }) {
+  if (status.state !== 'closed') {
+    return null;
+  }
+  return (
+    <div className="tckr-conn-banner tckr-conn-banner--info" role="status">
+      <span className="tckr-conn-banner__icon" aria-hidden="true">
+        ◷
+      </span>
+      <div className="tckr-conn-banner__body">
+        <div className="tckr-conn-banner__title">Market closed</div>
+        <div className="tckr-conn-banner__detail">
+          Showing the last completed session. Reopens {formatNextOpen(status)} Cairo time.
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------------
@@ -366,7 +411,7 @@ function Sparkline({ points, direction }: { points: readonly number[]; direction
   const lineClass = `tckr-sparkline__line tckr-sparkline__line--${direction}`;
   if (points.length < 2) {
     return (
-      <svg viewBox="0 0 100 34" preserveAspectRatio="none" className="tckr-sparkline">
+      <svg viewBox="0 0 100 34" preserveAspectRatio="none" className="tckr-sparkline" aria-hidden="true">
         <line x1="0" y1="17" x2="100" y2="17" className={lineClass} />
       </svg>
     );
@@ -379,7 +424,7 @@ function Sparkline({ points, direction }: { points: readonly number[]; direction
     .map((p, i) => `${(i * step).toFixed(2)},${(30 - ((p - min) / span) * 28).toFixed(2)}`)
     .join(' ');
   return (
-    <svg viewBox="0 0 100 34" preserveAspectRatio="none" className="tckr-sparkline">
+    <svg viewBox="0 0 100 34" preserveAspectRatio="none" className="tckr-sparkline" aria-hidden="true">
       <polyline points={coords} fill="none" className={lineClass} />
     </svg>
   );
@@ -387,6 +432,20 @@ function Sparkline({ points, direction }: { points: readonly number[]; direction
 
 const STOCK_LIST_STYLES = `
 .tckr-stocklist { width: 100%; max-width: 100%; }
+
+/* Screen-reader-only page heading (Lighthouse: pages need a heading landmark for
+   heading-based navigation) — visible to assistive tech, invisible on-screen so it
+   doesn't disrupt the existing "no visible page title" design. Standard
+   clip-rect visually-hidden pattern; scoped to this file since no shared
+   visually-hidden utility exists yet in src/styles/. */
+.tckr-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
 
 .tckr-tape {
   overflow: hidden;
@@ -404,8 +463,24 @@ const STOCK_LIST_STYLES = `
   gap: 26px;
   width: max-content;
   white-space: nowrap;
-  animation: tckr-tape-scroll 32s linear infinite;
   transition: opacity 250ms ease, filter 250ms ease;
+}
+/* WCAG 2.2.2 (Pause/Stop/Hide): the marquee is decorative, so it must not scroll
+   unconditionally. Under "no-preference" it scrolls as before; under "reduce" it
+   renders as a static row of the first N items (whatever fits before the tape's own
+   overflow: hidden crops it) — an acceptable degraded state, not a paginated one. */
+@media (prefers-reduced-motion: no-preference) {
+  .tckr-tape__track { animation: tckr-tape-scroll 32s linear infinite; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tckr-tape__track { animation: none; }
+}
+/* A trader who wants to actually read one ticker needs a way to stop the scroll —
+   hovering pauses it. Scoped to hover-capable pointers, matching the existing
+   .tckr-stocklist__row:hover pattern below (a touch tap shouldn't "stick" the tape
+   paused with no visible way to resume it). */
+@media (hover: hover) and (pointer: fine) {
+  .tckr-tape:hover .tckr-tape__track { animation-play-state: paused; }
 }
 .tckr-tape--held .tckr-tape__track { opacity: 0.32; filter: saturate(0.3); animation-play-state: paused; }
 .tckr-tape__held-label {
@@ -455,6 +530,15 @@ const STOCK_LIST_STYLES = `
   background: color-mix(in oklab, var(--tckr-color-down) 9%, transparent);
   border: 1px solid color-mix(in oklab, var(--tckr-color-down) 26%, transparent);
 }
+/* Neutral, not warning/danger-colored: the market being closed overnight/on the
+   weekend is expected, routine state, not a problem with the connection — using the
+   same amber/red treatment as a dropped stream would wrongly suggest something is
+   wrong. */
+.tckr-conn-banner--info {
+  background: color-mix(in oklab, var(--tckr-color-text-muted) 9%, transparent);
+  border: 1px solid color-mix(in oklab, var(--tckr-color-text-muted) 26%, transparent);
+}
+.tckr-conn-banner--info .tckr-conn-banner__icon { color: var(--tckr-color-text-muted); }
 .tckr-conn-banner__icon { flex: none; font-size: 15px; color: var(--tckr-color-warning); }
 .tckr-conn-banner--danger .tckr-conn-banner__icon { color: var(--tckr-color-down); }
 .tckr-conn-banner__body { flex: 1 1 auto; min-width: 0; }
@@ -611,58 +695,44 @@ function StockListRow({ definition, priceDecimals, onActivate }: StockListRowPro
   // A hot symbol can tick dozens of times/sec even after `TickDispatcher`'s per-frame
   // coalescing (that cap is a data-correctness contract, not a readability one — see
   // `src/display/throttle.ts`). This row must repaint at most once per
-  // `DISPLAY_REFRESH_INTERVAL_MS`, from *either* of two triggers: a real store
-  // notification (for instant feedback on an isolated tick after a quiet spell) or a
-  // fallback clock (so "Last update" keeps advancing, and a burst gets an eventual
-  // repaint, even if no single tick alone would have qualified as "isolated"). An
-  // earlier version of this file ran those two triggers as fully independent timers —
-  // `createThrottle`'s own internal one for the subscription, plus a separate
-  // `setInterval` for the clock — anchored at different moments (first-tick time vs.
-  // mount time). Independent timers drift apart and can land within milliseconds of
-  // each other, producing two back-to-back renders that are each individually correct
-  // but together read as a rapid, contradictory-looking double-flash.
+  // `DISPLAY_REFRESH_INTERVAL_MS`, using the same leading+trailing `createThrottle`
+  // `StockDetail.tsx` already uses for the equivalent problem (its `throttledApplyTick`)
+  // — wrapping the store-subscription callback itself, rather than a hand-rolled gate
+  // plus a second, independently scheduled fallback timer.
   //
-  // `lastRenderAtRef` is the single shared gate that replaces both timers' own
-  // bookkeeping: a candidate render (from either trigger) proceeds only if at least one
-  // full window has passed since the last one *from either source*, so the two
-  // triggers can never both fire within the same window. It starts at `-Infinity` so
-  // the very first tick this row ever sees is never suppressed — a quiet symbol still
-  // feels instant the moment it starts ticking.
-  const lastRenderAtRef = useRef(-Infinity);
-
+  // An earlier version of this file used exactly that hand-rolled shape: a shared
+  // `lastRenderAtRef` gate plus a `setInterval` anchored at component *mount* time, on
+  // the theory that a fixed periodic tick would guarantee "a repaint at least once per
+  // window" even during a continuous burst. In practice the mount-relative schedule is
+  // essentially never aligned with the arbitrary moment a real tick lands and updates
+  // the gate, so the interval's very next firing after an accepted render almost always
+  // landed inside that same render's window and was itself suppressed by the gate —
+  // catch-up only succeeded on the *second* interval firing, close to 2x
+  // `DISPLAY_REFRESH_INTERVAL_MS` late, not the "within one window" the old comment here
+  // claimed.
+  //
+  // `createThrottle` doesn't have that problem: its trailing-edge `setTimeout` is always
+  // scheduled relative to the *leading call's own timestamp* (see `src/display/
+  // throttle.ts`), not a fixed external schedule, so a burst of store notifications
+  // inside one window reliably produces exactly one trailing catch-up repaint no later
+  // than one window after the leading one. A fresh `Throttled` is created once per
+  // subscription — i.e. once per mount, since a row's `symbol` never changes in place
+  // (rows are keyed by symbol; a symbol swap unmounts/remounts rather than re-parenting)
+  // — mirroring how `StockDetail.tsx` scopes its own throttle instance to one effect's
+  // lifetime, and `.cancel()` runs in this same subscription's cleanup so no trailing
+  // call can ever fire after this row (or its subscription) is gone.
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
-      const unsubscribe = subscribeSymbol(symbol, () => {
-        const now = Date.now();
-        if (now - lastRenderAtRef.current < DISPLAY_REFRESH_INTERVAL_MS) {
-          return;
-        }
-        lastRenderAtRef.current = now;
-        onStoreChange();
-      });
-      return unsubscribe;
+      const throttledStoreChange = createThrottle(onStoreChange, DISPLAY_REFRESH_INTERVAL_MS);
+      const unsubscribe = subscribeSymbol(symbol, throttledStoreChange);
+      return () => {
+        throttledStoreChange.cancel();
+        unsubscribe();
+      };
     },
     [symbol],
   );
   const view = useSyncExternalStore(subscribe, () => getSymbolSnapshot(symbol));
-
-  // The fallback clock: guarantees a repaint at least once per window even during a
-  // burst too continuous to ever look "isolated" to the subscription above, and keeps
-  // "Last update" advancing when the symbol goes fully quiet. Gated by the same
-  // `lastRenderAtRef`, so it never doubles up with a real update that already
-  // refreshed the row this window.
-  const [, forceClockTick] = useReducer((n: number) => n + 1, 0);
-  useEffect(() => {
-    const id = setInterval(() => {
-      const now = Date.now();
-      if (now - lastRenderAtRef.current < DISPLAY_REFRESH_INTERVAL_MS) {
-        return;
-      }
-      lastRenderAtRef.current = now;
-      forceClockTick();
-    }, DISPLAY_REFRESH_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, []);
 
   // Test-support only: a per-row render counter surfaced as a data attribute so
   // `StockList.render-isolation.test.tsx` can assert exactly one extra render for the
@@ -680,8 +750,11 @@ function StockListRow({ definition, priceDecimals, onActivate }: StockListRowPro
   // Decorative sparkline history — bounded, committed post-render (see module doc for
   // why this mirrors PriceCell's flash-tracking shape rather than mutating during
   // render). Never read as text anywhere; text prices always go through PriceCell.
+  // `toPlotValue` (`src/chart/ringBuffer.ts`) is the one sanctioned `DecimalString` ->
+  // `number` conversion for exactly this "plotting/decoration, never re-displayed as
+  // text" purpose — reused here rather than a second, duplicate inline conversion.
   const historyRef = useRef<number[]>([]);
-  const currentPriceNum = Number(price);
+  const currentPriceNum = toPlotValue(price);
   useEffect(() => {
     const last = historyRef.current[historyRef.current.length - 1];
     if (last !== currentPriceNum) {
@@ -695,6 +768,22 @@ function StockListRow({ definition, priceDecimals, onActivate }: StockListRowPro
   const sparklineDirection: 'up' | 'down' | 'flat' =
     changePercent === undefined || changePercent === 0 ? 'flat' : changePercent > 0 ? 'up' : 'down';
 
+  // A sighted user reads price and up/down direction straight off the row (that's the
+  // entire point of it); `aria-label={symbol}` alone gives a keyboard/screen-reader
+  // user — the row is the focus target (`tabIndex` below) — none of that. Build a
+  // richer label from data already computed above rather than a new formatting
+  // dependency: `price` is already a plain decimal string, so `String(price)` is a
+  // type-safe pass-through, not a numeric reformat. Recomputed on every render (cheap,
+  // plain string concatenation) — deliberately *not* wired to `aria-live`: constant
+  // per-tick announcements across 34 independently-ticking rows would spam a screen
+  // reader, so this only changes what is read when the row is *visited*, not when it
+  // changes.
+  const directionWord = sparklineDirection === 'flat' ? 'unchanged' : sparklineDirection;
+  const rowAriaLabel =
+    changePercent === undefined
+      ? `${symbol}, ${String(price)}`
+      : `${symbol}, ${String(price)}, ${directionWord} ${Math.abs(changePercent).toFixed(1)}%`;
+
   const handleKeyDown = (event: KeyboardEvent<HTMLTableRowElement>) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
@@ -706,7 +795,7 @@ function StockListRow({ definition, priceDecimals, onActivate }: StockListRowPro
     <tr
       className="tckr-stocklist__row"
       tabIndex={0}
-      aria-label={symbol}
+      aria-label={rowAriaLabel}
       data-symbol={symbol}
       data-render-count={renderCountRef.current}
       onClick={() => onActivate(symbol)}
@@ -760,6 +849,30 @@ export function StockList() {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [sortState, setSortState] = useState<SortState | null>(null);
   const { state: connState, remainingSecs } = useConnectionBanner();
+  const marketStatus = useMarketStatus();
+
+  // `sorted` below reads live snapshot values *imperatively*, only when it recomputes
+  // (see module doc: resorting on every tick would reintroduce the whole-table
+  // re-render this page exists to avoid, and would make rows jump under the cursor).
+  // Left alone, that means an active preset (e.g. "Most active") can show a stale,
+  // increasingly-misleading ranking indefinitely between sort clicks/searches, even as
+  // every individual row keeps visibly repainting. `resortTick` forces one extra
+  // recompute per `DISPLAY_REFRESH_INTERVAL_MS` — the same cadence every other repaint
+  // on this page already uses — so the ranking can go stale for at most one window,
+  // never indefinitely, without resorting on every tick. Mirrors
+  // `useConnectionBanner`'s reconnecting-interval: only runs while there is something
+  // to keep fresh (`sortState !== null`), and is keyed off that boolean rather than the
+  // `SortState` object itself so switching between sort columns doesn't restart the
+  // 30s window.
+  const [resortTick, forceResort] = useReducer((n: number) => n + 1, 0);
+  const hasActiveSort = sortState !== null;
+  useEffect(() => {
+    if (!hasActiveSort) {
+      return;
+    }
+    const id = setInterval(() => forceResort(), DISPLAY_REFRESH_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [hasActiveSort]);
 
   useEffect(() => {
     // `getSharedSource()` is the one app-wide `MarketDataSource` instance — it connects
@@ -778,6 +891,21 @@ export function StockList() {
       subscribedRef.current = symbols;
       source.subscribe(symbols);
       setUniverse(response.symbols);
+
+      // `subscribe()` above only starts *future* ticks flowing into the shared store —
+      // it does not backfill whatever volume the source had already accumulated before
+      // this page opened (the simulator/gateway tracks true cumulative volume
+      // independent of whether any page is watching). Without this, every row's volume
+      // would start from 0 and only reflect ticks received after mount, understating
+      // the true figure for as long as the page stays open. `getSnapshot()` already
+      // writes its result into the shared store via `applySnapshot` internally (see
+      // `SimulatedSource.getSnapshot`/`TckrGatewaySource.getSnapshot`), so there is
+      // nothing to do with these results beyond letting them resolve —
+      // `StockDetail.tsx` does the equivalent for its one symbol. Fired *after*
+      // `setUniverse` (not awaited before it) so the table paints immediately rather
+      // than waiting on 34 network/simulator round-trips, and `allSettled` (not `all`)
+      // so one symbol's rejected snapshot can never stop the others from applying.
+      void Promise.allSettled(symbols.map((s) => source.getSnapshot(s)));
     });
 
     return () => {
@@ -835,7 +963,10 @@ export function StockList() {
     const { column, direction } = sortState;
     const factor = direction === 'asc' ? 1 : -1;
     return [...filtered].sort((a, b) => factor * compareBy(column, a, b));
-  }, [filtered, sortState]);
+    // `resortTick` is intentionally in this array even though the body never reads
+    // it — bumping it is exactly what forces this memo to recompute (and re-read live
+    // snapshot values via `compareBy`) once per `DISPLAY_REFRESH_INTERVAL_MS`.
+  }, [filtered, sortState, resortTick]);
 
   const handleSort = useCallback((column: SortColumn) => {
     setSortState((current) => {
@@ -859,7 +990,13 @@ export function StockList() {
   const clearSearch = useCallback(() => setRawQuery(''), []);
 
   if (universe === null) {
-    return <p className="tckr-stocklist__loading">Loading instruments…</p>;
+    return (
+      <>
+        <style>{STOCK_LIST_STYLES}</style>
+        <h1 className="tckr-visually-hidden">Tckr Market Watch</h1>
+        <p className="tckr-stocklist__loading">Loading instruments…</p>
+      </>
+    );
   }
 
   const isStale = connState.kind === 'reconnecting' || connState.kind === 'closed';
@@ -869,8 +1006,11 @@ export function StockList() {
     <div className={`tckr-stocklist${isStale ? ' tckr-stocklist--stale' : ''}`}>
       <style>{STOCK_LIST_STYLES}</style>
 
+      <h1 className="tckr-visually-hidden">Tckr Market Watch</h1>
+
       <TickerTape universe={universe} held={isStale} />
       <ConnectionBanner state={connState} remainingSecs={remainingSecs} />
+      <MarketClosedBanner status={marketStatus} />
 
       <div className="tckr-stocklist__toolbar">
         <div className="tckr-stocklist__pills">
@@ -904,6 +1044,11 @@ export function StockList() {
       </div>
       <div className="tckr-stocklist__table-wrap">
         <table className="tckr-stocklist__table">
+          <colgroup>
+            {COLUMNS.map((column) => (
+              <col key={column.key} style={{ width: `${column.widthPercent}%` }} />
+            ))}
+          </colgroup>
           <thead>
             <tr>
               {COLUMNS.map((column) => (

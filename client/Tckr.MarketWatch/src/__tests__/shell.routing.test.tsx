@@ -34,14 +34,16 @@ describe('routing', () => {
     expect(document.querySelector('.tckr-detail')).toBeNull();
   });
 
-  it('renders the real StockDetail page with symbol="COMI" at /symbols/COMI', () => {
+  it('renders the real StockDetail page with symbol="COMI" at /symbols/COMI', async () => {
     render(
       <MemoryRouter initialEntries={['/symbols/COMI']}>
         <App />
       </MemoryRouter>,
     );
-    const symbolNode = document.querySelector('.tckr-detail__symbol');
-    expect(symbolNode?.textContent).toBe('COMI');
+    // `StockDetail` is lazy-loaded (code-split from `uplot`), so its chunk resolves
+    // asynchronously — wait for its content instead of asserting synchronously.
+    const symbolNode = await screen.findByText('COMI');
+    expect(symbolNode.className).toBe('tckr-detail__symbol');
   });
 
   it('redirects an unknown path to /', async () => {

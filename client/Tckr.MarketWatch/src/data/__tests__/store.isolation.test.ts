@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { toDecimal } from '../../contracts/decimal.ts';
 import type { Tick } from '../../contracts/messages.ts';
-import { applyTick, resetStore, subscribeSymbol } from '../store.ts';
+import { applyTick, primeUniverse, resetStore, subscribeSymbol } from '../store.ts';
 
 function tick(symbol: string, price: string, id: string): Tick {
   return {
@@ -20,6 +20,14 @@ function tick(symbol: string, price: string, id: string): Tick {
 describe('store per-symbol subscription isolation', () => {
   beforeEach(() => {
     resetStore();
+    // applyTick now drops a tick for any symbol not in the primed universe (security
+    // fix: an unrecognized `tick.s` must not be able to grow the store) — prime COMI
+    // and CIB so this file's ticks are accepted, matching how the real sources always
+    // prime before a tick can arrive.
+    primeUniverse([
+      { symbol: 'COMI', name: 'Commercial International Holding', referencePrice: toDecimal('85.10') },
+      { symbol: 'CIB', name: 'Cairo Investment Bank', referencePrice: toDecimal('62.75') },
+    ]);
   });
 
   it('notifies only the ticked symbol’s subscriber, not other symbols’', () => {

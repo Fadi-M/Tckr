@@ -2,10 +2,13 @@
  * Coalescing is the render contract, not an optimisation (README.md design decision #4).
  * At a hot symbol's share of a 25,000/sec tape (~15% on the real exchange skew, ~3,750
  * ticks/sec), one store write per tick would mean ~3,750 notifications/sec to a row that
- * can paint at 60fps. `TickDispatcher` keeps only the newest tick per symbol and writes
- * it into the store once per animation frame — latest-value-wins, display-only. The
- * un-coalesced tape is still delivered in full via `MarketDataSource.on.tick`; this class
- * only governs the store-write path.
+ * can paint at 60fps. `TickDispatcher` writes at most once per symbol per animation frame:
+ * price/timestamp/kind/id/stream are latest-value-wins (point-in-time samples, display-only),
+ * but quantity (`q`) is summed across every tick coalesced into that flush, since volume is
+ * a cumulative-sum quantity and store.applyTick adds the flushed `q` onto a running total —
+ * dropping coalesced quantity would silently under-count volume. The un-coalesced tape is
+ * still delivered in full via `MarketDataSource.on.tick`; this class only governs the
+ * store-write path.
  */
 import { applyTick } from './store.ts';
 import type { Tick } from '../contracts/messages.ts';
@@ -44,13 +47,25 @@ export class TickDispatcher {
     this.onFlush = onFlush;
   }
 
-  /** O(1): overwrites any pending tick already queued for that symbol. */
+  /**
+   * O(1): merges with any pending tick already queued for that symbol. Latest-wins is
+   * correct for price/timestamp/kind/id/stream — they're point-in-time samples, and the
+   * newest one is the only one that still matters for display. Volume is different: `q`
+   * is a per-trade quantity that store.applyTick folds into a running cumulative sum, so
+   * overwriting `q` (as a naive latest-wins merge would) silently discards the quantity
+   * of every tick coalesced away this frame. We sum `q` across the coalesced burst while
+   * still taking every other field from the latest tick, so exactly one flush per symbol
+   * per frame still happens, but that flush carries the full traded quantity.
+   */
   push(tick: Tick): void {
     this.received += 1;
-    if (this.pending.has(tick.s)) {
+    const existing = this.pending.get(tick.s);
+    if (existing !== undefined) {
       this.coalesced += 1;
+      this.pending.set(tick.s, { ...tick, q: existing.q + tick.q });
+    } else {
+      this.pending.set(tick.s, tick);
     }
-    this.pending.set(tick.s, tick);
     if (!this.frameRequested) {
       this.frameRequested = true;
       this.scheduleFrame(() => this.flushNow());

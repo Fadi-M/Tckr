@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { toDecimal } from '../../contracts/decimal.ts';
-import type { EntitlementChanged, ErrorMsg, IsoUtc, Tick } from '../../contracts/messages.ts';
-import type { Snapshot, SymbolUniverseResponse } from '../../contracts/rest.ts';
-import type { ConnectionState, Identity, MarketDataSource } from '../../data/MarketDataSource.ts';
+import type { IsoUtc } from '../../contracts/messages.ts';
 import { resetStore } from '../../data/store.ts';
+import { DISPLAY_REFRESH_INTERVAL_MS } from '../../display/throttle.ts';
+import { createFakeSource, snapshotFixture, tickFixture } from './testSupport.ts';
 
 // jsdom has no canvas; PriceChart's real uPlot cannot construct there. Fake it, same
 // technique task 05's own chart tests use (src/chart/__tests__/uplotTestDouble.ts).
@@ -47,111 +47,6 @@ vi.mock('../../components/PriceCell.tsx', async (importOriginal) => {
 import { getSharedSource, resetSharedSource } from '../../data/config.ts';
 import { PriceCell } from '../../components/PriceCell.tsx';
 import { StockDetail } from '../StockDetail.tsx';
-
-function snapshotFixture(overrides: Partial<Snapshot> = {}): Snapshot {
-  return {
-    v: 1,
-    symbol: 'COMI',
-    stream: 'LIVE',
-    price: toDecimal('84.50'),
-    change: toDecimal('0.13'),
-    changePercent: '+0.15',
-    open: toDecimal('84.37'),
-    high: toDecimal('84.60'),
-    low: toDecimal('84.10'),
-    volume: 216637,
-    lastEventId: 'evt-000000000000001',
-    exchangeTimestamp: '2026-09-12T10:30:00.000Z' as IsoUtc,
-    snapshotAge: 0,
-    simulated: true,
-    ...overrides,
-  };
-}
-
-function tickFixture(overrides: Partial<Tick> = {}): Tick {
-  return {
-    v: 1,
-    type: 'tick',
-    s: 'COMI',
-    p: toDecimal('85.75'),
-    q: 100,
-    k: 'TRADE',
-    t: '2026-09-12T10:30:05.000Z' as IsoUtc,
-    id: 'evt-000000000000002',
-    st: 'LIVE',
-    ...overrides,
-  };
-}
-
-function universeFixture(): SymbolUniverseResponse {
-  return {
-    v: 1,
-    asOf: '2026-09-12T09:00:00.000Z' as IsoUtc,
-    simulated: true,
-    symbols: [
-      {
-        symbol: 'COMI',
-        name: 'Commercial International Holding',
-        currency: 'EGP',
-        tickSize: toDecimal('0.05'),
-        lotSize: 100,
-        referencePrice: toDecimal('85.10'),
-      },
-    ],
-  };
-}
-
-interface FakeSourceOptions {
-  readonly identity?: Identity | null;
-  readonly snapshotImpl?: (symbol: string) => Promise<Snapshot>;
-}
-
-function createFakeSource(options: FakeSourceOptions = {}) {
-  const tickHandlers = new Set<(t: Tick) => void>();
-  const snapshotHandlers = new Set<(s: Snapshot) => void>();
-  const statusHandlers = new Set<(s: ConnectionState) => void>();
-  const errorHandlers = new Set<(e: ErrorMsg) => void>();
-  const entitlementHandlers = new Set<(e: EntitlementChanged) => void>();
-  let identityValue: Identity | null = options.identity ?? { userId: 'user-001', stream: 'LIVE', sessionId: 'sess-1' };
-  const defaultSnapshotImpl = (symbol: string) => Promise.resolve(snapshotFixture({ symbol }));
-
-  const source: MarketDataSource = {
-    connect: vi.fn(() => Promise.resolve()),
-    disconnect: vi.fn(),
-    subscribe: vi.fn(),
-    unsubscribe: vi.fn(),
-    getUniverse: vi.fn(() => Promise.resolve(universeFixture())),
-    getSnapshot: vi.fn((symbol: string) => (options.snapshotImpl ?? defaultSnapshotImpl)(symbol)),
-    on: {
-      tick: (h) => {
-        tickHandlers.add(h);
-        return () => tickHandlers.delete(h);
-      },
-      snapshot: (h) => {
-        snapshotHandlers.add(h);
-        return () => snapshotHandlers.delete(h);
-      },
-      status: (h) => {
-        statusHandlers.add(h);
-        return () => statusHandlers.delete(h);
-      },
-      error: (h) => {
-        errorHandlers.add(h);
-        return () => errorHandlers.delete(h);
-      },
-      entitlement: (h) => {
-        entitlementHandlers.add(h);
-        return () => entitlementHandlers.delete(h);
-      },
-    },
-    identity: () => identityValue,
-  };
-
-  return {
-    source,
-    emitTick: (t: Tick) => tickHandlers.forEach((h) => h(t)),
-  };
-}
 
 afterEach(() => {
   cleanup();
@@ -216,5 +111,71 @@ describe('StockDetail snapshot-then-stream ordering', () => {
     const tickIndex = priceCellValues.indexOf('85.75');
     expect(snapshotIndex).toBeGreaterThanOrEqual(0);
     expect(tickIndex).toBeGreaterThan(snapshotIndex);
+  });
+
+  it('a fresh snapshot is always the authoritative volume baseline, even when multiple ticks queued ahead of it', async () => {
+    // `StockDetail`'s volume accumulator resets to the snapshot's own `volume` every
+    // time a fresh snapshot is ingested (see the doc on `volumeSinceBaselineRef` in
+    // `../StockDetail.tsx`): a snapshot is the server's authoritative running total, so
+    // it always supersedes whatever this page had locally accumulated before it landed
+    // — there is no way for the client to know, from here, whether the ticks queued
+    // ahead of a slow-to-arrive snapshot are already folded into that snapshot's own
+    // total or not, so trusting the fresh authoritative number is the only sound choice.
+    // Price/timestamp still follow "newer wins" independently of that reset — this test
+    // pins down that the two are decoupled: three ticks arrive while loading, only the
+    // last one's price survives (existing "newer wins" behavior), and volume reflects
+    // the fresh snapshot's own total, not an incremental sum of the queued ticks' `q`.
+    vi.useFakeTimers();
+    const { source, emitTick } = createFakeSource({
+      snapshotImpl: (symbol) =>
+        new Promise((resolve) => {
+          setTimeout(() => resolve(snapshotFixture({ symbol })), 50);
+        }),
+    });
+    vi.mocked(getSharedSource).mockReturnValue(source);
+
+    render(
+      <MemoryRouter>
+        <StockDetail symbol="COMI" />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId('stock-detail-loading')).toBeTruthy();
+
+    // Three ticks arrive while the snapshot is still in flight — only the last one's
+    // price/timestamp can win.
+    act(() => {
+      vi.advanceTimersByTime(10);
+    });
+    act(() => {
+      emitTick(tickFixture({ p: toDecimal('85.10'), q: 50, t: '2026-09-12T10:30:05.000Z' as IsoUtc, id: 'evt-a' }));
+      emitTick(tickFixture({ p: toDecimal('85.20'), q: 75, t: '2026-09-12T10:30:05.001Z' as IsoUtc, id: 'evt-b' }));
+      emitTick(tickFixture({ p: toDecimal('85.75'), q: 25, t: '2026-09-12T10:30:05.002Z' as IsoUtc, id: 'evt-c' }));
+    });
+
+    expect(screen.getByTestId('stock-detail-loading')).toBeTruthy();
+
+    await act(async () => {
+      vi.advanceTimersByTime(60);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByTestId('stock-detail-price').textContent).toContain('85.75');
+    expect(screen.getByTestId('stock-detail-footer').textContent).toContain(
+      new Intl.NumberFormat('en-US').format(216637),
+    );
+
+    // Once ready, a further tick's quantity accumulates normally on top of that fresh
+    // baseline — the accumulator is not permanently stuck at 0 after the reset.
+    act(() => {
+      emitTick(tickFixture({ p: toDecimal('85.80'), q: 60, t: '2026-09-12T10:30:06.000Z' as IsoUtc, id: 'evt-d' }));
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(DISPLAY_REFRESH_INTERVAL_MS);
+    });
+    expect(screen.getByTestId('stock-detail-footer').textContent).toContain(
+      new Intl.NumberFormat('en-US').format(216637 + 60),
+    );
   });
 });

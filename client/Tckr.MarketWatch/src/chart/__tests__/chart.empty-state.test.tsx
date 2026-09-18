@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { toDecimal } from '../../contracts/decimal.ts';
-import { applyTick, resetStore } from '../../data/store.ts';
-import { tick } from './chartTestSupport.ts';
 
 vi.mock('uplot', async () => {
   const mod = await import('./uplotTestDouble.ts');
@@ -15,7 +13,6 @@ import { PriceChart } from '../PriceChart.tsx';
 afterEach(cleanup);
 
 beforeEach(() => {
-  resetStore();
   resetUplotMock();
 });
 
@@ -26,14 +23,25 @@ describe('PriceChart empty state', () => {
     expect(screen.getByText(/waiting for ticks/i)).toBeDefined();
   });
 
-  it('removes the placeholder once a point has arrived', () => {
-    render(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} />);
+  it('removes the placeholder once a livePrice arrives (fed by the parent page, not an independent store read)', () => {
+    const { rerender } = render(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} />);
     expect(screen.queryByTestId('price-chart-empty-state')).not.toBeNull();
 
-    act(() => {
-      applyTick(tick());
-    });
+    rerender(
+      <PriceChart symbol="COMI" tickSize={toDecimal('0.01')} livePrice={{ t: Date.now(), p: toDecimal('85.42') }} />,
+    );
 
+    expect(screen.queryByTestId('price-chart-empty-state')).toBeNull();
+  });
+
+  it('removes the placeholder when history alone is non-empty, even with no livePrice yet', () => {
+    render(
+      <PriceChart
+        symbol="COMI"
+        tickSize={toDecimal('0.01')}
+        history={[{ t: 1000, p: toDecimal('85.10') }]}
+      />,
+    );
     expect(screen.queryByTestId('price-chart-empty-state')).toBeNull();
   });
 });

@@ -3,85 +3,18 @@
  * orders via `compare` (decimal-safe), never lexicographically — `9.90` must sort below
  * `85.10`, which a string sort would get backwards (`"85.10" < "9.90"` lexically).
  */
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { toDecimal } from '../../contracts/decimal.ts';
-import type { IsoUtc, Tick } from '../../contracts/messages.ts';
-import type { SymbolDefinition, SymbolUniverseResponse } from '../../contracts/rest.ts';
-import type { MarketDataSource } from '../../data/MarketDataSource.ts';
-import { applyTick, resetStore } from '../../data/store.ts';
+import { applyTick, primeUniverse, resetStore } from '../../data/store.ts';
+import { loadUniverseFixture, makeFakeSource, tickFixture } from './testSupport.ts';
 
 const { mockGetSharedSource } = vi.hoisted(() => ({ mockGetSharedSource: vi.fn() }));
 vi.mock('../../data/config.ts', () => ({ getSharedSource: mockGetSharedSource }));
 
 import { StockList } from '../StockList.tsx';
-
-const here = dirname(fileURLToPath(import.meta.url));
-
-interface RawSymbol {
-  readonly symbol: string;
-  readonly name: string;
-  readonly referencePrice: number;
-  readonly tickSize: number;
-  readonly lotSize: number;
-}
-
-function loadUniverseFixture(): readonly SymbolDefinition[] {
-  const raw = readFileSync(resolve(here, '../../../public/symbols.json'), 'utf-8');
-  const parsed = JSON.parse(raw) as { symbols: readonly RawSymbol[] };
-  return parsed.symbols.map((s) => ({
-    symbol: s.symbol,
-    name: s.name,
-    currency: 'EGP',
-    tickSize: toDecimal(s.tickSize.toString()),
-    lotSize: s.lotSize,
-    referencePrice: toDecimal(s.referencePrice.toString()),
-  }));
-}
-
-function makeFakeSource(symbols: readonly SymbolDefinition[]): MarketDataSource {
-  return {
-    connect: () => Promise.resolve(),
-    disconnect: () => {},
-    subscribe: () => {},
-    unsubscribe: () => {},
-    getUniverse: () =>
-      Promise.resolve<SymbolUniverseResponse>({
-        v: 1,
-        asOf: new Date().toISOString() as IsoUtc,
-        simulated: true,
-        symbols,
-      }),
-    getSnapshot: () => Promise.reject(new Error('not used')),
-    on: {
-      tick: () => () => {},
-      snapshot: () => () => {},
-      status: () => () => {},
-      error: () => () => {},
-      entitlement: () => () => {},
-    },
-    identity: () => null,
-  };
-}
-
-function makeTick(symbol: string, price: string): Tick {
-  return {
-    v: 1,
-    type: 'tick',
-    s: symbol,
-    p: toDecimal(price),
-    q: 100,
-    k: 'TRADE',
-    t: '2026-09-12T10:31:04.881Z' as IsoUtc,
-    id: 'evt-000000000000002',
-    st: 'LIVE',
-  };
-}
 
 async function flushMicrotasks(): Promise<void> {
   await act(async () => {
@@ -106,7 +39,14 @@ describe('StockList sort', () => {
 
   it('sorts price ascending/descending using decimal `compare`, not lexicographic order', async () => {
     const universeSymbols = loadUniverseFixture();
-    mockGetSharedSource.mockReturnValue(makeFakeSource(universeSymbols));
+    // A real `MarketDataSource` primes the store's universe itself (e.g.
+    // `SimulatedSource`'s constructor) before any tick for one of its symbols can be
+    // accepted — `applyTick` drops ticks for an unprimed symbol (store.ts's own
+    // "real universe, not whatever the wire claims" guard). This fake source is a
+    // plain object, not a real source instance, so the test primes it explicitly to
+    // match that contract.
+    primeUniverse(universeSymbols);
+    mockGetSharedSource.mockReturnValue(makeFakeSource(universeSymbols).source);
 
     render(
       <MemoryRouter>
@@ -121,8 +61,8 @@ describe('StockList sort', () => {
     // lexicographic string sort would order "18.90" < "245.60" < "9.90" incorrectly
     // (comparing character by character); decimal `compare` must not.
     act(() => {
-      applyTick(makeTick('COMI', '9.90'));
-      applyTick(makeTick('SWDY', '18.90'));
+      applyTick(tickFixture({ s: 'COMI', p: toDecimal('9.90') }));
+      applyTick(tickFixture({ s: 'SWDY', p: toDecimal('18.90') }));
     });
 
     const priceHeader = screen.getByRole('columnheader', { name: /^price/i });

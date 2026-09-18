@@ -15,6 +15,7 @@
  * user last saw the raw wire string for.
  */
 import { format, toDecimal, type DecimalString } from '../contracts/decimal.ts';
+import { formatCairoClock } from '../data/marketCalendar.ts';
 
 /** Digits after the decimal point in a tick-size string — `"0.05"` -> 2, `"0.005"` -> 3,
  * `"1"` -> 0. Pure string indexing, not a numeric parse: a tick size's own precision is
@@ -49,14 +50,20 @@ export function formatYAxisLabel(value: number, tickSize: DecimalString): string
   return formatAxisPrice(value, decimalsForTickSize(tickSize));
 }
 
-/** Wall-clock `HH:MM:SS` for an epoch-millisecond x value. Local time (matching what a
- * person looking at their own screen expects), zero-padded. */
+/**
+ * Wall-clock `HH:MM:SS` for an epoch-millisecond x value, in **Cairo** time (EGX's own
+ * market timezone) — zero-padded. A thin re-export of `marketCalendar.formatCairoClock`,
+ * not a second implementation: this function has already drifted from what
+ * `StockDetail.tsx`'s header shows twice in this codebase's history (once local-time
+ * vs. UTC, once UTC vs. Cairo) precisely because it used to be its own independent
+ * implementation. Since this is explicitly Egyptian-market data, every timestamp on the
+ * page — this chart's x-axis/hover readout and the header's "as of" line alike — must
+ * show EGX's own Cairo time regardless of the viewer's location, not UTC and not the
+ * viewer's local timezone. There must only ever be one implementation of "what time is
+ * it, for display purposes, on this page."
+ */
 export function formatClockTime(epochMs: number): string {
-  const date = new Date(epochMs);
-  const hh = date.getHours().toString().padStart(2, '0');
-  const mm = date.getMinutes().toString().padStart(2, '0');
-  const ss = date.getSeconds().toString().padStart(2, '0');
-  return `${hh}:${mm}:${ss}`;
+  return formatCairoClock(epochMs);
 }
 
 /** `x` label for a given epoch-ms split — what `PriceChart`'s x-axis `values` callback

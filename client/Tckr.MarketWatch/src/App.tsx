@@ -5,7 +5,9 @@
  *   1. `SimulatedBanner` — permanent, present on every route.
  *   2. Header — brand, plus two named slots (`statusSlot`, `badgeSlot`) that
  *      task 07 renders `ConnectionStatus` / `StreamBadge` into, without editing
- *      this file.
+ *      this file. The "◆ SIMULATED TAPE" tag only renders when the `simulated`
+ *      prop is true — this file must not decide that itself (see below), so the
+ *      composition root passes it in already resolved.
  *   3. `<Routes>` — `/` and `/symbols/:symbol`, rendered inside `.tckr-page`.
  *
  * This file does not import anything from `src/data/**` directly — see
@@ -16,20 +18,37 @@
  * renders task 06's `StockDetail` via `StockDetailRoute`, which reads the `symbol`
  * route param with `useParams` and passes it straight through.
  */
-import type { ReactNode } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { SimulatedBanner } from './components/SimulatedBanner';
 import { StockList } from './pages/StockList';
-import { StockDetail } from './pages/StockDetail';
+
+// Lazy-loaded so the chart library (`uplot`), only needed on the per-symbol
+// detail page, is not fetched by users who only ever visit the list page at
+// `/`. This keeps `StockDetail` (and everything it statically imports, i.e.
+// `PriceChart`/`uplot`) in its own chunk, split out of the initial bundle.
+const StockDetail = lazy(() =>
+  import('./pages/StockDetail').then((module) => ({ default: module.StockDetail })),
+);
 
 export interface AppHeaderProps {
   /** Rendered by task 07's `ConnectionStatus`. */
   statusSlot?: ReactNode | undefined;
   /** Rendered by task 07's `StreamBadge`. */
   badgeSlot?: ReactNode | undefined;
+  /**
+   * Whether the active `MarketDataSource` is the simulator. This file must stay
+   * data-source-agnostic (see the module doc comment / `shell.no-data-import.test.ts`),
+   * so it cannot import `src/data/config.ts` to check `resolveClientConfig().source`
+   * itself — the composition root (`main.tsx`) resolves that and passes the boolean
+   * down, the same pattern `SimulatedBanner`'s `delayedOffsetMs` prop already uses.
+   * Defaults to `false` (tag hidden) so a caller that forgets to pass it never falsely
+   * claims a real gateway deployment is simulated.
+   */
+  simulated?: boolean | undefined;
 }
 
-function AppHeader({ statusSlot, badgeSlot }: AppHeaderProps) {
+function AppHeader({ statusSlot, badgeSlot, simulated }: AppHeaderProps) {
   return (
     <header className="tckr-header">
       <div className="tckr-header__brand">
@@ -37,7 +56,7 @@ function AppHeader({ statusSlot, badgeSlot }: AppHeaderProps) {
         <span>Tckr</span>
       </div>
       <div className="tckr-header__slots">
-        <span className="tckr-header__tape-tag">◆ SIMULATED TAPE</span>
+        {simulated ? <span className="tckr-header__tape-tag">◆ SIMULATED TAPE</span> : null}
         {statusSlot}
         {badgeSlot}
       </div>
@@ -47,7 +66,11 @@ function AppHeader({ statusSlot, badgeSlot }: AppHeaderProps) {
 
 function StockDetailRoute() {
   const { symbol } = useParams<{ symbol: string }>();
-  return <StockDetail symbol={symbol ?? ''} />;
+  return (
+    <Suspense fallback={<p className="tckr-detail__loading">Loading…</p>}>
+      <StockDetail symbol={symbol ?? ''} />
+    </Suspense>
+  );
 }
 
 export interface AppProps {
@@ -57,13 +80,15 @@ export interface AppProps {
   badgeSlot?: ReactNode | undefined;
   /** Forwarded to `SimulatedBanner` — see its doc comment. */
   delayedOffsetMs?: number | undefined;
+  /** See `AppHeaderProps.simulated`. */
+  simulated?: boolean | undefined;
 }
 
-export function App({ statusSlot, badgeSlot, delayedOffsetMs }: AppProps) {
+export function App({ statusSlot, badgeSlot, delayedOffsetMs, simulated }: AppProps) {
   return (
     <div className="tckr-shell">
       <SimulatedBanner delayedOffsetMs={delayedOffsetMs} />
-      <AppHeader statusSlot={statusSlot} badgeSlot={badgeSlot} />
+      <AppHeader statusSlot={statusSlot} badgeSlot={badgeSlot} simulated={simulated} />
       <main className="tckr-page">
         <Routes>
           <Route path="/" element={<StockList />} />

@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, render } from '@testing-library/react';
+import { cleanup, render } from '@testing-library/react';
 import { toDecimal } from '../../contracts/decimal.ts';
-import { applyTick, resetStore } from '../../data/store.ts';
-import { tick } from './chartTestSupport.ts';
 
 vi.mock('uplot', async () => {
   const mod = await import('./uplotTestDouble.ts');
@@ -25,20 +23,17 @@ function priceAt(i: number) {
 afterEach(cleanup);
 
 beforeEach(() => {
-  resetStore();
   resetUplotMock();
 });
 
 describe('PriceChart single uPlot instance', () => {
-  it('constructs exactly one uPlot instance for 1,000 subsequent data updates', () => {
-    render(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} />);
+  it('constructs exactly one uPlot instance for 1,000 subsequent livePrice updates', () => {
+    const { rerender } = render(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} />);
     expect(constructorSpy).toHaveBeenCalledTimes(1);
 
-    act(() => {
-      for (let i = 0; i < 1000; i += 1) {
-        applyTick(tick({ id: `evt-${i}`, p: priceAt(i) }));
-      }
-    });
+    for (let i = 0; i < 1000; i += 1) {
+      rerender(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} livePrice={{ t: 1000 + i, p: priceAt(i) }} />);
+    }
 
     expect(constructorSpy).toHaveBeenCalledTimes(1);
   });
