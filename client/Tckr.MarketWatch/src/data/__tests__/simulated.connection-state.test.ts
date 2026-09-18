@@ -3,11 +3,12 @@ import { CloseCode } from '../../contracts/closeCodes.ts';
 import type { ConnectionState } from '../MarketDataSource.ts';
 import { SimulatedSource } from '../SimulatedSource.ts';
 import { resetStore } from '../store.ts';
-import { baseConfig } from './testSupport.ts';
+import { baseConfig, KNOWN_OPEN_NOW_MS } from './testSupport.ts';
 
 describe('SimulatedSource.connectionState', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.setSystemTime(KNOWN_OPEN_NOW_MS); // see KNOWN_OPEN_NOW_MS's doc
     resetStore();
   });
 

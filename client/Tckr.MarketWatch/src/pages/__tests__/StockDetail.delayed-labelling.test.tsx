@@ -1,11 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { toDecimal } from '../../contracts/decimal.ts';
-import type { EntitlementChanged, ErrorMsg, IsoUtc, Tick } from '../../contracts/messages.ts';
-import type { Snapshot, SymbolUniverseResponse } from '../../contracts/rest.ts';
-import type { ConnectionState, Identity, MarketDataSource } from '../../data/MarketDataSource.ts';
+import type { IsoUtc } from '../../contracts/messages.ts';
 import { resetStore } from '../../data/store.ts';
+import { createFakeSource, snapshotFixture } from './testSupport.ts';
 
 vi.mock('uplot', () => {
   class FakeUPlot {
@@ -38,84 +36,14 @@ import { StockDetail } from '../StockDetail.tsx';
 // contract.md: a DELAYED snapshot/tick still carries its *original* exchange time).
 const DELAYED_EXCHANGE_TIME = '2026-09-12T10:15:00.000Z' as IsoUtc;
 
-function delayedSnapshotFixture(symbol: string): Snapshot {
-  return {
-    v: 1,
-    symbol,
-    stream: 'DELAYED',
-    price: toDecimal('84.50'),
-    change: toDecimal('0.13'),
-    changePercent: '+0.15',
-    open: toDecimal('84.37'),
-    high: toDecimal('84.60'),
-    low: toDecimal('84.10'),
-    volume: 216637,
-    lastEventId: 'evt-000000000000001',
-    exchangeTimestamp: DELAYED_EXCHANGE_TIME,
-    snapshotAge: 15000,
-    simulated: true,
-  };
-}
-
-function universeFixture(): SymbolUniverseResponse {
-  return {
-    v: 1,
-    asOf: '2026-09-12T09:00:00.000Z' as IsoUtc,
-    simulated: true,
-    symbols: [
-      {
-        symbol: 'COMI',
-        name: 'Commercial International Holding',
-        currency: 'EGP',
-        tickSize: toDecimal('0.05'),
-        lotSize: 100,
-        referencePrice: toDecimal('85.10'),
-      },
-    ],
-  };
-}
-
-function createFakeSource() {
-  const tickHandlers = new Set<(t: Tick) => void>();
-  const snapshotHandlers = new Set<(s: Snapshot) => void>();
-  const statusHandlers = new Set<(s: ConnectionState) => void>();
-  const errorHandlers = new Set<(e: ErrorMsg) => void>();
-  const entitlementHandlers = new Set<(e: EntitlementChanged) => void>();
-  const identityValue: Identity = { userId: 'user-002', stream: 'DELAYED', sessionId: 'sess-2' };
-
-  const source: MarketDataSource = {
-    connect: vi.fn(() => Promise.resolve()),
-    disconnect: vi.fn(),
-    subscribe: vi.fn(),
-    unsubscribe: vi.fn(),
-    getUniverse: vi.fn(() => Promise.resolve(universeFixture())),
-    getSnapshot: vi.fn((symbol: string) => Promise.resolve(delayedSnapshotFixture(symbol))),
-    on: {
-      tick: (h) => {
-        tickHandlers.add(h);
-        return () => tickHandlers.delete(h);
-      },
-      snapshot: (h) => {
-        snapshotHandlers.add(h);
-        return () => snapshotHandlers.delete(h);
-      },
-      status: (h) => {
-        statusHandlers.add(h);
-        return () => statusHandlers.delete(h);
-      },
-      error: (h) => {
-        errorHandlers.add(h);
-        return () => errorHandlers.delete(h);
-      },
-      entitlement: (h) => {
-        entitlementHandlers.add(h);
-        return () => entitlementHandlers.delete(h);
-      },
-    },
-    identity: () => identityValue,
-  };
-
-  return { source };
+function createDelayedFakeSource() {
+  return createFakeSource({
+    identity: { userId: 'user-002', stream: 'DELAYED', sessionId: 'sess-2' },
+    snapshotImpl: (symbol) =>
+      Promise.resolve(
+        snapshotFixture({ symbol, stream: 'DELAYED', exchangeTimestamp: DELAYED_EXCHANGE_TIME, snapshotAge: 15000 }),
+      ),
+  });
 }
 
 afterEach(cleanup);
@@ -127,7 +55,7 @@ beforeEach(() => {
 
 describe('StockDetail DELAYED labelling', () => {
   it('shows the exchange time (not local receipt time) and states the DELAYED simulation-artifact context', async () => {
-    const { source } = createFakeSource();
+    const { source } = createDelayedFakeSource();
     vi.mocked(getSharedSource).mockReturnValue(source);
 
     render(
@@ -144,9 +72,12 @@ describe('StockDetail DELAYED labelling', () => {
     expect(source.identity()?.stream).toBe('DELAYED');
 
     const asOf = screen.getByTestId('stock-detail-asof');
-    // The exchange timestamp (10:15:00), not "now" — this is the whole point of the
-    // DELAYED test: it must reflect the event's own time, never local receipt time.
-    expect(asOf.textContent).toContain('10:15:00');
+    // The exchange timestamp (2026-09-12T10:15:00Z), not "now" — this is the whole
+    // point of the DELAYED test: it must reflect the event's own time, never local
+    // receipt time. Displayed in Cairo market time, not raw UTC (see
+    // StockDetail.tsx's `formatExchangeTime`) — 2026-09-12 falls within Egypt's DST
+    // window, so 10:15:00 UTC renders as 13:15:00 Cairo (UTC+3).
+    expect(asOf.textContent).toContain('13:15:00');
     // The DELAYED context — and that it is a simulation artifact — must be stated on
     // screen, not just implied by a badge colour.
     expect(asOf.textContent).toContain('DELAYED');

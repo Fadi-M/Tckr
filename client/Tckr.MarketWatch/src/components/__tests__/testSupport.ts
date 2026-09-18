@@ -49,6 +49,7 @@ export function createFakeSource(
     unsubscribe: () => {},
     getUniverse: () => Promise.reject(new Error('FakeSource.getUniverse: not used in this test')),
     getSnapshot: () => Promise.reject(new Error('FakeSource.getSnapshot: not used in this test')),
+    getHistory: () => Promise.reject(new Error('FakeSource.getHistory: not used in this test')),
     on: {
       tick: (h) => {
         tickHandlers.add(h);

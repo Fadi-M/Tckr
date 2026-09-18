@@ -2,11 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Tick } from '../../contracts/messages.ts';
 import { resetStore } from '../store.ts';
 import { SimulatedSource } from '../SimulatedSource.ts';
-import { baseConfig } from './testSupport.ts';
+import { baseConfig, KNOWN_OPEN_NOW_MS } from './testSupport.ts';
 
 describe('SimulatedSource DELAYED buffering', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.setSystemTime(KNOWN_OPEN_NOW_MS); // see KNOWN_OPEN_NOW_MS's doc — ticks only flow while EGX is open
     resetStore();
   });
 

@@ -28,6 +28,9 @@
  * artifact* (client-contract.md §5): the real delay is 15 minutes, produced server-side.
  * This default must be labelled on screen wherever it is shown. |
  * | `VITE_TCKR_SIM_SEED` | `20260912` | seed for the simulator's mulberry32 PRNG |
+ * | `VITE_TCKR_ALLOW_SIMULATED_IN_PROD` | unset (falsy) | explicit opt-in to run a
+ * production build (`import.meta.env.PROD === true`) against the simulated source —
+ * see `resolveClientConfig`'s fail-fast guard below. |
  */
 import type { MarketDataSource } from './MarketDataSource.ts';
 import { SimulatedSource } from './SimulatedSource.ts';
@@ -80,10 +83,34 @@ function readSource(): ClientConfig['source'] {
   return raw === 'gateway' ? 'gateway' : 'simulated';
 }
 
+/** Parses a loose boolean flag (`'true'`/`'1'`) for opt-in env vars. Anything else,
+ * including unset, is `false` — the safe default for an escape hatch like
+ * `VITE_TCKR_ALLOW_SIMULATED_IN_PROD`, which must require an explicit, unambiguous
+ * value rather than treating "set to something" as consent. */
+function readEnvFlag(key: string): boolean {
+  const raw = readEnvString(key);
+  return raw === 'true' || raw === '1';
+}
+
 /** Resolves the effective config from `import.meta.env`, then applies any explicit
  * overrides passed to `createMarketDataSource`. Exported for tests and for task 07/09,
  * which need the resolved `delayedOffsetMs` to label the simulated DELAYED offset
- * without importing a concrete source. */
+ * without importing a concrete source.
+ *
+ * Fail-fast guard: `DEFAULTS.source` is `'simulated'`, so any deployment that forgets
+ * to set `VITE_TCKR_SOURCE=gateway` would otherwise silently ship fictional prices to
+ * real users — no error, no warning, just a working-looking app showing fake data.
+ * `import.meta.env.PROD` is Vite's own build-time signal for "this is a production
+ * build" (true for `vite build`, false for `vite dev`/`vite preview --mode
+ * development`, and — load-bearing for this repo's test suite — false under Vitest,
+ * which runs with `MODE`/`NODE_ENV` `'test'`; see `config.prod-guard.test.ts`, which
+ * uses `vi.stubEnv('PROD', true)` to simulate a production build without needing an
+ * actual `vite build`). The guard only fires when the *resolved* source (after
+ * overrides) is `'simulated'` in a production build and nobody explicitly opted in via
+ * `VITE_TCKR_ALLOW_SIMULATED_IN_PROD` — that escape hatch exists for legitimate
+ * simulated-data deployments (a staging/demo environment built with `--mode
+ * production`), so this stays a guard against an *unintentional* fallback, not a ban on
+ * ever running simulated in a production-mode build. */
 export function resolveClientConfig(overrides?: Partial<ClientConfig>): ClientConfig {
   const base: ClientConfig = {
     source: readSource(),
@@ -95,11 +122,25 @@ export function resolveClientConfig(overrides?: Partial<ClientConfig>): ClientCo
       seed: readEnvCount('VITE_TCKR_SIM_SEED') ?? DEFAULTS.simulated.seed,
     },
   };
-  return {
+  const resolved: ClientConfig = {
     ...base,
     ...overrides,
     simulated: { ...base.simulated, ...overrides?.simulated },
   };
+
+  if (
+    import.meta.env.PROD &&
+    resolved.source === 'simulated' &&
+    !readEnvFlag('VITE_TCKR_ALLOW_SIMULATED_IN_PROD')
+  ) {
+    throw new Error(
+      'Refusing to run with the simulated data source in a production build. Set ' +
+        'VITE_TCKR_SOURCE=gateway, or set VITE_TCKR_ALLOW_SIMULATED_IN_PROD=true if this ' +
+        'is intentional (e.g. a staging/demo environment).',
+    );
+  }
+
+  return resolved;
 }
 
 /** The only function in this codebase permitted to name a concrete `MarketDataSource`
@@ -132,13 +173,37 @@ export function createMarketDataSource(overrides?: Partial<ClientConfig>): Marke
 //
 // **Connection ownership rule**: `getSharedSource()` calls `connect()` itself, exactly
 // once, at first-access time. Call sites (StockList, StockDetail, ConnectionStatus, …)
-// must NOT call `.connect()` on the returned instance — they call `subscribe`/
-// `unsubscribe`/`getUniverse`/`getSnapshot` and read `identity()`/`on.status` to observe
-// connection health. This is safe under React 18/19 StrictMode's double-invocation of
-// effects: the singleton is created and connected synchronously inside the first
-// `getSharedSource()` call (no `await` between the existence check and the assignment),
-// so a second, StrictMode-driven call in the same tick sees the already-created instance
-// and does not reconnect.
+// must NOT call `.connect()` on the returned instance directly, under any circumstance —
+// they call `subscribe`/`unsubscribe`/`getUniverse`/`getSnapshot` and read
+// `identity()`/`on.status` to observe connection health. This is safe under React 18/19
+// StrictMode's double-invocation of effects: the singleton is created and connected
+// synchronously inside the first `getSharedSource()` call (no `await` between the
+// existence check and the assignment), so a second, StrictMode-driven call in the same
+// tick sees the already-created instance and does not reconnect.
+//
+// The one legitimate need for a call site to force a fresh connection attempt — a
+// user-initiated manual retry, e.g. StockList's `ConnectionBanner` "Retry now"/
+// "Reconnect" buttons after the connection has dropped or closed — is `reconnectSharedSource()`
+// below, never a bare `.connect()` call. This is not pedantry: a bare `.connect()` on the
+// shared instance is NOT safe to expose to call sites, because it is not equally guarded
+// across both `MarketDataSource` implementations. `SimulatedSource.connect()` guards
+// against a redundant call via `this.marketClockHandle !== undefined`, which stays set
+// for as long as the source is genuinely connected — including while merely *market
+// closed* — so a manual `.connect()` during that state safely no-ops. But
+// `SimulatedSource.simulateDrop()`'s automatic-reconnect path clears `marketClockHandle`
+// back to `undefined` *before* arming its own `dropReconnectTimer`, so while the source
+// is in `reconnecting` state, a direct `.connect()` call slips past that guard and races
+// the pending automatic retry (harmlessly, in this class, since the later of the two
+// `connect()` calls itself re-arms the guard and the automatic one then no-ops — but see
+// `TckrGatewaySource` below, where the equivalent race is not harmless).
+// `TckrGatewaySource.connect()` guards only on `this.#socket`'s `readyState` (OPEN or
+// CONNECTING); while `reconnecting`, `#socket` is `undefined` (cleared by `#handleClose`),
+// so a direct `.connect()` call there both slips past the guard *and* leaves
+// `#reconnectTimer` armed — the timer fires later and opens a second, independent socket
+// (`#openSocket()`), a genuine duplicate-connection bug. `reconnectSharedSource()` avoids
+// this on both implementations by disconnecting first: `disconnect()` on either class
+// already cancels its own pending automatic-reconnect timer as part of normal cleanup, so
+// the subsequent `connect()` is guaranteed to be the only one in flight afterwards.
 let sharedSource: MarketDataSource | undefined;
 
 export function getSharedSource(): MarketDataSource {
@@ -161,4 +226,27 @@ export function getSharedSource(): MarketDataSource {
 export function resetSharedSource(): void {
   sharedSource?.disconnect();
   sharedSource = undefined;
+}
+
+/**
+ * The **one** sanctioned way a call site may force a fresh connection attempt on the
+ * shared instance: a user-initiated manual retry (StockList's `ConnectionBanner` "Retry
+ * now"/"Reconnect" buttons) after the connection has dropped or closed. Every other call
+ * site, for every other reason, still must not call `.connect()`/`.disconnect()` at all —
+ * see the "Connection ownership rule" above for why a bare `.connect()` is not safe to
+ * expose directly, on either `MarketDataSource` implementation.
+ *
+ * Disconnects first, then reconnects: `disconnect()` on both `SimulatedSource` and
+ * `TckrGatewaySource` already cancels whatever automatic-reconnect timer might be
+ * pending as part of its own cleanup (`clearDropReconnectTimer`/`#clearReconnectTimer`),
+ * so by the time `connect()` runs here, there is no dangling timer left that could later
+ * open a second, independent connection out from under this one. Safe to call in any
+ * `ConnectionState` — including `connected` (a harmless disconnect+reconnect cycle) —
+ * since it is only ever wired to an explicit user click, not something that runs on a
+ * timer or a render.
+ */
+export function reconnectSharedSource(): void {
+  const source = getSharedSource();
+  source.disconnect();
+  source.connect().catch(() => {});
 }

@@ -14,10 +14,20 @@
  * (see `ringBuffer.no-alloc.test.ts`), which is exactly what lets `PriceChart` hand the
  * same views straight to `uPlot.setData` every frame.
  *
- * This module is the **one place a price becomes a JS `number`** (see `toPlotValue`
- * below and the module doc in `PriceChart.tsx`). `push` itself only ever receives a
- * `number` it does not construct — see `chart.formatting.test.ts` / the DoD grep check
- * that `parseFloat`/`Number(` appear only in this file.
+ * This module is the **one place a price becomes a JS `number`** within `src/chart/**`
+ * (see `toPlotValue` below and the module doc in `PriceChart.tsx`). `push` itself only
+ * ever receives a `number` it does not construct. `chart.formatting.test.ts` enforces a
+ * narrower, precise version of that claim with a grep check: `Number(`/`parseFloat(`
+ * called on a *price-shaped* argument (source text containing "price", case-insensitive
+ * — e.g. `Number(price)`, `parseFloat(snapshot.price)`) must not appear anywhere under
+ * `src/` outside this file's own `toPlotValue` definition below — every other call site
+ * that needs a price as a plotting/decoration number (e.g. `StockList.tsx`'s per-row
+ * sparkline) must call `toPlotValue` itself rather than inline its own conversion. That
+ * check is deliberately scoped to *price-shaped* arguments, not a blanket ban on
+ * `Number(`/`parseFloat(` across the whole codebase — both appear elsewhere for
+ * genuinely non-price values (`marketCalendar.ts`'s calendar-component parsing,
+ * `contracts/messages.ts`'s `requireNumber` for integer wire fields like `volume`), and
+ * a text-level grep has no way to (nor should it try to) forbid those.
  */
 import type { DecimalString } from '../contracts/decimal.ts';
 

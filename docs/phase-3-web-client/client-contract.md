@@ -89,6 +89,29 @@ recover after a reconnect (DS-3).
 DELAYED caller gets the snapshot as of 15 minutes ago and `snapshotAge` (milliseconds)
 describes freshness relative to *that* stream, not to live time.
 
+### `GET /symbols/{symbol}/history`
+
+Every price sample recorded for `symbol` since the session began, oldest first — lets a
+client that opens a symbol mid-session (e.g. at noon, for a session that opened at 9:30)
+render the full session line immediately, instead of only the samples that happen to
+arrive after it starts watching.
+
+```json
+{
+  "v": 1,
+  "symbol": "COMI",
+  "points": [
+    { "t": "2026-09-12T07:00:03.000Z", "p": "84.37" },
+    { "t": "2026-09-12T07:00:33.000Z", "p": "84.40" }
+  ]
+}
+```
+
+`points` is sampled at a server-defined cadence (not every tick) and may be empty for a
+symbol with no samples yet (e.g. it just started trading). This endpoint is additive to
+`GET /symbols/{symbol}/snapshot`, not a replacement for it — a client still calls
+`snapshot` for the current OHLC/change figures and `history` only to seed a chart.
+
 ### `GET /health`
 
 `200 {"status":"healthy"}` — liveness only, no market data.

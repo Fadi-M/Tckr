@@ -94,7 +94,7 @@
     "shadows": [],
     "motion": [
       { "name": "tape-scroll", "value": "translateX(0) to translateX(-50%), 32s linear infinite", "purpose": "The ticker tape's continuous marquee loop; duplicated content makes the loop seamless." },
-      { "name": "price-flash", "value": "900ms ease-out background-color pulse + arrow fade", "purpose": "Fires on every Price Cell value change — the system's primary 'something just happened' signal. Kept brief and non-repeating." },
+      { "name": "price-flash", "value": "500ms cubic-bezier(0.23, 1, 0.32, 1) background-color pulse + arrow fade", "purpose": "Fires on every Price Cell value change — the system's primary 'something just happened' signal. Kept brief and non-repeating." },
       { "name": "tape-held-pause", "value": "animation-play-state: paused, opacity 0.32, saturate(0.3)", "purpose": "Freezes and desaturates the ticker tape when the connection is stale, with a fading 'TAPE HELD' overlay label." }
     ],
     "breakpoints": [

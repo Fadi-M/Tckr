@@ -3,70 +3,17 @@
  * `referencePrice` from the universe in the muted style — never a spinner, never
  * `0.00`.
  */
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { format, toDecimal } from '../../contracts/decimal.ts';
-import type { IsoUtc } from '../../contracts/messages.ts';
-import type { SymbolDefinition, SymbolUniverseResponse } from '../../contracts/rest.ts';
-import type { MarketDataSource } from '../../data/MarketDataSource.ts';
+import { format } from '../../contracts/decimal.ts';
 import { resetStore } from '../../data/store.ts';
+import { loadUniverseFixture, makeFakeSource } from './testSupport.ts';
 
 const { mockGetSharedSource } = vi.hoisted(() => ({ mockGetSharedSource: vi.fn() }));
 vi.mock('../../data/config.ts', () => ({ getSharedSource: mockGetSharedSource }));
 
 import { StockList } from '../StockList.tsx';
-
-const here = dirname(fileURLToPath(import.meta.url));
-
-interface RawSymbol {
-  readonly symbol: string;
-  readonly name: string;
-  readonly referencePrice: number;
-  readonly tickSize: number;
-  readonly lotSize: number;
-}
-
-function loadUniverseFixture(): readonly SymbolDefinition[] {
-  const raw = readFileSync(resolve(here, '../../../public/symbols.json'), 'utf-8');
-  const parsed = JSON.parse(raw) as { symbols: readonly RawSymbol[] };
-  return parsed.symbols.map((s) => ({
-    symbol: s.symbol,
-    name: s.name,
-    currency: 'EGP',
-    tickSize: toDecimal(s.tickSize.toString()),
-    lotSize: s.lotSize,
-    referencePrice: toDecimal(s.referencePrice.toString()),
-  }));
-}
-
-function makeFakeSource(symbols: readonly SymbolDefinition[]): MarketDataSource {
-  return {
-    connect: () => Promise.resolve(),
-    disconnect: () => {},
-    subscribe: () => {},
-    unsubscribe: () => {},
-    getUniverse: () =>
-      Promise.resolve<SymbolUniverseResponse>({
-        v: 1,
-        asOf: new Date().toISOString() as IsoUtc,
-        simulated: true,
-        symbols,
-      }),
-    getSnapshot: () => Promise.reject(new Error('not used')),
-    on: {
-      tick: () => () => {},
-      snapshot: () => () => {},
-      status: () => () => {},
-      error: () => () => {},
-      entitlement: () => () => {},
-    },
-    identity: () => null,
-  };
-}
 
 describe('StockList pre-tick display', () => {
   beforeEach(() => {
@@ -80,7 +27,7 @@ describe('StockList pre-tick display', () => {
 
   it('shows each symbol’s referencePrice, muted, and never "0.00", before any tick', async () => {
     const universeSymbols = loadUniverseFixture();
-    mockGetSharedSource.mockReturnValue(makeFakeSource(universeSymbols));
+    mockGetSharedSource.mockReturnValue(makeFakeSource(universeSymbols).source);
 
     render(
       <MemoryRouter>

@@ -137,6 +137,19 @@ function requireNumber(record: Record<string, unknown>, key: string, context: st
   return value;
 }
 
+/** Floor for `connected.heartbeatIntervalMs`. That field drives `TckrGatewaySource`'s
+ * outbound ping timer (`setInterval(..., interval)`) and the heartbeat watchdog's
+ * `2 * interval` disconnect deadline — both client-side timers taking their period
+ * directly from a server-supplied number with no independent sanity check upstream. A
+ * malicious/compromised gateway sending `0`, a negative value, or a vanishingly small
+ * one would make the client flood outbound `ping` frames and collapse the watchdog
+ * deadline toward zero, forcing repeated local closes/reconnect loops. One second is
+ * far below any interval a real gateway would plausibly use (client-contract.md does
+ * not name a value, but a production heartbeat cadence is measured in seconds, not
+ * milliseconds) and comfortably rules out the pathological cases without constraining
+ * any legitimate configuration. */
+const MIN_HEARTBEAT_INTERVAL_MS = 1000;
+
 function requireBoolean(record: Record<string, unknown>, key: string, context: string): boolean {
   const value = record[key];
   if (typeof value !== 'boolean') {
@@ -224,13 +237,24 @@ function parseSnapshot(value: unknown, context: string): Snapshot {
 
 function parseConnected(record: Record<string, unknown>): Connected {
   const context = 'connected';
+  const heartbeatIntervalMs = requireNumber(record, 'heartbeatIntervalMs', context);
+  // See MIN_HEARTBEAT_INTERVAL_MS: `requireNumber` alone only checks the wire type, not
+  // that the value is a sane timer period — reject anything at or below the floor
+  // (including NaN/Infinity, which `Number.isFinite` catches) before it can reach
+  // TckrGatewaySource's ping/heartbeat timers.
+  if (!Number.isFinite(heartbeatIntervalMs) || heartbeatIntervalMs < MIN_HEARTBEAT_INTERVAL_MS) {
+    fail(
+      context,
+      `heartbeatIntervalMs must be a finite number >= ${MIN_HEARTBEAT_INTERVAL_MS}, got ${heartbeatIntervalMs}`,
+    );
+  }
   return {
     v: 1,
     type: 'connected',
     userId: requireString(record, 'userId', context),
     stream: requireStream(record, 'stream', context),
     sessionId: requireString(record, 'sessionId', context),
-    heartbeatIntervalMs: requireNumber(record, 'heartbeatIntervalMs', context),
+    heartbeatIntervalMs,
     serverTime: requireIso(record, 'serverTime', context),
   };
 }

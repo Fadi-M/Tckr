@@ -29,11 +29,66 @@
 }
 
 .tckr-price-chart__readout {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-variant-numeric: tabular-nums;
   font-family: var(--tckr-font-mono);
   font-size: 0.8rem;
   color: var(--tckr-color-text-muted);
   min-height: 1.2em;
+}
+
+/* The chart deliberately redraws at most once per `DISPLAY_REFRESH_INTERVAL_MS` (~30s —
+   see PriceChart.tsx's module doc; this cadence itself is correct and out of scope here).
+   That leaves the chart looking like a static flat line for up to ~30s after mount, with
+   the header's `ConnectionStatus` elapsed-time tick — far from the chart — as the only
+   other "alive" signal on the page. This dot is a purely ambient, CSS-driven cue that the
+   page is still live during that gap; it carries no data of its own (the actual price
+   still only updates on the ~30s cadence) and is hidden, not removed, the moment the
+   hover readout has something real to show (see PriceChart.tsx's `setCursor` hook). */
+.tckr-price-chart__live-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--tckr-color-accent);
+  animation: tckr-price-chart-live-pulse 2s ease-in-out infinite;
+}
+
+.tckr-price-chart__live-dot--hidden {
+  display: none;
+}
+
+/* Toggled (via a plain `useEffect`, not the hot-path hide/show `classList` calls the
+   `setCursor` hook makes on every mousemove — see PriceChart.tsx) whenever the market is
+   closed: the "still alive, ticking" pulse would be misleading once nothing is actually
+   updating — this is a session that has already fully happened, not a live one. A static,
+   dimmed dot stays legible as "this is the final state" without implying motion. */
+.tckr-price-chart__live-dot--closed {
+  animation: none;
+  opacity: 0.4;
+}
+
+@keyframes tckr-price-chart-live-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* This is the first `prefers-reduced-motion` rule in `src/chart/**` (task 03's
+   `src/styles/**` had none to follow either) — kept as a plain, self-contained media
+   query rather than inventing a shared convention this task isn't scoped to add. A solid
+   (non-animating) dot is still a perfectly legible "live" indicator without motion. */
+@media (prefers-reduced-motion: reduce) {
+  .tckr-price-chart__live-dot {
+    animation: none;
+  }
 }
 
 .tckr-price-chart__body {

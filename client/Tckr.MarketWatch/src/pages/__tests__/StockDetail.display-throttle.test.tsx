@@ -11,11 +11,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { toDecimal } from '../../contracts/decimal.ts';
-import type { EntitlementChanged, ErrorMsg, IsoUtc, Tick } from '../../contracts/messages.ts';
-import type { Snapshot, SymbolUniverseResponse } from '../../contracts/rest.ts';
-import type { ConnectionState, Identity, MarketDataSource } from '../../data/MarketDataSource.ts';
+import type { IsoUtc, Tick } from '../../contracts/messages.ts';
 import { resetStore } from '../../data/store.ts';
 import { DISPLAY_REFRESH_INTERVAL_MS } from '../../display/throttle.ts';
+import { createFakeSource } from './testSupport.ts';
 
 vi.mock('uplot', () => {
   class FakeUPlot {
@@ -53,26 +52,10 @@ import { getSharedSource, resetSharedSource } from '../../data/config.ts';
 import { PriceCell } from '../../components/PriceCell.tsx';
 import { StockDetail } from '../StockDetail.tsx';
 
-function snapshotFixture(): Snapshot {
-  return {
-    v: 1,
-    symbol: 'COMI',
-    stream: 'LIVE',
-    price: toDecimal('84.50'),
-    change: toDecimal('0.13'),
-    changePercent: '+0.15',
-    open: toDecimal('84.37'),
-    high: toDecimal('84.60'),
-    low: toDecimal('84.10'),
-    volume: 216637,
-    lastEventId: 'evt-000000000000001',
-    exchangeTimestamp: '2026-09-12T10:30:00.000Z' as IsoUtc,
-    snapshotAge: 0,
-    simulated: true,
-  };
-}
-
-function tickFixture(price: string, seq: number): Tick {
+/** A burst tick, indexed by `seq` so a whole burst gets distinct ids/timestamps —
+ * distinct from the shared `tickFixture` (which overrides a full `Tick` object) since
+ * every call site here always varies both `price` and `seq` together. */
+function burstTickFixture(price: string, seq: number): Tick {
   return {
     v: 1,
     type: 'tick',
@@ -84,67 +67,6 @@ function tickFixture(price: string, seq: number): Tick {
     id: `evt-00000000000000${seq}`,
     st: 'LIVE',
   };
-}
-
-function universeFixture(): SymbolUniverseResponse {
-  return {
-    v: 1,
-    asOf: '2026-09-12T09:00:00.000Z' as IsoUtc,
-    simulated: true,
-    symbols: [
-      {
-        symbol: 'COMI',
-        name: 'Commercial International Holding',
-        currency: 'EGP',
-        tickSize: toDecimal('0.05'),
-        lotSize: 100,
-        referencePrice: toDecimal('85.10'),
-      },
-    ],
-  };
-}
-
-function createFakeSource() {
-  const tickHandlers = new Set<(t: Tick) => void>();
-  const snapshotHandlers = new Set<(s: Snapshot) => void>();
-  const statusHandlers = new Set<(s: ConnectionState) => void>();
-  const errorHandlers = new Set<(e: ErrorMsg) => void>();
-  const entitlementHandlers = new Set<(e: EntitlementChanged) => void>();
-  const identityValue: Identity = { userId: 'user-001', stream: 'LIVE', sessionId: 'sess-1' };
-
-  const source: MarketDataSource = {
-    connect: vi.fn(() => Promise.resolve()),
-    disconnect: vi.fn(),
-    subscribe: vi.fn(),
-    unsubscribe: vi.fn(),
-    getUniverse: vi.fn(() => Promise.resolve(universeFixture())),
-    getSnapshot: vi.fn(() => Promise.resolve(snapshotFixture())),
-    on: {
-      tick: (h) => {
-        tickHandlers.add(h);
-        return () => tickHandlers.delete(h);
-      },
-      snapshot: (h) => {
-        snapshotHandlers.add(h);
-        return () => snapshotHandlers.delete(h);
-      },
-      status: (h) => {
-        statusHandlers.add(h);
-        return () => statusHandlers.delete(h);
-      },
-      error: (h) => {
-        errorHandlers.add(h);
-        return () => errorHandlers.delete(h);
-      },
-      entitlement: (h) => {
-        entitlementHandlers.add(h);
-        return () => entitlementHandlers.delete(h);
-      },
-    },
-    identity: () => identityValue,
-  };
-
-  return { source, emitTick: (t: Tick) => tickHandlers.forEach((h) => h(t)) };
 }
 
 afterEach(() => {
@@ -182,7 +104,7 @@ describe('StockDetail display refresh throttling', () => {
     const burstSize = 40;
     act(() => {
       for (let i = 0; i < burstSize; i += 1) {
-        emitTick(tickFixture((85 + i * 0.01).toFixed(2), i));
+        emitTick(burstTickFixture((85 + i * 0.01).toFixed(2), i));
       }
     });
 
@@ -201,5 +123,14 @@ describe('StockDetail display refresh throttling', () => {
       vi.advanceTimersByTime(DISPLAY_REFRESH_INTERVAL_MS);
     });
     expect(screen.getByTestId('stock-detail-price').textContent).toContain('85.39');
+
+    // Regression for the volume-accounting bug: even though only the leading and
+    // trailing ticks of the 40-tick burst ever reach `mergeTickIntoQuote` (everything
+    // in between is collapsed by the throttle), every tick's `q` (10 each) must still
+    // be counted — the display throttle must never be allowed to drop traded quantity.
+    const expectedVolume = 216637 + burstSize * 10;
+    expect(screen.getByTestId('stock-detail-footer').textContent).toContain(
+      new Intl.NumberFormat('en-US').format(expectedVolume),
+    );
   });
 });

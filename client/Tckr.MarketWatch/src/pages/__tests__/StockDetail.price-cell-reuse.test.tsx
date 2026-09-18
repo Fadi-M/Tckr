@@ -1,11 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { toDecimal } from '../../contracts/decimal.ts';
-import type { EntitlementChanged, ErrorMsg, IsoUtc, Tick } from '../../contracts/messages.ts';
-import type { Snapshot, SymbolUniverseResponse } from '../../contracts/rest.ts';
-import type { ConnectionState, Identity, MarketDataSource } from '../../data/MarketDataSource.ts';
 import { resetStore } from '../../data/store.ts';
+import { createFakeSource } from './testSupport.ts';
 
 vi.mock('uplot', () => {
   class FakeUPlot {
@@ -45,86 +42,6 @@ vi.mock('../../components/PriceCell.tsx', async (importOriginal) => {
 import { getSharedSource, resetSharedSource } from '../../data/config.ts';
 import { PriceCell } from '../../components/PriceCell.tsx';
 import { StockDetail } from '../StockDetail.tsx';
-
-function snapshotFixture(symbol: string): Snapshot {
-  return {
-    v: 1,
-    symbol,
-    stream: 'LIVE',
-    price: toDecimal('84.50'),
-    change: toDecimal('0.13'),
-    changePercent: '+0.15',
-    open: toDecimal('84.37'),
-    high: toDecimal('84.60'),
-    low: toDecimal('84.10'),
-    volume: 216637,
-    lastEventId: 'evt-000000000000001',
-    exchangeTimestamp: '2026-09-12T10:30:00.000Z' as IsoUtc,
-    snapshotAge: 0,
-    simulated: true,
-  };
-}
-
-function universeFixture(): SymbolUniverseResponse {
-  return {
-    v: 1,
-    asOf: '2026-09-12T09:00:00.000Z' as IsoUtc,
-    simulated: true,
-    symbols: [
-      {
-        symbol: 'COMI',
-        name: 'Commercial International Holding',
-        currency: 'EGP',
-        tickSize: toDecimal('0.05'),
-        lotSize: 100,
-        referencePrice: toDecimal('85.10'),
-      },
-    ],
-  };
-}
-
-function createFakeSource() {
-  const tickHandlers = new Set<(t: Tick) => void>();
-  const snapshotHandlers = new Set<(s: Snapshot) => void>();
-  const statusHandlers = new Set<(s: ConnectionState) => void>();
-  const errorHandlers = new Set<(e: ErrorMsg) => void>();
-  const entitlementHandlers = new Set<(e: EntitlementChanged) => void>();
-  const identityValue: Identity = { userId: 'user-001', stream: 'LIVE', sessionId: 'sess-1' };
-
-  const source: MarketDataSource = {
-    connect: vi.fn(() => Promise.resolve()),
-    disconnect: vi.fn(),
-    subscribe: vi.fn(),
-    unsubscribe: vi.fn(),
-    getUniverse: vi.fn(() => Promise.resolve(universeFixture())),
-    getSnapshot: vi.fn((symbol: string) => Promise.resolve(snapshotFixture(symbol))),
-    on: {
-      tick: (h) => {
-        tickHandlers.add(h);
-        return () => tickHandlers.delete(h);
-      },
-      snapshot: (h) => {
-        snapshotHandlers.add(h);
-        return () => snapshotHandlers.delete(h);
-      },
-      status: (h) => {
-        statusHandlers.add(h);
-        return () => statusHandlers.delete(h);
-      },
-      error: (h) => {
-        errorHandlers.add(h);
-        return () => errorHandlers.delete(h);
-      },
-      entitlement: (h) => {
-        entitlementHandlers.add(h);
-        return () => entitlementHandlers.delete(h);
-      },
-    },
-    identity: () => identityValue,
-  };
-
-  return { source };
-}
 
 afterEach(cleanup);
 

@@ -3,13 +3,13 @@ import { toDecimal } from '../../contracts/decimal.ts';
 import type { Tick } from '../../contracts/messages.ts';
 import { TickDispatcher, type ScheduleFrame } from '../TickDispatcher.ts';
 
-function tick(symbol: string, price: string, id: string): Tick {
+function tick(symbol: string, price: string, id: string, q = 100): Tick {
   return {
     v: 1,
     type: 'tick',
     s: symbol,
     p: toDecimal(price),
-    q: 100,
+    q,
     k: 'TRADE',
     t: '2026-09-12T10:31:04.881Z' as Tick['t'],
     id,
@@ -46,6 +46,23 @@ describe('TickDispatcher latest-value-wins', () => {
     expect(flushed).toHaveLength(1);
     expect(flushed[0]?.id).toBe('evt-3');
     expect(flushed[0]?.p).toBe('85.42');
+  });
+
+  it('sums quantity across coalesced ticks while every other field still takes the latest', () => {
+    const flushed: Tick[] = [];
+    const scheduler = manualScheduler();
+    const dispatcher = new TickDispatcher(scheduler.schedule, (t) => flushed.push(t));
+
+    dispatcher.push(tick('COMI', '85.00', 'evt-1', 40));
+    dispatcher.push(tick('COMI', '85.05', 'evt-2', 25));
+    dispatcher.push(tick('COMI', '85.42', 'evt-3', 35));
+
+    scheduler.runFrame();
+
+    expect(flushed).toHaveLength(1);
+    expect(flushed[0]?.id).toBe('evt-3');
+    expect(flushed[0]?.p).toBe('85.42');
+    expect(flushed[0]?.q).toBe(100); // 40 + 25 + 35, not just the latest tick's 35
   });
 
   it('tracks each symbol independently: the latest per symbol survives, not one global latest', () => {

@@ -11,9 +11,9 @@
  * (`src/test-support/FakeWebSocket.ts`) and a stub `fetchImpl`.
  *
  * All mutable state is a true private (`#`) field/method, not merely TypeScript-private
- * — so the class's *runtime* public surface is exactly the five `MarketDataSource`
- * members (`connect`, `disconnect`, `subscribe`, `unsubscribe`, `getUniverse`,
- * `getSnapshot`, `on`, `identity`) with nothing else reachable via reflection. See
+ * — so the class's *runtime* public surface is exactly the `MarketDataSource` members
+ * (`connect`, `disconnect`, `subscribe`, `unsubscribe`, `getUniverse`, `getSnapshot`,
+ * `getHistory`, `on`, `identity`) with nothing else reachable via reflection. See
  * `conformance.surface.test.ts`.
  *
  * Backoff and the heartbeat watchdog are task 07's `src/data/reconnect.ts`
@@ -37,11 +37,11 @@ import type {
   Tick,
 } from '../contracts/messages.ts';
 import { toDecimal, type DecimalString } from '../contracts/decimal.ts';
-import type { Snapshot, SymbolDefinition, SymbolUniverseResponse } from '../contracts/rest.ts';
+import type { HistoryPoint, Snapshot, SymbolDefinition, SymbolHistoryResponse, SymbolUniverseResponse } from '../contracts/rest.ts';
 import { CloseCode } from '../contracts/closeCodes.ts';
 import type { ConnectionState, Identity, MarketDataSource } from './MarketDataSource.ts';
 import type { ClientConfig } from './config.ts';
-import { applySnapshot, primeUniverse } from './store.ts';
+import { applySnapshot, primeUniverse, resetStream } from './store.ts';
 import { TickDispatcher } from './TickDispatcher.ts';
 import { createHeartbeatWatchdog, DEFAULT_BACKOFF_POLICY, nextDelay, shouldReconnect, type HeartbeatWatchdog } from './reconnect.ts';
 
@@ -246,6 +246,27 @@ function parseUniverseBody(value: unknown): SymbolUniverseResponse {
   };
 }
 
+function parseHistoryPoint(value: unknown): HistoryPoint {
+  if (!isRecord(value)) return fail('symbol-history', 'expected an object in "points"');
+  const context = 'symbol-history';
+  return {
+    t: reqIso(value, 't', context),
+    p: reqPrice(value, 'p', context),
+  };
+}
+
+function parseHistoryBody(value: unknown): SymbolHistoryResponse {
+  if (!isRecord(value)) return fail('symbol-history', 'expected an object');
+  const context = 'symbol-history';
+  const rawPoints = value['points'];
+  if (!Array.isArray(rawPoints)) fail(context, 'expected array field "points"');
+  return {
+    v: 1,
+    symbol: reqString(value, 'symbol', context),
+    points: rawPoints.map(parseHistoryPoint),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // TckrGatewaySource
 // ---------------------------------------------------------------------------
@@ -389,6 +410,21 @@ export class TckrGatewaySource implements MarketDataSource {
     return snapshot;
   }
 
+  /** `GET /symbols/{symbol}/history` (client-contract.md) — every price sample
+   * recorded for `symbol` since the session began, oldest first. Unlike `getSnapshot`,
+   * this does not write into the shared store: history seeds a chart's own buffer
+   * directly (see `PriceChart`'s `history` prop), it is not "the current view" that
+   * `src/data/store.ts` tracks per symbol. */
+  async getHistory(symbol: string): Promise<SymbolHistoryResponse> {
+    const base = httpBase(this.#config.gatewayUrl);
+    const res = await this.#fetchImpl(`${base}/symbols/${encodeURIComponent(symbol)}/history`);
+    if (!res.ok) {
+      throw new Error(`getHistory(${symbol}): HTTP ${res.status}`);
+    }
+    const body = await res.json();
+    return parseHistoryBody(body);
+  }
+
   readonly on = {
     tick: (h: (t: Tick) => void): (() => void) => {
       this.#tickHandlers.add(h);
@@ -528,9 +564,30 @@ export class TckrGatewaySource implements MarketDataSource {
     }
   }
 
+  /**
+   * client-contract.md §3.3: a real stream switch must discard the old stream's
+   * buffered data before any new-stream tick renders — `store.ts`'s `resetStream()` is
+   * the data layer's own mechanism for that (see its doc comment), and this is the
+   * data layer, so it is called here directly rather than left for a UI component to
+   * remember to do (see `StreamBadge`'s module doc for the bug this fixes: relying on a
+   * badge component being mounted is not a guarantee).
+   *
+   * Gated on the stream actually changing — mirroring `SimulatedSource.
+   * simulateEntitlementChange`'s own judgment call — because unlike that method's
+   * caller, a real gateway message is not guaranteed to represent an actual transition;
+   * a redundant/no-op `entitlementChanged` (same stream restated) should not pay for a
+   * needless clear of every symbol's live view. `resetStream()` runs strictly *before*
+   * `#entitlementHandlers.forEach(...)` below, matching `resetStream`'s documented
+   * ordering guarantee, so any handler that reacts synchronously already observes the
+   * cleared/re-anchored state.
+   */
   #handleEntitlementChanged(message: EntitlementChanged): void {
+    const previousStream = this.#identityValue?.stream;
     if (this.#identityValue) {
       this.#identityValue = { ...this.#identityValue, stream: message.stream };
+    }
+    if (previousStream !== undefined && previousStream !== message.stream) {
+      resetStream();
     }
     this.#entitlementHandlers.forEach((h) => h(message));
   }

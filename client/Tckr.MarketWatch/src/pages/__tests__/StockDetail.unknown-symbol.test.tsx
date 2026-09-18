@@ -1,11 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { toDecimal } from '../../contracts/decimal.ts';
-import type { EntitlementChanged, ErrorMsg, IsoUtc, Tick } from '../../contracts/messages.ts';
-import type { Snapshot, SymbolUniverseResponse } from '../../contracts/rest.ts';
-import type { ConnectionState, Identity, MarketDataSource } from '../../data/MarketDataSource.ts';
 import { resetStore } from '../../data/store.ts';
+import { createFakeSource } from './testSupport.ts';
 
 vi.mock('uplot', () => {
   class FakeUPlot {
@@ -34,67 +31,12 @@ vi.mock('../../data/config.ts', () => ({
 import { getSharedSource, resetSharedSource } from '../../data/config.ts';
 import { StockDetail } from '../StockDetail.tsx';
 
-function universeFixture(): SymbolUniverseResponse {
-  return {
-    v: 1,
-    asOf: '2026-09-12T09:00:00.000Z' as IsoUtc,
-    simulated: true,
-    symbols: [
-      {
-        symbol: 'COMI',
-        name: 'Commercial International Holding',
-        currency: 'EGP',
-        tickSize: toDecimal('0.05'),
-        lotSize: 100,
-        referencePrice: toDecimal('85.10'),
-      },
-    ],
-  };
-}
-
-function createFakeSource() {
-  const tickHandlers = new Set<(t: Tick) => void>();
-  const snapshotHandlers = new Set<(s: Snapshot) => void>();
-  const statusHandlers = new Set<(s: ConnectionState) => void>();
-  const errorHandlers = new Set<(e: ErrorMsg) => void>();
-  const entitlementHandlers = new Set<(e: EntitlementChanged) => void>();
-  const identityValue: Identity = { userId: 'user-001', stream: 'LIVE', sessionId: 'sess-1' };
-
-  const source: MarketDataSource = {
-    connect: vi.fn(() => Promise.resolve()),
-    disconnect: vi.fn(),
-    subscribe: vi.fn(),
-    unsubscribe: vi.fn(),
-    getUniverse: vi.fn(() => Promise.resolve(universeFixture())),
+function createUnknownSymbolFakeSource() {
+  return createFakeSource({
     // NOPE is not in the universe: a `MarketDataSource` rejects `getSnapshot` for an
     // unknown symbol, which is what this fake reproduces.
-    getSnapshot: vi.fn((symbol: string) => Promise.reject(new Error(`Unknown symbol: ${symbol}`))),
-    on: {
-      tick: (h) => {
-        tickHandlers.add(h);
-        return () => tickHandlers.delete(h);
-      },
-      snapshot: (h) => {
-        snapshotHandlers.add(h);
-        return () => snapshotHandlers.delete(h);
-      },
-      status: (h) => {
-        statusHandlers.add(h);
-        return () => statusHandlers.delete(h);
-      },
-      error: (h) => {
-        errorHandlers.add(h);
-        return () => errorHandlers.delete(h);
-      },
-      entitlement: (h) => {
-        entitlementHandlers.add(h);
-        return () => entitlementHandlers.delete(h);
-      },
-    },
-    identity: () => identityValue,
-  };
-
-  return { source };
+    snapshotImpl: (symbol) => Promise.reject(new Error(`Unknown symbol: ${symbol}`)),
+  });
 }
 
 afterEach(cleanup);
@@ -106,7 +48,7 @@ beforeEach(() => {
 
 describe('StockDetail unknown symbol', () => {
   it('renders an explicit not-found state with a working link back to / for a symbol outside the universe', async () => {
-    const { source } = createFakeSource();
+    const { source } = createUnknownSymbolFakeSource();
     vi.mocked(getSharedSource).mockReturnValue(source);
 
     render(

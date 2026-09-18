@@ -6,6 +6,19 @@ import { vi } from 'vitest';
 import { SimulatedSource, type SimulatedSourceConfig } from '../SimulatedSource.ts';
 import type { Tick } from '../../contracts/messages.ts';
 
+/**
+ * A fixed instant safely within EGX trading hours — Thursday 2026-01-15, 10:00 UTC =
+ * 12:00 Cairo (Egypt's DST is off in January; see `marketCalendar.test.ts` for how this
+ * exact date was verified against `Intl` ground truth). `SimulatedSource` now only
+ * generates ticks while EGX is open (`marketCalendar.getMarketStatus`), so every
+ * existing test that doesn't specifically care about market-hours behavior needs the
+ * fake clock pinned to a known-open instant — otherwise whether ticks flow at all would
+ * depend on what real wall-clock time the test suite happens to run at. Tests that
+ * specifically exercise closed-market/transition behavior set their own system time
+ * instead (see `simulated.marketHours.test.ts`).
+ */
+export const KNOWN_OPEN_NOW_MS = Date.UTC(2026, 0, 15, 10, 0, 0);
+
 export function baseConfig(overrides: Partial<SimulatedSourceConfig> = {}): SimulatedSourceConfig {
   return {
     eventsPerSecond: 4000,
@@ -16,8 +29,12 @@ export function baseConfig(overrides: Partial<SimulatedSourceConfig> = {}): Simu
   };
 }
 
-/** Creates a connected source subscribed to every named symbol in its own universe. */
+/** Creates a connected source subscribed to every named symbol in its own universe.
+ * Requires fake timers to already be installed (`vi.useFakeTimers()`) — pins the fake
+ * clock to `KNOWN_OPEN_NOW_MS` before connecting so ticks are guaranteed to flow,
+ * regardless of real-world wall-clock time (see that constant's doc). */
 export async function createSubscribedSource(config: SimulatedSourceConfig): Promise<SimulatedSource> {
+  vi.setSystemTime(KNOWN_OPEN_NOW_MS);
   const source = new SimulatedSource(config);
   const universe = await source.getUniverse();
   source.subscribe(universe.symbols.map((s) => s.symbol));
