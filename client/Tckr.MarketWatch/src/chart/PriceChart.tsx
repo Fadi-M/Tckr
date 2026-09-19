@@ -83,7 +83,7 @@ import type { DecimalString } from '../contracts/decimal.ts';
 import { onStreamDiscard } from '../data/store.ts';
 import { DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
 import { RingBuffer, toPlotValue } from './ringBuffer.ts';
-import { X_AXIS_INCREMENTS_MS, formatXAxisLabel, formatYAxisLabel } from './axes.ts';
+import { formatYAxisLabel } from './axes.ts';
 import './priceChart.css';
 
 /** One point of session history, already converted to this component's own numeric/x
@@ -125,17 +125,13 @@ export interface PriceChartProps {
    */
   readonly livePrice?: ChartHistoryPoint | undefined;
   /**
-   * Whether EGX is currently open, as the parent page already knows from
-   * `marketCalendar.getMarketStatus()` — not recomputed here (this component stays a
-   * plain prop-driven renderer, per the module doc, not a second place that decides
-   * market hours). Defaults to `true` so every existing caller/test that predates this
-   * prop keeps its current "live, pulsing" behavior unchanged. When `false`, the idle
-   * readout swaps its pulsing "Live — updates every ~30s" text for a static "Market
-   * closed" message — this component doesn't stop sampling/redrawing on its own account
-   * (the parent already stopped feeding it new `livePrice` values once the market
-   * closed; there is nothing left to sample), it only changes what the idle state says.
+   * Label for the floating "{rangeLabel} · {N} ticks" pill (design import: the
+   * top-left overlay on the chart) — purely a display string the parent already knows
+   * (which range pill, 60S/5M/SESSION, is active); this component does not know or
+   * care what a "range" means, it only ever plots whatever `history`/`livePrice` it is
+   * given. Defaults to `'Session'` for callers that predate this prop.
    */
-  readonly marketOpen?: boolean;
+  readonly rangeLabel?: string;
 }
 
 // Generous enough to hold `SimulatedSource`'s own session-history cap
@@ -146,16 +142,8 @@ export interface PriceChartProps {
 // implementation): kept in sync by comment, the same soft coupling
 // `HISTORY_SAMPLE_INTERVAL_MS` uses in the other direction.
 const DEFAULT_CAPACITY = 4200;
-const DEFAULT_HEIGHT = 320;
+const DEFAULT_HEIGHT = 340;
 const DEFAULT_WIDTH = 400;
-// Shown in the readout row whenever the cursor isn't over the chart (see the
-// `setCursor` hook below). Paired with the pulsing `.tckr-price-chart__live-dot` — see
-// that hook and priceChart.css for why: without it, the chart is a static flat line for
-// up to `DISPLAY_REFRESH_INTERVAL_MS` after mount/redraw, with no on-chart "alive" cue.
-const IDLE_READOUT_OPEN = 'Live — updates every ~30s';
-/** Shown instead of `IDLE_READOUT_OPEN` when `marketOpen` is `false` — a pulsing "Live"
- * cue would misrepresent a session that has already fully happened as still updating. */
-const IDLE_READOUT_CLOSED = 'Market closed — showing final session prices';
 
 function readCssVar(el: Element, name: string, fallback: string): string {
   const value = getComputedStyle(el).getPropertyValue(name).trim();
@@ -182,40 +170,11 @@ export function PriceChart({
   height = DEFAULT_HEIGHT,
   history,
   livePrice,
-  marketOpen = true,
+  rangeLabel = 'Session',
 }: PriceChartProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  // Owns only the text node (time/price on hover, or the idle message while idle) —
-  // never the live-dot sibling below, so the imperative `textContent` writes in the
-  // `setCursor` hook can never fight React over the dot's own child nodes.
-  const readoutRef = useRef<HTMLSpanElement | null>(null);
-  // The idle "still alive" cue (see `IDLE_READOUT_OPEN`/`_CLOSED` above and
-  // priceChart.css). A stable, always-mounted element toggled by CSS class (never
-  // conditionally rendered/unmounted by React) so the `setCursor` hook — which runs on
-  // every native mousemove, well outside React's render cycle — can show/hide it with a
-  // plain `classList` call instead of routing through React state and risking a
-  // reconciliation race with its sibling's direct `textContent` mutation.
-  const liveDotRef = useRef<HTMLSpanElement | null>(null);
   const plotRef = useRef<uPlot | null>(null);
   const bufferRef = useRef<RingBuffer | null>(null);
-  // Which idle message is currently correct, read live by the `setCursor` hook's
-  // `showIdle()` (see the mount effect) rather than closed over, so a `marketOpen` flip
-  // takes effect on the very next mousemove without needing to recreate the uPlot
-  // instance. `isHoveringRef` additionally lets the `marketOpen`-change effect below
-  // update the on-screen text immediately even if the user isn't actively hovering at
-  // that exact moment (see that effect).
-  const idleReadoutRef = useRef(marketOpen ? IDLE_READOUT_OPEN : IDLE_READOUT_CLOSED);
-  const isHoveringRef = useRef(false);
-  // The readout span's JSX child, captured once at mount via `useState`'s lazy
-  // initializer and never updated again — this is what makes it immune to React's own
-  // reconciliation the same way the original `{IDLE_READOUT}` literal was (a value that
-  // never changes across renders is never diffed/rewritten). Every actual update after
-  // mount (hover, stream discard, a `marketOpen` flip) goes through
-  // `readoutRef.current.textContent =` instead — see those call sites. Without this,
-  // making the JSX child itself react to `marketOpen` would let React overwrite
-  // whatever the hover-driven imperative text currently says the instant `marketOpen`
-  // changes mid-hover.
-  const [initialIdleReadout] = useState(() => (marketOpen ? IDLE_READOUT_OPEN : IDLE_READOUT_CLOSED));
 
   // Read via refs inside the mount effect (below) rather than as effect dependencies:
   // per the brief, only a `symbol` change may recreate the uPlot instance. tickSize,
@@ -231,13 +190,37 @@ export function PriceChart({
   capacityRef.current = capacity;
   historyRef.current = history;
   livePriceRef.current = livePrice;
-  idleReadoutRef.current = marketOpen ? IDLE_READOUT_OPEN : IDLE_READOUT_CLOSED;
 
   // Plain derived value, not `useSyncExternalStore`: both `history` and `livePrice` are
   // already React props (the parent re-renders this component when either changes), so
   // there is no external mutable store to subscribe to here any more — see the module
   // doc for why live sampling moved from an independent store read to a prop.
   const hasData = (history?.length ?? 0) > 0 || livePrice !== undefined;
+
+  // The design import's floating "{rangeLabel} · {N} ticks" / "H {high}" / "L {low}"
+  // overlay pills (see priceChart.css) — computed from this component's own buffer, the
+  // one place that already knows every plotted point, rather than asking the parent to
+  // duplicate that computation from its own copy of the data. `null` until the buffer
+  // holds at least one point. `high`/`low` are plot-space numbers (the same ones the old
+  // y-axis labels were computed from) formatted back through `formatYAxisLabel` — never
+  // a raw stringify — for the same decimal-safety reason every other price on this page
+  // goes through `contracts/decimal.ts`.
+  const [stats, setStats] = useState<{ count: number; high: number; low: number } | null>(null);
+
+  function recomputeStats(buffer: RingBuffer): void {
+    if (buffer.length === 0) {
+      setStats(null);
+      return;
+    }
+    let high = -Infinity;
+    let low = Infinity;
+    for (let i = 0; i < buffer.length; i++) {
+      const v = buffer.values[i]!;
+      if (v > high) high = v;
+      if (v < low) low = v;
+    }
+    setStats({ count: buffer.length, high, low });
+  }
 
   // One uPlot instance per mount; destroyed and recreated only when `symbol` changes.
   useLayoutEffect(() => {
@@ -251,7 +234,6 @@ export function PriceChart({
 
     const accent = readCssVar(container, '--tckr-color-accent', '#2f6fed');
     const border = readCssVar(container, '--tckr-color-border', '#d8dbe1');
-    const muted = readCssVar(container, '--tckr-color-text-muted', '#5b6472');
 
     const plot = new uPlot(
       {
@@ -263,28 +245,23 @@ export function PriceChart({
           {
             label: symbol,
             stroke: accent,
-            width: 2,
+            width: 2.5,
+            // Filled area under the line (design import: opacity 0.14 in its own SVG
+            // fill) — a single accent hue, never recoloured per-tick (see the module
+            // doc's dataviz note above the imports for why a continuously-drawn series
+            // is not a discrete up/down delta).
+            fill: `color-mix(in srgb, ${accent} 14%, transparent)`,
             points: { show: false },
           },
         ],
+        // Design import: no visible axis labels — a few flat horizontal gridlines and
+        // the floating stat pills (rendered below) carry all the context instead. Both
+        // axes drop their reserved label gutter (`size: 0`, `values: () => []`); the
+        // x-axis additionally has no grid at all (the mock's chart has horizontal
+        // gridlines only, never vertical ones).
         axes: [
-          {
-            side: 2,
-            stroke: muted,
-            grid: { stroke: border, width: 1 },
-            ticks: { stroke: border, width: 1 },
-            incrs: X_AXIS_INCREMENTS_MS as number[],
-            space: 60,
-            values: (_self, splits) => splits.map((split) => formatXAxisLabel(split)),
-          },
-          {
-            side: 3,
-            stroke: muted,
-            grid: { stroke: border, width: 1 },
-            ticks: { stroke: border, width: 1 },
-            space: 40,
-            values: (_self, splits) => splits.map((split) => formatYAxisLabel(split, tickSizeRef.current)),
-          },
+          { side: 2, grid: { show: false }, ticks: { show: false }, size: 0, values: () => [] },
+          { side: 3, grid: { show: true, stroke: border, width: 1 }, ticks: { show: false }, size: 0, values: () => [] },
         ],
         legend: { show: false },
         cursor: {
@@ -292,39 +269,6 @@ export function PriceChart({
           x: true,
           y: false,
           points: { show: true },
-        },
-        hooks: {
-          setCursor: [
-            (self) => {
-              const readout = readoutRef.current;
-              if (!readout) {
-                return;
-              }
-              // The live-dot only makes sense while the readout is showing the idle
-              // message — the moment there's a real hover readout to show, it takes
-              // over exactly as it always has, and the dot hides (see priceChart.css:
-              // `--hidden` sets `display: none`, it does not unmount the element).
-              const showIdle = (): void => {
-                isHoveringRef.current = false;
-                readout.textContent = idleReadoutRef.current;
-                liveDotRef.current?.classList.remove('tckr-price-chart__live-dot--hidden');
-              };
-              const idx = self.cursor.idx;
-              if (idx == null || idx < 0) {
-                showIdle();
-                return;
-              }
-              const t = self.data[0]?.[idx];
-              const v = self.data[1]?.[idx];
-              if (typeof t !== 'number' || typeof v !== 'number') {
-                showIdle();
-                return;
-              }
-              isHoveringRef.current = true;
-              readout.textContent = `${formatXAxisLabel(t)}   ${formatYAxisLabel(v, tickSizeRef.current)}`;
-              liveDotRef.current?.classList.add('tckr-price-chart__live-dot--hidden');
-            },
-          ],
         },
       },
       [buffer.times.subarray(0, buffer.length), buffer.values.subarray(0, buffer.length)],
@@ -372,6 +316,7 @@ export function PriceChart({
       // initial auto-scale to the seeded range is exactly what should happen.
       plot.setData([buffer.times.subarray(0, buffer.length), buffer.values.subarray(0, buffer.length)], true);
     }
+    recomputeStats(buffer);
 
     const redraw = (): void => {
       const current = bufferRef.current;
@@ -399,6 +344,7 @@ export function PriceChart({
       // has manually zoomed and only then skip the reset (e.g. via `uplot`'s per-scale
       // `setScale`), leaving auto-scaling behavior intact otherwise.
       activePlot.setData([current.times.subarray(0, current.length), current.values.subarray(0, current.length)]);
+      recomputeStats(current);
     };
 
     // Takes exactly one sample of `livePriceRef`'s *current* value and appends it —
@@ -471,6 +417,7 @@ export function PriceChart({
     }
     seedFlatPoint(buffer, livePrice.t, toPlotValue(livePrice.p));
     plot.setData([buffer.times.subarray(0, buffer.length), buffer.values.subarray(0, buffer.length)]);
+    recomputeStats(buffer);
   }, [symbol, livePrice]);
 
   // tickSize changes reformat the y-axis in place — no instance recreation.
@@ -505,41 +452,13 @@ export function PriceChart({
       // the axis *should* reset (there is nothing left to scale against until the next
       // real point arrives).
       plotRef.current?.setData([buffer.times.subarray(0, buffer.length), buffer.values.subarray(0, buffer.length)]);
-      if (readoutRef.current) {
-        isHoveringRef.current = false;
-        readoutRef.current.textContent = idleReadoutRef.current;
-      }
-      liveDotRef.current?.classList.remove('tckr-price-chart__live-dot--hidden');
+      recomputeStats(buffer);
     });
     return unsubscribeDiscard;
   }, []);
 
-  // A `marketOpen` flip (the parent's own `marketCalendar.getMarketStatus()` re-check —
-  // see `StockDetail.tsx`) updates the idle message immediately, even if the reader
-  // isn't hovering right at that moment — without this, the text would only catch up on
-  // the next mousemove (`showIdle()` above already reads `idleReadoutRef.current` live,
-  // but only *runs* on a cursor event). Also toggles the live-dot's non-pulsing
-  // `--closed` styling — a separate class from the hover-driven `--hidden` toggle above,
-  // so the two never fight over the same class list.
-  useEffect(() => {
-    if (readoutRef.current && !isHoveringRef.current) {
-      readoutRef.current.textContent = idleReadoutRef.current;
-    }
-    liveDotRef.current?.classList.toggle('tckr-price-chart__live-dot--closed', !marketOpen);
-  }, [marketOpen]);
-
   return (
     <div className="tckr-price-chart">
-      <div className="tckr-price-chart__readout">
-        {/* className is deliberately static: `--hidden` (hover) and `--closed`
-            (market status) are both managed exclusively via imperative `classList`
-            calls (see the `setCursor` hook and the `marketOpen` effect below) — never
-            through a React-rendered className on this element, which would reset
-            whichever imperative class was most recently applied on every re-render
-            this component happens to do for an unrelated reason. */}
-        <span ref={liveDotRef} className="tckr-price-chart__live-dot" aria-hidden="true" />
-        <span ref={readoutRef}>{initialIdleReadout}</span>
-      </div>
       <div className="tckr-price-chart__body" style={{ height }}>
         {!hasData && (
           <div className="tckr-price-chart__empty" data-testid="price-chart-empty-state">
@@ -552,6 +471,15 @@ export function PriceChart({
           role="img"
           aria-label={`Price chart for ${symbol}`}
         />
+        {stats ? (
+          <>
+            <span className="tckr-price-chart__pill tckr-price-chart__pill--range">
+              {rangeLabel} · {stats.count} ticks
+            </span>
+            <span className="tckr-price-chart__pill tckr-price-chart__pill--high">H {formatYAxisLabel(stats.high, tickSize)}</span>
+            <span className="tckr-price-chart__pill tckr-price-chart__pill--low">L {formatYAxisLabel(stats.low, tickSize)}</span>
+          </>
+        ) : null}
       </div>
     </div>
   );

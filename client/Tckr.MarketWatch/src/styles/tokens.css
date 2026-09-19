@@ -10,10 +10,17 @@
  * Nine colour tokens, each defined in all three scopes:
  *   surface, surface-raised, text, text-muted, border, accent, up, down, warning.
  * Plus two typography tokens (not scope-sensitive, but declared in all three blocks
- * for consistency): font-sans, font-mono — Archivo/Roboto Mono, the "Tckr First Run"
- * design's typeface pairing (docs/decisions/006-client-data-source-contract.md's design
- * import). Dark is the primary, "first-run" look (mint/coral tape on near-black
- * surfaces); light is a plain daytime fallback for an explicit `data-theme="light"`.
+ * for consistency): font-sans, font-mono — Instrument Sans/IBM Plex Mono, the
+ * "Frosted Glass Revamp" design's typeface pairing (Tckr.MarketWatch Frosted Glass
+ * Revamp/Tckr Market Watch.dc.html — design import). Dark is the primary, "first-run"
+ * look (mint/coral tape on near-black surfaces); light is a plain daytime fallback for
+ * an explicit `data-theme="light"`.
+ *
+ * The `glass-*`/`blob-*`/`bg-gradient` tokens below are the same design import's
+ * frosted-glass surface language: translucent, blurred panels floating over a soft
+ * gradient background with a few blurred colour "blobs" behind them (mirrors the
+ * design's radial-gradient blobs + `backdrop-filter: blur(...)` panels). They are not
+ * part of the nine required colour tokens above and are additive only.
  *
  * `up` / `down` are never the *only* signal for a price direction — see
  * `.tckr-delta--up` / `.tckr-delta--down` in global.css, which also prefix an arrow
@@ -27,12 +34,20 @@
   --tckr-color-text: #14181f;
   --tckr-color-text-muted: #5b6472;
   --tckr-color-border: #d8dbe1;
-  --tckr-color-accent: #1a8f5c;
-  --tckr-color-up: #1a8f5c;
-  --tckr-color-down: #c73e2c;
+  --tckr-color-accent: #0f7a4d;
+  --tckr-color-up: #0f7a4d;
+  --tckr-color-down: #c0392b;
   --tckr-color-warning: #8a5a00;
-  --tckr-font-sans: 'Archivo', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --tckr-font-mono: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --tckr-font-sans: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --tckr-font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --tckr-glass-bg: rgba(255, 255, 255, 0.58);
+  --tckr-glass-bg-strong: rgba(255, 255, 255, 0.78);
+  --tckr-glass-border: rgba(20, 24, 31, 0.12);
+  --tckr-blur: 22px;
+  --tckr-blob-a: rgba(63, 215, 156, 0.55);
+  --tckr-blob-b: rgba(255, 150, 125, 0.5);
+  --tckr-blob-c: rgba(150, 180, 255, 0.4);
+  --tckr-bg-gradient: linear-gradient(170deg, #f2f4f3 0%, #e8ebea 100%);
 }
 
 /* Explicit "system" dark preference. `:not([data-theme="light"])` lets a future
@@ -48,8 +63,16 @@
     --tckr-color-up: #3fd79c;
     --tckr-color-down: #f2705f;
     --tckr-color-warning: #d9a441;
-    --tckr-font-sans: 'Archivo', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-    --tckr-font-mono: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --tckr-font-sans: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --tckr-font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --tckr-glass-bg: rgba(255, 255, 255, 0.055);
+    --tckr-glass-bg-strong: rgba(255, 255, 255, 0.09);
+    --tckr-glass-border: rgba(255, 255, 255, 0.1);
+    --tckr-blur: 22px;
+    --tckr-blob-a: rgba(63, 215, 156, 0.26);
+    --tckr-blob-b: rgba(242, 112, 95, 0.18);
+    --tckr-blob-c: rgba(120, 150, 255, 0.16);
+    --tckr-bg-gradient: linear-gradient(170deg, #0b0d0e 0%, #101214 100%);
   }
 }
 
@@ -64,6 +87,14 @@
   --tckr-color-up: #3fd79c;
   --tckr-color-down: #f2705f;
   --tckr-color-warning: #d9a441;
-  --tckr-font-sans: 'Archivo', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --tckr-font-mono: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --tckr-font-sans: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --tckr-font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --tckr-glass-bg: rgba(255, 255, 255, 0.055);
+  --tckr-glass-bg-strong: rgba(255, 255, 255, 0.09);
+  --tckr-glass-border: rgba(255, 255, 255, 0.1);
+  --tckr-blur: 22px;
+  --tckr-blob-a: rgba(63, 215, 156, 0.26);
+  --tckr-blob-b: rgba(242, 112, 95, 0.18);
+  --tckr-blob-c: rgba(120, 150, 255, 0.16);
+  --tckr-bg-gradient: linear-gradient(170deg, #0b0d0e 0%, #101214 100%);
 }

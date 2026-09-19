@@ -99,6 +99,15 @@ describe('StockDetail session-history fetch', () => {
   });
 
   it('converts each history point\'s ISO timestamp to epoch ms before handing it to PriceChart', async () => {
+    // `StockDetail` defaults to the "60S" range pill (design import), which filters
+    // `history` down to points within the trailing 60 real-world seconds before
+    // handing it to `PriceChart` — see `StockDetail.tsx`'s "Chart range selector"
+    // module doc. Pinning the system clock to the fixture's own last timestamp keeps
+    // both fixture points inside that window, so this test can still isolate what it
+    // actually cares about (the ISO -> epoch-ms conversion) without the unrelated
+    // range filter interfering.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-12T09:30:30.000Z'));
     const { source } = createFakeSource({
       historyImpl: (symbol) =>
         Promise.resolve({
