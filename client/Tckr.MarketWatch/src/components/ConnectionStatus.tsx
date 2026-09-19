@@ -30,11 +30,14 @@
  * `status.close-codes.test.tsx`'s "4429 names the remedy") — collapsing all of them
  * to one generic "DISCONNECTED" label would throw away real, load-bearing product
  * information the design's own simplified 3-state placeholder never had to
- * represent. It would also collide with `StreamBadge`'s own, unrelated use of the
- * word "LIVE" for the entitlement stream (a genuinely different concept — see that
- * file's doc) if both were ever visible together again later.
+ * represent. It would also have collided with `StreamBadge`'s own, unrelated use of
+ * the word "LIVE" for the entitlement stream (a genuinely different concept) back
+ * when both were mounted together — moot now that `StreamBadge` has been deleted as
+ * dead code (see `main.tsx`'s doc comment), but the reasoning above still explains
+ * why this component's text stays as five distinct messages rather than collapsing
+ * to the design's placeholder labels.
  *
- * No props: like `StreamBadge`, this component observes only the shared
+ * No props: like `StreamBadge` before it was removed, this component observes only the shared
  * `MarketDataSource` singleton (`getSharedSource()`, from task 02's `config.ts`) — never
  * a concrete source, never a client-side default for what it displays.
  *

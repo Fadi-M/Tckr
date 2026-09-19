@@ -48,6 +48,16 @@
   --tckr-blob-b: rgba(255, 150, 125, 0.5);
   --tckr-blob-c: rgba(150, 180, 255, 0.4);
   --tckr-bg-gradient: linear-gradient(170deg, #f2f4f3 0%, #e8ebea 100%);
+  /* Shared motion easing for the frosted-glass reveal/interaction animations
+     (not theme-sensitive, so declared only here). */
+  --tckr-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  /* StockDetail's `.tckr-detail__card` / `.tckr-detail__stat` are pixel-matched to the
+     design mock and intentionally differ from --tckr-glass-bg/--tckr-glass-bg-strong
+     above — these tokens centralize those exact values rather than unifying them. */
+  --tckr-glass-bg-card: rgba(255, 255, 255, 0.58);
+  --tckr-glass-border-card: rgba(255, 255, 255, 0.88);
+  --tckr-glass-bg-stat: rgba(255, 255, 255, 0.7);
+  --tckr-glass-border-stat: rgba(255, 255, 255, 0.9);
 }
 
 /* Explicit "system" dark preference. `:not([data-theme="light"])` lets a future
@@ -73,6 +83,11 @@
     --tckr-blob-b: rgba(242, 112, 95, 0.18);
     --tckr-blob-c: rgba(120, 150, 255, 0.16);
     --tckr-bg-gradient: linear-gradient(170deg, #0b0d0e 0%, #101214 100%);
+    /* StockDetail pixel-matched glass values — see :root comment above. */
+    --tckr-glass-bg-card: rgba(255, 255, 255, 0.06);
+    --tckr-glass-border-card: rgba(255, 255, 255, 0.12);
+    --tckr-glass-bg-stat: rgba(255, 255, 255, 0.06);
+    --tckr-glass-border-stat: rgba(255, 255, 255, 0.1);
   }
 }
 
@@ -97,4 +112,9 @@
   --tckr-blob-b: rgba(242, 112, 95, 0.18);
   --tckr-blob-c: rgba(120, 150, 255, 0.16);
   --tckr-bg-gradient: linear-gradient(170deg, #0b0d0e 0%, #101214 100%);
+  /* StockDetail pixel-matched glass values — see :root comment above. */
+  --tckr-glass-bg-card: rgba(255, 255, 255, 0.06);
+  --tckr-glass-border-card: rgba(255, 255, 255, 0.12);
+  --tckr-glass-bg-stat: rgba(255, 255, 255, 0.06);
+  --tckr-glass-border-stat: rgba(255, 255, 255, 0.1);
 }

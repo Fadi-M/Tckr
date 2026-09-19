@@ -15,11 +15,15 @@
  * longer wired in here — the Frosted Glass Revamp design import's header has a
  * single merged status pill, not two separate elements (see `ConnectionStatus`'s
  * own restyle for why its *text* stays as-is rather than being renamed to the
- * design's literal "LIVE"/"RECONNECTING"/"DISCONNECTED" labels). `StreamBadge`'s
- * LIVE/DELAYED entitlement information still needs a home — `StockDetail`'s own
- * topbar already renders it per-symbol — but the always-visible, source-agnostic
- * header is no longer that home. `StreamBadge` itself is untouched and still fully
- * tested; it is simply not composed into the app shell any more.
+ * design's literal "LIVE"/"RECONNECTING"/"DISCONNECTED" labels). `StreamBadge`, the
+ * component that used to be the candidate for this slot, has since been deleted as
+ * dead code: despite being fully built and fully tested, it was never actually
+ * mounted anywhere in the running app, and its LIVE/DELAYED entitlement signal is
+ * already fully covered by `StockDetail`'s own per-symbol delayed-note (see
+ * `StockDetail.tsx`'s `tckr-detail__delayed-note` and
+ * `StockDetail.delayed-labelling.test.tsx`). `git log` has the removed component
+ * and its two dedicated test files to restore verbatim if a future requirement
+ * needs it back.
  *
  * ---------------------------------------------------------------------------------
  * "Frosted Glass Revamp" — the permanent simulated-data marker is gone

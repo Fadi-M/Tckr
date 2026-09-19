@@ -185,6 +185,20 @@ configuration. This is what makes the client buildable before the gateway exists
 the data is not coming from the real pipeline. The symbol universe is fictional and its
 own reference file says so; presenting it as real market data would be a fabrication.
 
+> **Status update (`ui-revamp` / "Frosted Glass Revamp", 2026-09-19):** the always-visible
+> `SimulatedBanner` that satisfied this requirement was removed as part of the visual
+> redesign, matching the new design's single-surface header with no persistent banner.
+> Product has signed off on this removal. No equivalent always-visible "this data is
+> simulated" marker remains anywhere in the client (checked via
+> `grep -rni "simulat" client/Tckr.MarketWatch/src/`; the only surviving screen text about
+> simulation is `StockDetail`'s DELAYED-stream note, which is conditional on entitlement
+> and explains that the delay *offset* is simulated, not that the data source itself is) —
+> so this is a genuine requirement waiver, not a like-for-like replacement. FR-7.4's
+> underlying concern stands as written; only its always-on-screen enforcement is waived.
+> The removed component and its tests remain recoverable via `git log` if this decision is
+> reversed. See `docs/phase-3-web-client/03-app-shell.md` ("Why this matters") for the
+> paired note.
+
 ---
 
 ---

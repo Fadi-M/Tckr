@@ -655,10 +655,14 @@ export class SimulatedSource implements MarketDataSource {
    * client-contract.md §3.3: a real stream switch must discard the old stream's
    * buffered data before any new-stream tick renders. This is the data layer's own
    * responsibility, not something left for a UI component to remember to do (see
-   * `store.ts`'s `resetStream` doc and — for the incident this fixes — `StreamBadge`'s
-   * module doc): `resetStream()` is called here, directly on the actual stream
-   * transition, so the discard fires regardless of which components happen to be
-   * mounted. It runs strictly *before* `entitlementHandlers.forEach(...)` below,
+   * `store.ts`'s `resetStream` doc; for the incident this fixes, `StreamBadge` — since
+   * deleted as dead code, see `git log`/`git show` for the removed file — used to be
+   * the one thing that called `resetStream()`, on its own `source.on.entitlement`
+   * handler, which meant the entire mixed-stream guarantee only held because that
+   * component happened to be mounted in the app shell): `resetStream()` is called
+   * here, directly on the actual stream transition, so the discard fires regardless
+   * of which components happen to be mounted. It runs strictly *before*
+   * `entitlementHandlers.forEach(...)` below,
    * matching `resetStream`'s own documented guarantee ("clears everything, then fans
    * the discard out last") — any handler that reacts to `entitlementChanged`
    * synchronously already observes the cleared/re-anchored state.

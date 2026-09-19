@@ -569,8 +569,10 @@ export class TckrGatewaySource implements MarketDataSource {
    * buffered data before any new-stream tick renders — `store.ts`'s `resetStream()` is
    * the data layer's own mechanism for that (see its doc comment), and this is the
    * data layer, so it is called here directly rather than left for a UI component to
-   * remember to do (see `StreamBadge`'s module doc for the bug this fixes: relying on a
-   * badge component being mounted is not a guarantee).
+   * remember to do — `StreamBadge` (since deleted as dead code; see `git log`/`git show`
+   * for the removed file) used to be the one thing that called `resetStream()` on its
+   * own `on.entitlement` handler, which is the bug this fixes: relying on a badge
+   * component being mounted is not a guarantee.
    *
    * Gated on the stream actually changing — mirroring `SimulatedSource.
    * simulateEntitlementChange`'s own judgment call — because unlike that method's

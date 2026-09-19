@@ -68,6 +68,13 @@ on a phone. A table that needs 900px is a table nobody uses. Getting the respons
 into the shell means four later tasks inherit them instead of each inventing their own
 breakpoints.
 
+> **Status update (`ui-revamp` / "Frosted Glass Revamp", 2026-09-19):** the permanent
+> `SimulatedBanner` and the header's "◆ SIMULATED TAPE" tag described above were removed
+> to match the redesign's single-surface header, with product sign-off. See
+> `docs/requirements.md`'s FR-7.4 amendment for the full status note (including the check
+> for any remaining always-visible simulated-data marker) — recorded there, not
+> duplicated here, so the two docs don't drift.
+
 ---
 
 ## Specification

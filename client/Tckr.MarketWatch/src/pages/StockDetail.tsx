@@ -42,6 +42,23 @@
  * moment. Since `PriceChart` has exactly one caller (this page), the fix is to give it
  * one shared source of truth instead of two competing ones: `livePrice` below, so the
  * header and the chart can never show two different numbers for "the current price."
+ *
+ * ---------------------------------------------------------------------------------
+ * "Frosted Glass Revamp" — the "MARKET CLOSED" indicator is gone
+ * ---------------------------------------------------------------------------------
+ * This page used to import `useMarketStatus`, render a closed badge next to the
+ * symbol identity, and pass the resulting `marketOpen` boolean into `PriceChart`.
+ * All three are gone as of this redesign — a deliberate product decision, not an
+ * oversight, matching the design import (which has no such indicator anywhere on the
+ * detail screen). Product has signed off on this removal. This creates a known,
+ * accepted asymmetry with `StockList.tsx`, whose `MarketClosedBanner` is unchanged —
+ * the two pages are allowed to disagree on this point. See `docs/requirements.md`'s
+ * FR-7.4 amendment for the parallel "removed a status indicator, product signed off,
+ * recoverable via git log" decision on `SimulatedBanner` (this specific removal has
+ * no numbered FR of its own, so it isn't recorded there directly). If a future
+ * requirement needs the closed badge/`marketOpen` prop back, `git log` has the
+ * removed code (see `StockDetail.market-closed.test.tsx`, deleted in the same
+ * revamp) to restore verbatim.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -58,7 +75,12 @@ import { createThrottle, DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle
    ("Tckr.MarketWatch Frosted Glass Revamp/Tckr Market Watch.dc.html") rather than
    reusing this app's general-purpose glass tokens, so this card matches it exactly
    (the mock's own blur/opacity/radius numbers differ slightly, element by element,
-   from the shared --tckr-glass-* tokens used elsewhere). */
+   from the shared --tckr-glass-* tokens used elsewhere). They are not hardcoded
+   literals, though: `.tckr-detail__card`/`.tckr-detail__stat` reference their own
+   dedicated tokens (--tckr-glass-bg-card/-border-card, --tckr-glass-bg-stat/-border-stat
+   in tokens.css) for exactly this pixel-matching reason, rather than the
+   general-purpose --tckr-glass-bg/--tckr-glass-bg-strong tokens used elsewhere, which
+   carry different values. */
 const DETAIL_STYLES = `
 .tckr-detail { display: flex; flex-direction: column; gap: 12px; }
 .tckr-detail__loading { color: var(--tckr-color-text-muted); }
@@ -70,20 +92,35 @@ const DETAIL_STYLES = `
   gap: 16px;
   padding: 22px 24px;
   border-radius: 22px;
-  background: rgba(255, 255, 255, 0.58);
-  border: 1px solid rgba(255, 255, 255, 0.88);
+  background: var(--tckr-glass-bg-card);
+  border: 1px solid var(--tckr-glass-border-card);
   backdrop-filter: blur(26px) saturate(160%);
   -webkit-backdrop-filter: blur(26px) saturate(160%);
   box-shadow: 0 18px 40px -28px rgba(20, 24, 31, 0.4);
-  animation: tckr-detail-reveal 220ms cubic-bezier(0.23, 1, 0.32, 1);
+  animation: tckr-detail-reveal 220ms var(--tckr-ease-out);
 }
-:root[data-theme="dark"] .tckr-detail__card { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.12); }
+:root[data-theme="dark"] .tckr-detail__card { background: var(--tckr-glass-bg-card); border-color: var(--tckr-glass-border-card); }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .tckr-detail__card { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.12); }
+  :root:not([data-theme="light"]) .tckr-detail__card { background: var(--tckr-glass-bg-card); border-color: var(--tckr-glass-border-card); }
 }
 @keyframes tckr-detail-reveal {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tckr-detail__card, .tckr-detail__stats { animation: none; }
+}
+/* Accessible fallback for the card/stat tiles' frosted-glass effect, mirroring
+   .tckr-header's own fallback in global.css: a viewer who has asked the OS for
+   reduced transparency or more contrast gets a fully opaque surface with no blur
+   instead — --tckr-color-surface is the same opaque token the rest of the app
+   already uses for non-glass surfaces, so this doesn't invent a new colour. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .tckr-detail__card, .tckr-detail__stat {
+    background: var(--tckr-color-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 .tckr-detail__card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
 .tckr-detail__identity { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
@@ -147,20 +184,20 @@ const DETAIL_STYLES = `
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 10px;
-  animation: tckr-detail-reveal 220ms cubic-bezier(0.23, 1, 0.32, 1) 40ms backwards;
+  animation: tckr-detail-reveal 220ms var(--tckr-ease-out) 40ms backwards;
 }
 .tckr-detail__stat {
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.9);
+  background: var(--tckr-glass-bg-stat);
+  border: 1px solid var(--tckr-glass-border-stat);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-radius: 16px;
   padding: 13px 15px;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .tckr-detail__stat { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.1); }
+  :root:not([data-theme="light"]) .tckr-detail__stat { background: var(--tckr-glass-bg-stat); border-color: var(--tckr-glass-border-stat); }
 }
-:root[data-theme="dark"] .tckr-detail__stat { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.1); }
+:root[data-theme="dark"] .tckr-detail__stat { background: var(--tckr-glass-bg-stat); border-color: var(--tckr-glass-border-stat); }
 .tckr-detail__stat-label { display: block; font-family: var(--tckr-font-mono); font-size: 0.65625rem; letter-spacing: 0.14em; color: var(--tckr-color-text-muted); }
 .tckr-detail__stat-value { display: block; margin-top: 5px; font-family: var(--tckr-font-mono); font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 `;

@@ -169,7 +169,8 @@ export function createMarketDataSource(overrides?: Partial<ClientConfig>): Marke
 // construct sources directly and must keep doing so unaffected). `getSharedSource()` is
 // the one accessor every page/component should call instead of `createMarketDataSource()`
 // directly, so the whole app shares one `MarketDataSource` instance — one session, one
-// tape, one thing for task 07's `ConnectionStatus`/`StreamBadge` to observe.
+// tape, one thing for task 07's `ConnectionStatus` (and, historically, `StreamBadge`,
+// since deleted as dead code) to observe.
 //
 // **Connection ownership rule**: `getSharedSource()` calls `connect()` itself, exactly
 // once, at first-access time. Call sites (StockList, StockDetail, ConnectionStatus, …)

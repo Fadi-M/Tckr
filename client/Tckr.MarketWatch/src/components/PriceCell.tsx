@@ -61,17 +61,17 @@ function ensureStylesInjected(): void {
   padding: 0 2px;
   margin: 0 -2px;
 }
-.tckr-price-cell__flash--up { animation: tckr-price-flash-up-bg 500ms cubic-bezier(0.23, 1, 0.32, 1); }
-.tckr-price-cell__flash--down { animation: tckr-price-flash-down-bg 500ms cubic-bezier(0.23, 1, 0.32, 1); }
+.tckr-price-cell__flash--up { animation: tckr-price-flash-up-bg 500ms var(--tckr-ease-out); }
+.tckr-price-cell__flash--down { animation: tckr-price-flash-down-bg 500ms var(--tckr-ease-out); }
 .tckr-price-cell__flash-arrow--up::before {
   content: '\\25B2 ';
   color: var(--tckr-color-up);
-  animation: tckr-price-flash-arrow 500ms cubic-bezier(0.23, 1, 0.32, 1);
+  animation: tckr-price-flash-arrow 500ms var(--tckr-ease-out);
 }
 .tckr-price-cell__flash-arrow--down::before {
   content: '\\25BC ';
   color: var(--tckr-color-down);
-  animation: tckr-price-flash-arrow 500ms cubic-bezier(0.23, 1, 0.32, 1);
+  animation: tckr-price-flash-arrow 500ms var(--tckr-ease-out);
 }
 @keyframes tckr-price-flash-up-bg {
   from { background-color: color-mix(in oklab, var(--tckr-color-up) 28%, transparent); }

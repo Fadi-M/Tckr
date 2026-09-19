@@ -1,7 +1,8 @@
 /**
  * Light/dark theme switch — rendered directly by `App.tsx` in the header's slot row,
- * alongside `ConnectionStatus`/`StreamBadge`. Unlike those two, this needs no
- * data-layer wiring (`useTheme` touches only `document`/`localStorage`), so it does
+ * alongside `ConnectionStatus` (and, historically, `StreamBadge`, since deleted as
+ * dead code). Unlike `ConnectionStatus`, this needs no data-layer wiring (`useTheme`
+ * touches only `document`/`localStorage`), so it does
  * not need to go through `main.tsx`'s composition-root slot-prop treatment — App.tsx
  * can import and render it directly without violating its own data-agnosticism
  * (`shell.no-data-import.test.ts` only forbids importing `src/data/**`).
