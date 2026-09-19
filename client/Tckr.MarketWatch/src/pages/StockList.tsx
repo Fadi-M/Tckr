@@ -23,9 +23,10 @@
  * imports `src/data/**`:
  *
  *  - A connection-state banner (`useConnectionBanner`) — an independent observer of the
- *    shared `MarketDataSource`, exactly like `ConnectionStatus`/`StreamBadge` already
- *    are (multiple independent subscribers to the same singleton is an established
- *    pattern, not a new one). Its "Retry now"/"Reconnect" buttons call
+ *    shared `MarketDataSource`, exactly like `ConnectionStatus` is (and like the now-
+ *    deleted `StreamBadge` used to be — multiple independent subscribers to the same
+ *    singleton is an established pattern, not a new one). Its "Retry now"/"Reconnect"
+ *    buttons call
  *    `reconnectSharedSource()` (`src/data/config.ts`) — the one sanctioned way a call
  *    site may force a fresh connection attempt, for exactly this "one-off user action"
  *    case. A bare `source.connect()` is deliberately NOT used here: it is not safe on
@@ -91,6 +92,7 @@ import { PriceCell } from '../components/PriceCell.tsx';
 import { useMarketStatus } from '../components/useMarketStatus.ts';
 import { createThrottle, DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
 import { toPlotValue } from '../chart/ringBuffer.ts';
+import { sparklineDirection, useBoundedSparkline } from './useBoundedSparkline.ts';
 
 const ZERO_DECIMAL: DecimalString = toDecimal('0');
 
@@ -273,7 +275,8 @@ function useNarrowViewport(): boolean {
 
 // ---------------------------------------------------------------------------------
 // Connection banner — independent observer of the shared MarketDataSource, mirroring
-// (not sharing state with) ConnectionStatus/StreamBadge. See module doc.
+// (not sharing state with) ConnectionStatus (and the now-deleted StreamBadge). See
+// module doc.
 // ---------------------------------------------------------------------------------
 
 function seedConnectionState(): ConnectionState {
@@ -513,21 +516,12 @@ function HeroCard({ kicker, kind, definition, priceDecimals, onActivate }: HeroC
   const volumeLabel = view ? view.volume.toLocaleString('en-US') : '—';
 
   // Bounded sparkline history — same shape/purpose as `StockListRow`'s (decorative
-  // only; every price shown as *text* here still goes through `PriceCell`).
-  const historyRef = useRef<number[]>([]);
+  // only; every price shown as *text* here still goes through `PriceCell`). Shared
+  // ref/effect/read-back triplet lives in `useBoundedSparkline.ts`; this card keeps
+  // its own 26-point cap.
   const currentPriceNum = toPlotValue(price);
-  useEffect(() => {
-    const last = historyRef.current[historyRef.current.length - 1];
-    if (last !== currentPriceNum) {
-      historyRef.current = [...historyRef.current, currentPriceNum].slice(-26);
-    }
-  }, [currentPriceNum]);
-  const sparklinePoints =
-    historyRef.current[historyRef.current.length - 1] === currentPriceNum
-      ? historyRef.current
-      : [...historyRef.current, currentPriceNum];
-  const direction: 'up' | 'down' | 'flat' =
-    changePercent === undefined || changePercent === 0 ? 'flat' : changePercent > 0 ? 'up' : 'down';
+  const sparklinePoints = useBoundedSparkline(currentPriceNum, 26);
+  const direction = sparklineDirection(changePercent);
 
   const badgeText = kind === 'active' ? `${volumeLabel} QTY` : changePercent === undefined ? '—' : formatSignedPercent(changePercent);
   const badgeDeltaClass =
@@ -630,7 +624,7 @@ const STOCK_LIST_STYLES = `
   margin-bottom: 14px;
   backdrop-filter: blur(var(--tckr-blur)) saturate(150%);
   -webkit-backdrop-filter: blur(var(--tckr-blur)) saturate(150%);
-  animation: tckr-banner-in 220ms cubic-bezier(0.23, 1, 0.32, 1);
+  animation: tckr-banner-in 220ms var(--tckr-ease-out);
 }
 @keyframes tckr-banner-in {
   from { opacity: 0; transform: translateY(-6px); }
@@ -674,6 +668,27 @@ const STOCK_LIST_STYLES = `
 .tckr-conn-banner__action:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; }
 .tckr-conn-banner__action:active { transform: scale(0.96); }
 
+/* Accessible fallback for this banner's frosted-glass effect, mirroring
+ * .tckr-header's own fallback in global.css: a viewer who has asked the OS for
+ * reduced transparency or more contrast gets a fully opaque banner with no blur
+ * instead, using the same opaque-over-'--tckr-color-surface' mix each variant's own
+ * background already uses '--tckr-glass-bg' for, so this doesn't invent new colours. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .tckr-conn-banner {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .tckr-conn-banner--warning {
+    background: color-mix(in oklab, var(--tckr-color-warning) 16%, var(--tckr-color-surface));
+  }
+  .tckr-conn-banner--danger {
+    background: color-mix(in oklab, var(--tckr-color-down) 16%, var(--tckr-color-surface));
+  }
+  .tckr-conn-banner--info {
+    background: var(--tckr-color-surface);
+  }
+}
+
 .tckr-stocklist__toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
 .tckr-stocklist__pills { display: flex; gap: 6px; flex-wrap: wrap; }
 .tckr-pill {
@@ -706,6 +721,15 @@ const STOCK_LIST_STYLES = `
   transition: border-color 150ms ease;
 }
 .tckr-stocklist__search-wrap:focus-within { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; }
+/* Accessible fallback for this search field's frosted-glass effect — see
+ * .tckr-conn-banner's identical fallback above for why. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .tckr-stocklist__search-wrap {
+    background: var(--tckr-color-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
 .tckr-stocklist__search-icon { color: var(--tckr-color-text-muted); font-size: 13px; flex: none; }
 .tckr-stocklist__search {
   all: unset;
@@ -734,6 +758,15 @@ const STOCK_LIST_STYLES = `
   backdrop-filter: blur(var(--tckr-blur)) saturate(160%);
   -webkit-backdrop-filter: blur(var(--tckr-blur)) saturate(160%);
   box-shadow: 0 18px 40px -30px rgba(0, 0, 0, 0.4);
+}
+/* Accessible fallback for the table's frosted-glass effect — see .tckr-conn-banner's
+ * identical fallback above for why. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .tckr-stocklist__table-wrap {
+    background: var(--tckr-color-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 .tckr-stocklist__table { width: 100%; max-width: 100%; border-collapse: collapse; table-layout: fixed; }
 .tckr-stocklist__table th,
@@ -782,8 +815,30 @@ const STOCK_LIST_STYLES = `
   background: var(--tckr-color-surface-raised);
 }
 .tckr-stocklist__changepct { transition: background-color 200ms ease; }
-.tckr-stocklist__changepct.tckr-delta--up { background: color-mix(in oklab, var(--tckr-color-up) 14%, transparent); }
-.tckr-stocklist__changepct.tckr-delta--down { background: color-mix(in oklab, var(--tckr-color-down) 14%, transparent); }
+/* Light theme only: color: var(--tckr-color-up/-down) (from .tckr-delta--up/--down
+ * in global.css) over this chip's own light-tinted background measures 4.40:1 /
+ * 4.42:1 against the real card background — just under WCAG AA's 4.5:1 minimum for
+ * normal text. Dark theme's identical rule passes easily (5-8:1) because dark's
+ * up/down tokens are far brighter against a near-black card; light's near-white card
+ * doesn't give the same headroom against the same saturated hue. Darken the *text*
+ * only (background/opacity untouched) for light theme, then reset back to the plain
+ * token colour once dark is active, reusing the dark-scoping convention
+ * StockDetail.tsx already established (:root[data-theme="dark"] /
+ * @media (prefers-color-scheme: dark)) — so dark's own contrast is unchanged. */
+.tckr-stocklist__changepct.tckr-delta--up {
+  background: color-mix(in oklab, var(--tckr-color-up) 14%, transparent);
+  color: #0d6841;
+}
+.tckr-stocklist__changepct.tckr-delta--down {
+  background: color-mix(in oklab, var(--tckr-color-down) 14%, transparent);
+  color: #a33025;
+}
+:root[data-theme="dark"] .tckr-stocklist__changepct.tckr-delta--up { color: var(--tckr-color-up); }
+:root[data-theme="dark"] .tckr-stocklist__changepct.tckr-delta--down { color: var(--tckr-color-down); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tckr-stocklist__changepct.tckr-delta--up { color: var(--tckr-color-up); }
+  :root:not([data-theme="light"]) .tckr-stocklist__changepct.tckr-delta--down { color: var(--tckr-color-down); }
+}
 .tckr-sparkline { width: 100%; height: 34px; display: block; }
 .tckr-sparkline__line { stroke-width: 1.6; transition: stroke 200ms ease; }
 .tckr-sparkline__line--up { stroke: var(--tckr-color-up); }
@@ -829,7 +884,7 @@ const STOCK_LIST_STYLES = `
   max-height: 640px;
   opacity: 1;
   margin-bottom: 14px;
-  transition: max-height 480ms cubic-bezier(0.23, 1, 0.32, 1), opacity 300ms ease, margin-bottom 480ms cubic-bezier(0.23, 1, 0.32, 1);
+  transition: max-height 480ms var(--tckr-ease-out), opacity 300ms ease, margin-bottom 480ms var(--tckr-ease-out);
 }
 .tckr-hero-wrap--collapsed {
   max-height: 0;
@@ -864,6 +919,15 @@ const STOCK_LIST_STYLES = `
   .tckr-hero__card:hover { transform: translateY(-2px); }
 }
 .tckr-hero__card:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; }
+/* Accessible fallback for this card's frosted-glass effect — see .tckr-conn-banner's
+ * identical fallback above for why. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .tckr-hero__card {
+    background: var(--tckr-color-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
 .tckr-hero__row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .tckr-hero__kicker { font-family: var(--tckr-font-mono); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.14em; color: var(--tckr-color-text-muted); }
 .tckr-hero__badge {
@@ -875,8 +939,23 @@ const STOCK_LIST_STYLES = `
   background: var(--tckr-color-surface-raised);
   white-space: nowrap;
 }
-.tckr-hero__badge.tckr-delta--up { background: color-mix(in oklab, var(--tckr-color-up) 20%, transparent); }
-.tckr-hero__badge.tckr-delta--down { background: color-mix(in oklab, var(--tckr-color-down) 20%, transparent); }
+/* Light theme only: measured 4.02:1 / 4.05:1 against the real hero card background —
+ * below WCAG AA. Same fix/reasoning as .tckr-stocklist__changepct above (see that
+ * rule's comment): darken text only, for light theme only, reset for dark. */
+.tckr-hero__badge.tckr-delta--up {
+  background: color-mix(in oklab, var(--tckr-color-up) 20%, transparent);
+  color: #0d6841;
+}
+.tckr-hero__badge.tckr-delta--down {
+  background: color-mix(in oklab, var(--tckr-color-down) 20%, transparent);
+  color: #a33025;
+}
+:root[data-theme="dark"] .tckr-hero__badge.tckr-delta--up { color: var(--tckr-color-up); }
+:root[data-theme="dark"] .tckr-hero__badge.tckr-delta--down { color: var(--tckr-color-down); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tckr-hero__badge.tckr-delta--up { color: var(--tckr-color-up); }
+  :root:not([data-theme="light"]) .tckr-hero__badge.tckr-delta--down { color: var(--tckr-color-down); }
+}
 .tckr-hero__identity { display: flex; align-items: baseline; gap: 8px; margin-top: 12px; min-width: 0; }
 .tckr-hero__symbol { font-family: var(--tckr-font-mono); font-weight: 700; font-size: 1.2rem; }
 .tckr-hero__name { font-size: 0.75rem; color: var(--tckr-color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -909,7 +988,7 @@ const STOCK_LIST_STYLES = `
 .tckr-stocklist__list-col {
   min-width: 0;
   width: 100%;
-  transition: width 480ms cubic-bezier(0.23, 1, 0.32, 1);
+  transition: width 480ms var(--tckr-ease-out);
 }
 .tckr-stocklist__shell--split .tckr-stocklist__list-col {
   width: 380px;
@@ -921,7 +1000,7 @@ const STOCK_LIST_STYLES = `
   overflow: hidden;
   opacity: 0;
   transform: translateX(16px);
-  transition: opacity 300ms ease, transform 420ms cubic-bezier(0.23, 1, 0.32, 1);
+  transition: opacity 300ms ease, transform 420ms var(--tckr-ease-out);
 }
 .tckr-stocklist__shell--split .tckr-stocklist__detail-pane {
   opacity: 1;
@@ -1084,20 +1163,11 @@ function StockListRow({ definition, priceDecimals, onActivate, selected = false,
   // `toPlotValue` (`src/chart/ringBuffer.ts`) is the one sanctioned `DecimalString` ->
   // `number` conversion for exactly this "plotting/decoration, never re-displayed as
   // text" purpose — reused here rather than a second, duplicate inline conversion.
-  const historyRef = useRef<number[]>([]);
+  // Shared ref/effect/read-back triplet lives in `useBoundedSparkline.ts`; this row
+  // keeps its own 20-point cap (`HeroCard`'s is 26).
   const currentPriceNum = toPlotValue(price);
-  useEffect(() => {
-    const last = historyRef.current[historyRef.current.length - 1];
-    if (last !== currentPriceNum) {
-      historyRef.current = [...historyRef.current, currentPriceNum].slice(-20);
-    }
-  }, [currentPriceNum]);
-  const sparklinePoints =
-    historyRef.current[historyRef.current.length - 1] === currentPriceNum
-      ? historyRef.current
-      : [...historyRef.current, currentPriceNum];
-  const sparklineDirection: 'up' | 'down' | 'flat' =
-    changePercent === undefined || changePercent === 0 ? 'flat' : changePercent > 0 ? 'up' : 'down';
+  const sparklinePoints = useBoundedSparkline(currentPriceNum, 20);
+  const direction = sparklineDirection(changePercent);
 
   // A sighted user reads price and up/down direction straight off the row (that's the
   // entire point of it); `aria-label={symbol}` alone gives a keyboard/screen-reader
@@ -1109,7 +1179,7 @@ function StockListRow({ definition, priceDecimals, onActivate, selected = false,
   // per-tick announcements across 34 independently-ticking rows would spam a screen
   // reader, so this only changes what is read when the row is *visited*, not when it
   // changes.
-  const directionWord = sparklineDirection === 'flat' ? 'unchanged' : sparklineDirection;
+  const directionWord = direction === 'flat' ? 'unchanged' : direction;
   const rowAriaLabel =
     changePercent === undefined
       ? `${symbol}, ${String(price)}`
@@ -1136,7 +1206,7 @@ function StockListRow({ definition, priceDecimals, onActivate, selected = false,
       <td className="tckr-stocklist__cell tckr-stocklist__cell--symbol">{symbol}</td>
       {narrow ? null : (
         <td className="tckr-stocklist__cell tckr-stocklist__col--narrow-hide">
-          <Sparkline points={sparklinePoints} direction={sparklineDirection} />
+          <Sparkline points={sparklinePoints} direction={direction} />
         </td>
       )}
       {narrow ? null : <td className="tckr-stocklist__cell tckr-stocklist__col--narrow-hide">{name}</td>}

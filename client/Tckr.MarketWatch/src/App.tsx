@@ -57,9 +57,9 @@ const StockDetail = lazy(() =>
 export interface AppHeaderProps {
   /** Rendered by task 07's `ConnectionStatus`. */
   statusSlot?: ReactNode | undefined;
-  /** Generic second header slot — no longer populated by `main.tsx` (see the
-   * "permanent simulated-data marker is gone" note above for why `StreamBadge`
-   * specifically is no longer wired in here), but the slot mechanism itself is
+  /** Generic second header slot — no longer populated by `main.tsx` (`StreamBadge`,
+   * the component that used to be its candidate occupant, has since been deleted as
+   * dead code — see `main.tsx`'s doc comment), but the slot mechanism itself is
    * still exercised directly by `shell.slots.test.tsx` and stays available for
    * whatever a future header addition needs. */
   badgeSlot?: ReactNode | undefined;
