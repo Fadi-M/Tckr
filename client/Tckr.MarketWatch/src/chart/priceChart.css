@@ -4,101 +4,47 @@
  *
  * Design choices made after loading the `dataviz` skill (see PriceChart.tsx's Notes for
  * the write-up task 09 reads):
- *   - One series, one hue (`--tckr-color-accent`) for the line itself. The up/down
- *     colour + glyph convention (`.tckr-delta--up`/`--down`) is for discrete gain/loss
- *     indicators (price cells, headers) — a continuously drawn line is not a delta, so
- *     it is not recoloured per-tick; recolouring a line by its last move would repaint
- *     the whole series on every frame, which the "colour follows the entity, never a
- *     transient state" rule warns against.
- *   - uPlot's own legend is switched off (`legend.show: false` in PriceChart.tsx) in
- *     favour of a plain-text readout row: for a single series a colour-swatch legend is
- *     redundant chrome (dataviz: "a single series needs no legend box"), and the
- *     readout text itself uses text tokens, never the series colour, per "text wears
- *     text tokens, never series colour."
- *   - Grid and axis ink are deliberately recessive (`--tckr-color-border`,
- *     `--tckr-color-text-muted`) so the line — the one thing that matters — is the only
- *     saturated mark on the chart.
+ *   - One series, one hue (`--tckr-color-accent`) for the line and its filled area. The
+ *     up/down colour + glyph convention (`.tckr-delta--up`/`--down`) is for discrete
+ *     gain/loss indicators (price cells, headers) — a continuously drawn line is not a
+ *     delta, so it is not recoloured per-tick; recolouring a line by its last move would
+ *     repaint the whole series on every frame, which the "colour follows the entity,
+ *     never a transient state" rule warns against.
+ *   - uPlot's own legend and axis labels are both switched off (`legend.show: false`,
+ *     `axes[].values: () => []` in PriceChart.tsx) — the Frosted Glass Revamp design
+ *     import has neither; a few flat gridlines plus the floating stat pills below carry
+ *     all the context a legend/axis would have.
+ *
+ * "{rangeLabel} · {N} ticks" / "H {high}" / "L {low}" pills (`.tckr-price-chart__pill`)
+ * — the design's floating chart annotations — overlay the chart body via `position:
+ * absolute`, computed by `PriceChart.tsx` itself from its own plotted buffer.
  */
 
 .tckr-price-chart {
   display: flex;
   flex-direction: column;
-  gap: 4px;
   width: 100%;
   min-width: 0;
-}
-
-.tckr-price-chart__readout {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-variant-numeric: tabular-nums;
-  font-family: var(--tckr-font-mono);
-  font-size: 0.8rem;
-  color: var(--tckr-color-text-muted);
-  min-height: 1.2em;
-}
-
-/* The chart deliberately redraws at most once per `DISPLAY_REFRESH_INTERVAL_MS` (~30s —
-   see PriceChart.tsx's module doc; this cadence itself is correct and out of scope here).
-   That leaves the chart looking like a static flat line for up to ~30s after mount, with
-   the header's `ConnectionStatus` elapsed-time tick — far from the chart — as the only
-   other "alive" signal on the page. This dot is a purely ambient, CSS-driven cue that the
-   page is still live during that gap; it carries no data of its own (the actual price
-   still only updates on the ~30s cadence) and is hidden, not removed, the moment the
-   hover readout has something real to show (see PriceChart.tsx's `setCursor` hook). */
-.tckr-price-chart__live-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  flex: none;
-  border-radius: 50%;
-  background: var(--tckr-color-accent);
-  animation: tckr-price-chart-live-pulse 2s ease-in-out infinite;
-}
-
-.tckr-price-chart__live-dot--hidden {
-  display: none;
-}
-
-/* Toggled (via a plain `useEffect`, not the hot-path hide/show `classList` calls the
-   `setCursor` hook makes on every mousemove — see PriceChart.tsx) whenever the market is
-   closed: the "still alive, ticking" pulse would be misleading once nothing is actually
-   updating — this is a session that has already fully happened, not a live one. A static,
-   dimmed dot stays legible as "this is the final state" without implying motion. */
-.tckr-price-chart__live-dot--closed {
-  animation: none;
-  opacity: 0.4;
-}
-
-@keyframes tckr-price-chart-live-pulse {
-  0%,
-  100% {
-    opacity: 0.5;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-/* This is the first `prefers-reduced-motion` rule in `src/chart/**` (task 03's
-   `src/styles/**` had none to follow either) — kept as a plain, self-contained media
-   query rather than inventing a shared convention this task isn't scoped to add. A solid
-   (non-animating) dot is still a perfectly legible "live" indicator without motion. */
-@media (prefers-reduced-motion: reduce) {
-  .tckr-price-chart__live-dot {
-    animation: none;
-  }
 }
 
 .tckr-price-chart__body {
   position: relative;
   width: 100%;
   min-width: 0;
-  border: 1px solid var(--tckr-color-border);
-  border-radius: 10px;
-  background: var(--tckr-color-surface-raised);
+  border: 1px solid rgba(20, 24, 31, 0.06);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.5);
   overflow: hidden;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tckr-price-chart__body {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+}
+:root[data-theme="dark"] .tckr-price-chart__body {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .tckr-price-chart__canvas {
@@ -120,6 +66,24 @@
   padding: 12px;
 }
 
+/* Floating chart annotations (design import) — top-left "{range} · N ticks", top-right
+   "H {high}", bottom-right "L {low}". */
+.tckr-price-chart__pill {
+  position: absolute;
+  z-index: 2;
+  font-family: var(--tckr-font-mono);
+  font-size: 0.72rem;
+  color: var(--tckr-color-text);
+  background: var(--tckr-color-surface);
+  border: 1px solid var(--tckr-color-border);
+  padding: 3px 8px;
+  border-radius: 7px;
+  pointer-events: none;
+}
+.tckr-price-chart__pill--range { top: 12px; left: 14px; }
+.tckr-price-chart__pill--high { top: 12px; right: 14px; }
+.tckr-price-chart__pill--low { bottom: 12px; right: 14px; }
+
 /* uPlot's own DOM: keep the cursor crosshair and hover point on-brand without touching
    task 03's global stylesheet. */
 .tckr-price-chart .u-cursor-x {
@@ -129,10 +93,4 @@
 .tckr-price-chart .u-cursor-pt {
   border-color: var(--tckr-color-accent) !important;
   background: var(--tckr-color-accent) !important;
-}
-
-@media (max-width: 400px) {
-  .tckr-price-chart__readout {
-    font-size: 0.8rem;
-  }
 }

@@ -47,63 +47,122 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getSharedSource, resolveClientConfig } from '../data/config.ts';
 import { compare, percentChange, subtract, toDecimal, type DecimalString } from '../contracts/decimal.ts';
-import { formatCairoClock, formatNextOpen } from '../data/marketCalendar.ts';
+import { formatCairoClock } from '../data/marketCalendar.ts';
 import type { Snapshot, SymbolDefinition } from '../contracts/rest.ts';
 import type { IsoUtc, Stream, Tick } from '../contracts/messages.ts';
 import { PriceCell } from '../components/PriceCell.tsx';
 import { PriceChart, type ChartHistoryPoint } from '../chart/PriceChart.tsx';
-import { useMarketStatus } from '../components/useMarketStatus.ts';
 import { createThrottle, DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
 
+/* Values below are taken directly from the design import
+   ("Tckr.MarketWatch Frosted Glass Revamp/Tckr Market Watch.dc.html") rather than
+   reusing this app's general-purpose glass tokens, so this card matches it exactly
+   (the mock's own blur/opacity/radius numbers differ slightly, element by element,
+   from the shared --tckr-glass-* tokens used elsewhere). */
 const DETAIL_STYLES = `
-.tckr-detail { max-width: 760px; margin: 0 auto; }
-.tckr-detail__topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
-.tckr-detail__back { font-size: 0.8rem; color: var(--tckr-color-text-muted); text-decoration: none; border-radius: 3px; transition: color 150ms ease; }
-.tckr-detail__back:hover { color: var(--tckr-color-text); }
-.tckr-detail__back:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; }
-.tckr-detail__topbar-badges { display: flex; align-items: center; gap: 8px; }
-.tckr-detail__identity { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
-.tckr-detail__symbol { font-family: var(--tckr-font-mono); font-weight: 700; font-size: 1.4rem; letter-spacing: -0.01em; }
-.tckr-detail__name { font-size: 0.85rem; color: var(--tckr-color-text-muted); }
+.tckr-detail { display: flex; flex-direction: column; gap: 12px; }
 .tckr-detail__loading { color: var(--tckr-color-text-muted); }
-.tckr-detail__quote { margin-top: 16px; animation: tckr-detail-reveal 220ms cubic-bezier(0.23, 1, 0.32, 1); }
+.tckr-detail--not-found { color: var(--tckr-color-text); }
+
+.tckr-detail__card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px 24px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(26px) saturate(160%);
+  -webkit-backdrop-filter: blur(26px) saturate(160%);
+  box-shadow: 0 18px 40px -28px rgba(20, 24, 31, 0.4);
+  animation: tckr-detail-reveal 220ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+:root[data-theme="dark"] .tckr-detail__card { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.12); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tckr-detail__card { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.12); }
+}
 @keyframes tckr-detail-reveal {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.tckr-detail__price-row { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
-.tckr-detail__price { font-family: var(--tckr-font-mono); font-weight: 600; font-size: 2.4rem; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-.tckr-detail__price-delta { font-family: var(--tckr-font-mono); font-weight: 600; font-size: 1rem; font-variant-numeric: tabular-nums; }
-.tckr-detail__asof { margin-top: 8px; font-family: var(--tckr-font-mono); font-size: 0.72rem; color: var(--tckr-color-text-muted); }
+.tckr-detail__card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.tckr-detail__identity { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.tckr-detail__symbol { font-family: var(--tckr-font-mono); font-weight: 600; font-size: 1.875rem; letter-spacing: 0.01em; }
+.tckr-detail__name { font-size: 0.9375rem; color: var(--tckr-color-text-muted); }
+.tckr-detail__price-row { display: flex; align-items: baseline; gap: 14px; margin-top: 10px; flex-wrap: wrap; }
+.tckr-detail__price { font-family: var(--tckr-font-mono); font-weight: 600; font-size: 3.25rem; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.tckr-detail__delta-pill {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--tckr-font-mono);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--tckr-color-surface-raised);
+  border: 1px solid var(--tckr-color-border);
+  font-variant-numeric: tabular-nums;
+}
+.tckr-detail__delta-pill.tckr-delta--up {
+  color: var(--tckr-color-up);
+  background: color-mix(in oklab, var(--tckr-color-up) 20%, transparent);
+  border-color: color-mix(in oklab, var(--tckr-color-up) 35%, transparent);
+}
+.tckr-detail__delta-pill.tckr-delta--down {
+  color: var(--tckr-color-down);
+  background: color-mix(in oklab, var(--tckr-color-down) 20%, transparent);
+  border-color: color-mix(in oklab, var(--tckr-color-down) 35%, transparent);
+}
+.tckr-detail__asof { margin-top: 8px; font-family: var(--tckr-font-mono); font-size: 0.78125rem; color: var(--tckr-color-text-muted); }
 .tckr-detail__delayed-note {
-  margin-top: 12px;
+  margin-top: 4px;
   display: flex;
   gap: 10px;
   padding: 12px 14px;
-  border-radius: 9px;
+  border-radius: 14px;
   background: color-mix(in oklab, var(--tckr-color-warning) 9%, transparent);
   border: 1px solid color-mix(in oklab, var(--tckr-color-warning) 24%, transparent);
 }
 .tckr-detail__delayed-note-icon { flex: none; color: var(--tckr-color-warning); font-size: 14px; }
 .tckr-detail__delayed-note-title { font-weight: 600; font-size: 0.82rem; }
 .tckr-detail__delayed-note-detail { margin-top: 3px; font-size: 0.78rem; color: var(--tckr-color-text-muted); line-height: 1.5; }
+
+.tckr-detail__ranges { display: flex; gap: 6px; flex: none; }
+.tckr-detail__range-pill {
+  all: unset;
+  cursor: pointer;
+  font-family: var(--tckr-font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--tckr-color-surface-raised);
+  border: 1px solid var(--tckr-color-border);
+  color: var(--tckr-color-text-muted);
+}
+.tckr-detail__range-pill--active { background: var(--tckr-color-text); color: var(--tckr-color-surface); border-color: var(--tckr-color-text); }
+.tckr-detail__range-pill:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; }
+
 .tckr-detail__stats {
-  margin-top: 20px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1px;
-  background: var(--tckr-color-border);
-  border-radius: 9px;
-  overflow: hidden;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
   animation: tckr-detail-reveal 220ms cubic-bezier(0.23, 1, 0.32, 1) 40ms backwards;
 }
-.tckr-detail__stat { background: var(--tckr-color-surface-raised); padding: 12px 12px; }
-.tckr-detail__stat-label { display: block; font-family: var(--tckr-font-mono); font-size: 0.6rem; letter-spacing: 0.1em; color: var(--tckr-color-text-muted); text-transform: uppercase; }
-.tckr-detail__stat-value { display: block; margin-top: 6px; font-family: var(--tckr-font-mono); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
-.tckr-detail--not-found { color: var(--tckr-color-text); }
-@media (min-width: 480px) {
-  .tckr-detail__stats { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.tckr-detail__stat {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 13px 15px;
 }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tckr-detail__stat { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.1); }
+}
+:root[data-theme="dark"] .tckr-detail__stat { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.1); }
+.tckr-detail__stat-label { display: block; font-family: var(--tckr-font-mono); font-size: 0.65625rem; letter-spacing: 0.14em; color: var(--tckr-color-text-muted); }
+.tckr-detail__stat-value { display: block; margin-top: 5px; font-family: var(--tckr-font-mono); font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 `;
 
 // ---------------------------------------------------------------------------------
@@ -155,6 +214,35 @@ function deltaClassName(change: DecimalString): string | undefined {
   const direction = deltaDirection(change);
   return direction ? `tckr-delta--${direction}` : undefined;
 }
+
+// ---------------------------------------------------------------------------------
+// Chart range selector (design import: the 60S/5M/SESSION pills on the detail
+// card). Filters the already-fetched `historyPoints` down to a trailing wall-clock
+// window rather than fetching a differently-scoped history per range — there is
+// only one `getHistory()` call for the whole session (see the mount effect below),
+// and every range is a view onto that same data. Picking a narrower range does not
+// make the chart continuously re-slide the window as time passes (it snapshots
+// "the last N seconds as of the moment you picked it," then grows live from there
+// exactly like SESSION does) — a real, understood simplification, not a fake one:
+// every point shown is genuine, never fabricated to look busier than the real tape
+// is. `PriceChart` is remounted (via a `range`-inclusive `key`, see the render
+// below) on a range switch rather than reactively re-seeded in place, reusing its
+// existing mount-time seeding logic instead of adding a second, parallel "apply a
+// new history after mount" code path to an already-intricate component.
+// ---------------------------------------------------------------------------------
+
+type RangeKey = '60S' | '5M' | 'SESSION';
+const RANGE_KEYS: readonly RangeKey[] = ['60S', '5M', 'SESSION'];
+const RANGE_WINDOW_MS: Record<RangeKey, number | null> = {
+  '60S': 60_000,
+  '5M': 5 * 60_000,
+  SESSION: null,
+};
+const RANGE_LABELS: Record<RangeKey, string> = {
+  '60S': 'Last 60s',
+  '5M': 'Last 5m',
+  SESSION: 'Session',
+};
 
 // ---------------------------------------------------------------------------------
 // Data shape this page renders from — built from `Snapshot`/`Tick` directly, never
@@ -238,11 +326,13 @@ export function StockDetail({ symbol }: { symbol: string }) {
   // would break every other consumer. Connection health is observable via
   // `on.status`/`on.error`/`identity()` on this same instance, not via this call.
   const source = getSharedSource();
-  // EGX's real trading calendar (Sunday–Thursday, ~10:00–14:30 Cairo time) — see
-  // `marketCalendar.ts`'s doc for why this is computed from wall-clock time directly,
-  // independent of `source`. Drives both the "MARKET CLOSED" badge below and
-  // `PriceChart`'s `marketOpen` prop, so the two can never disagree about market state.
-  const marketStatus = useMarketStatus();
+  // Which chart range pill is active (design import: 60S/5M/SESSION) — see the
+  // "Chart range selector" module doc above. Deliberately not reset when `symbol`
+  // changes: a viewer's chosen zoom level is a preference about how they want to
+  // look at a chart, not per-symbol state, so it carries over to whichever symbol
+  // they open next (same reasoning as `sortState` surviving a search on the list
+  // page).
+  const [range, setRange] = useState<RangeKey>('60S');
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [quote, setQuote] = useState<DetailQuote | undefined>(undefined);
@@ -501,6 +591,24 @@ export function StockDetail({ symbol }: { symbol: string }) {
     return { t: Date.parse(quote.exchangeTimestamp), p: quote.price };
   }, [quote]);
 
+  // The chart's data window for the active range pill — see the "Chart range
+  // selector" module doc. `windowMs === null` (SESSION) is the full, unfiltered
+  // `historyPoints`; otherwise only points within the trailing window survive.
+  // Recomputed on every render where `historyPoints`/`range` change, which is fine:
+  // `PriceChart` only ever reads this once at mount (via the `key` below causing a
+  // fresh mount per range), so a cheap recompute here does not cause extra chart work.
+  const rangedHistory = useMemo(() => {
+    if (historyPoints === undefined) {
+      return undefined;
+    }
+    const windowMs = RANGE_WINDOW_MS[range];
+    if (windowMs === null) {
+      return historyPoints;
+    }
+    const cutoff = Date.now() - windowMs;
+    return historyPoints.filter((point) => point.t >= cutoff);
+  }, [historyPoints, range]);
+
   if (phase === 'not-found') {
     return (
       <div className="tckr-detail tckr-detail--not-found" data-testid="stock-detail-not-found">
@@ -519,93 +627,96 @@ export function StockDetail({ symbol }: { symbol: string }) {
     <div className="tckr-detail">
       <style>{DETAIL_STYLES}</style>
 
-      <div className="tckr-detail__topbar">
-        <Link to="/" className="tckr-detail__back">
-          ← All instruments
-        </Link>
-        <div className="tckr-detail__topbar-badges">
-          <span className="tckr-badge tckr-badge--neutral">SIMULATED DATA</span>
-          {quote?.stream === 'LIVE' ? (
-            <span className="tckr-badge tckr-badge--live">
-              <span className="tckr-badge__dot" aria-hidden="true" />
-              LIVE
-            </span>
-          ) : quote?.stream === 'DELAYED' ? (
-            <span className="tckr-badge tckr-badge--delayed">◷ DELAYED</span>
-          ) : null}
-          {marketStatus.state === 'closed' ? (
-            <span className="tckr-badge tckr-badge--delayed" data-testid="market-closed-badge">
-              ◷ MARKET CLOSED — opens {formatNextOpen(marketStatus)} Cairo
-            </span>
-          ) : null}
-        </div>
-      </div>
+      <div className="tckr-detail__card">
+        <div className="tckr-detail__card-head">
+          <div>
+            <div className="tckr-detail__identity">
+              <h1 className="tckr-detail__symbol">{symbol}</h1>
+              <span className="tckr-detail__name">{universeDef?.name ?? ''}</span>
+            </div>
 
-      <div className="tckr-detail__identity">
-        <h1 className="tckr-detail__symbol">{symbol}</h1>
-        <span className="tckr-detail__name">{universeDef?.name ?? ''}</span>
-      </div>
-
-      {phase === 'loading' || !quote ? (
-        <p className="tckr-detail__loading" data-testid="stock-detail-loading">
-          Loading…
-        </p>
-      ) : (
-        <div className="tckr-detail__quote">
-          <div className="tckr-detail__price-row">
-            <span className="tckr-detail__price" data-testid="stock-detail-price">
-              <PriceCell value={quote.price} flashDirectionOverride={deltaDirection(quote.change)} />
-            </span>
-            <span className="tckr-detail__price-delta">
-              <span data-testid="stock-detail-change">
-                <PriceCell value={quote.change} sign indicateSign />
-              </span>{' '}
-              <span data-testid="stock-detail-change-percent" className={deltaClassName(quote.change)}>
-                ({quote.changePercentText}%)
-              </span>
-            </span>
-          </div>
-          <p className="tckr-detail__asof" data-testid="stock-detail-asof">
-            as of {formatExchangeTime(quote.exchangeTimestamp)} Cairo · simulated
-            {quote.stream === 'DELAYED' ? (
+            {phase === 'loading' || !quote ? (
+              <p className="tckr-detail__loading" data-testid="stock-detail-loading">
+                Loading…
+              </p>
+            ) : (
               <>
-                {' '}
-                · DELAYED — showing data from a simulated {formatOffset(delayedOffsetMs)} delay window (this is a
-                simulation artifact; the real delay is 15 minutes)
-              </>
-            ) : null}
-          </p>
-          {quote.stream === 'DELAYED' ? (
-            <div className="tckr-detail__delayed-note">
-              <span className="tckr-detail__delayed-note-icon" aria-hidden="true">
-                ◷
-              </span>
-              <div>
-                <div className="tckr-detail__delayed-note-title">You are on the delayed stream</div>
-                <div className="tckr-detail__delayed-note-detail">
-                  Your entitlement gives you prices behind the live tape. In this simulation the gap is faked at{' '}
-                  {formatOffset(delayedOffsetMs)}; on a real exchange feed it would be 15 minutes.
+                <div className="tckr-detail__price-row">
+                  <span className="tckr-detail__price" data-testid="stock-detail-price">
+                    <PriceCell value={quote.price} flashDirectionOverride={deltaDirection(quote.change)} />
+                  </span>
+                  <span
+                    className={`tckr-detail__delta-pill ${deltaClassName(quote.change) ?? ''}`}
+                    data-testid="stock-detail-change"
+                  >
+                    <PriceCell value={quote.change} sign />
+                  </span>
+                  <span
+                    className={`tckr-detail__delta-pill ${deltaClassName(quote.change) ?? ''}`}
+                    data-testid="stock-detail-change-percent"
+                  >
+                    {quote.changePercentText}%
+                  </span>
                 </div>
+                <p className="tckr-detail__asof" data-testid="stock-detail-asof">
+                  as of {formatExchangeTime(quote.exchangeTimestamp)} Cairo
+                  {quote.stream === 'DELAYED' ? (
+                    <>
+                      {' '}
+                      · DELAYED — showing data from a simulated {formatOffset(delayedOffsetMs)} delay window (this is
+                      a simulation artifact; the real delay is 15 minutes)
+                    </>
+                  ) : null}
+                </p>
+              </>
+            )}
+          </div>
+
+          <div className="tckr-detail__ranges">
+            {RANGE_KEYS.map((key) => (
+              <button
+                key={key}
+                type="button"
+                className={`tckr-detail__range-pill${range === key ? ' tckr-detail__range-pill--active' : ''}`}
+                aria-pressed={range === key}
+                onClick={() => setRange(key)}
+              >
+                {key}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {quote?.stream === 'DELAYED' ? (
+          <div className="tckr-detail__delayed-note">
+            <span className="tckr-detail__delayed-note-icon" aria-hidden="true">
+              ◷
+            </span>
+            <div>
+              <div className="tckr-detail__delayed-note-title">You are on the delayed stream</div>
+              <div className="tckr-detail__delayed-note-detail">
+                Your entitlement gives you prices behind the live tape. In this simulation the gap is faked at{' '}
+                {formatOffset(delayedOffsetMs)}; on a real exchange feed it would be 15 minutes.
               </div>
             </div>
-          ) : null}
-        </div>
-      )}
+          </div>
+        ) : null}
 
-      {historyPoints === undefined ? (
-        <p className="tckr-detail__loading" data-testid="stock-detail-chart-loading">
-          Loading chart…
-        </p>
-      ) : (
-        <PriceChart
-          key={symbol}
-          symbol={symbol}
-          tickSize={tickSize}
-          history={historyPoints}
-          livePrice={livePrice}
-          marketOpen={marketStatus.state === 'open'}
-        />
-      )}
+        {rangedHistory === undefined ? (
+          <p className="tckr-detail__loading" data-testid="stock-detail-chart-loading">
+            Loading chart…
+          </p>
+        ) : (
+          <PriceChart
+            key={`${symbol}:${range}`}
+            symbol={symbol}
+            tickSize={tickSize}
+            history={rangedHistory}
+            livePrice={livePrice}
+            rangeLabel={RANGE_LABELS[range]}
+          />
+        )}
+      </div>
 
       {quote ? (
         <div className="tckr-detail__stats" data-testid="stock-detail-footer">

@@ -42,7 +42,12 @@ describe('routing', () => {
     );
     // `StockDetail` is lazy-loaded (code-split from `uplot`), so its chunk resolves
     // asynchronously — wait for its content instead of asserting synchronously.
-    const symbolNode = await screen.findByText('COMI');
+    // Since the Frosted Glass Revamp's split-pane layout keeps `StockList` mounted
+    // beside the open detail pane (see App.tsx's nested routes / StockList's own
+    // `useMatch`), "COMI" now legitimately also appears in a hero card and the
+    // list's own (narrowed) row — so this must query the specific detail-heading
+    // element rather than plain text.
+    const symbolNode = await screen.findByText('COMI', { selector: '.tckr-detail__symbol' });
     expect(symbolNode.className).toBe('tckr-detail__symbol');
   });
 

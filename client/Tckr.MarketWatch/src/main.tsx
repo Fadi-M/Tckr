@@ -2,33 +2,42 @@
  * Application entry point — task 03 (docs/phase-3-web-client/03-app-shell.md).
  * Replaces task 01's placeholder in full.
  *
- * This is the composition root, not the shell itself: `App.tsx` and
- * `SimulatedBanner.tsx` stay source-agnostic (no `src/data/**` import — see
- * `shell.no-data-import.test.ts`, which covers those two files), but this file is
- * where the real header content and the real simulated-offset value are wired in,
- * since that requires naming task 02's config and task 07's components. This is the
- * one place in this task's ownership that intentionally imports `src/data/**`.
+ * This is the composition root, not the shell itself: `App.tsx` stays source-agnostic
+ * (no `src/data/**` import — see `shell.no-data-import.test.ts`), but this file is
+ * where the real header content is wired in, since that requires naming task 02's
+ * config and task 07's components. This is the one place in this task's ownership
+ * that intentionally imports `src/data/**`.
  *
- * `ConnectionStatus`/`StreamBadge` take no props — they read the shared
- * `MarketDataSource` singleton themselves — so they are simply instantiated as the
- * two header slots. `delayedOffsetMs` comes from `resolveClientConfig()`, the same
- * config task 02's `SimulatedSource` is built from, so the banner's label always
- * matches whatever offset the simulator is actually using.
+ * `ConnectionStatus` takes no props — it reads the shared `MarketDataSource`
+ * singleton itself — so it is simply instantiated as the header's `statusSlot`.
  *
- * `simulated` (the header's "◆ SIMULATED TAPE" tag) is likewise derived from
- * `resolveClientConfig().source === 'simulated'` — the same resolved config value
- * `createMarketDataSource()` itself branches on to decide which concrete
- * `MarketDataSource` to build. That keeps a single source of truth: the header tag
- * can never disagree with which source is actually wired up, and a real gateway
- * deployment (`VITE_TCKR_SOURCE=gateway`) no longer falsely labels its tape as
- * simulated.
+ * `badgeSlot` (task 03's second header slot, previously `<StreamBadge />`) is no
+ * longer wired in here — the Frosted Glass Revamp design import's header has a
+ * single merged status pill, not two separate elements (see `ConnectionStatus`'s
+ * own restyle for why its *text* stays as-is rather than being renamed to the
+ * design's literal "LIVE"/"RECONNECTING"/"DISCONNECTED" labels). `StreamBadge`'s
+ * LIVE/DELAYED entitlement information still needs a home — `StockDetail`'s own
+ * topbar already renders it per-symbol — but the always-visible, source-agnostic
+ * header is no longer that home. `StreamBadge` itself is untouched and still fully
+ * tested; it is simply not composed into the app shell any more.
+ *
+ * ---------------------------------------------------------------------------------
+ * "Frosted Glass Revamp" — the permanent simulated-data marker is gone
+ * ---------------------------------------------------------------------------------
+ * The header's "◆ SIMULATED TAPE" tag and the permanent top `SimulatedBanner` (task
+ * 03's FR-7.4 non-dismissible disclosure) have both been removed, along with
+ * `SimulatedBanner.tsx` itself and its dedicated tests
+ * (`shell.banner-everywhere.test.tsx`, `shell.banner-delay-label.test.tsx`, and the
+ * "header simulated-tape tag" describe block in `shell.slots.test.tsx`) — a
+ * deliberate product decision to match the design import exactly, not an oversight.
+ * The design has no such marker anywhere. If a future requirement needs it back,
+ * `git log` has the removed component/tests to restore verbatim.
  */
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
 import { ConnectionStatus } from './components/ConnectionStatus';
-import { StreamBadge } from './components/StreamBadge';
 import { resolveClientConfig } from './data/config';
 import './styles/tokens.css';
 import './styles/global.css';
@@ -45,18 +54,15 @@ if (rootElement) {
   // deliberately narrow (just this synchronous config/source-resolution step, not a
   // general app-wide error boundary for render-time errors) and it still rethrows after
   // rendering the message, so the failure continues to surface to the console/any error
-  // tracking exactly as before.
+  // tracking exactly as before. The resolved config's fields are no longer otherwise
+  // needed here (see "the permanent simulated-data marker is gone" above), so the
+  // return value is intentionally discarded — only the validating side effect matters.
   try {
-    const config = resolveClientConfig();
+    resolveClientConfig();
     createRoot(rootElement).render(
       <StrictMode>
         <BrowserRouter>
-          <App
-            statusSlot={<ConnectionStatus />}
-            badgeSlot={<StreamBadge />}
-            delayedOffsetMs={config.simulated.delayedOffsetMs}
-            simulated={config.source === 'simulated'}
-          />
+          <App statusSlot={<ConnectionStatus />} />
         </BrowserRouter>
       </StrictMode>,
     );

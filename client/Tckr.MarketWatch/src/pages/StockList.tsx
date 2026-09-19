@@ -17,14 +17,11 @@
  * ---------------------------------------------------------------------------------
  * "Tckr First Run" design pass additions (docs/decisions — design import)
  * ---------------------------------------------------------------------------------
- * Three presentational/decorative additions live in this file rather than in
- * `App.tsx`/`SimulatedBanner.tsx`, because those two files are contractually
- * data-source-agnostic (`shell.no-data-import.test.ts`) and this page already owns the
- * `/` route and imports `src/data/**`:
+ * Two presentational/decorative additions live in this file rather than in
+ * `App.tsx`, which is contractually data-source-agnostic
+ * (`shell.no-data-import.test.ts`), while this page already owns the `/` route and
+ * imports `src/data/**`:
  *
- *  - A ticker tape marquee (`TickerTape`) — decorative, refreshed on a 1s interval via
- *    an imperative `getSymbolSnapshot` read (same "don't re-render on every tick"
- *    discipline as the sort columns above), never a per-tick subscription.
  *  - A connection-state banner (`useConnectionBanner`) — an independent observer of the
  *    shared `MarketDataSource`, exactly like `ConnectionStatus`/`StreamBadge` already
  *    are (multiple independent subscribers to the same singleton is an established
@@ -45,6 +42,32 @@
  *    (the one sanctioned `DecimalString` -> `number` conversion for exactly this
  *    purpose) rather than inlining a second, duplicate string-to-number conversion of
  *    its own.
+ *
+ * ---------------------------------------------------------------------------------
+ * "Frosted Glass Revamp" design pass additions (design import:
+ * "Tckr.MarketWatch Frosted Glass Revamp/Tckr Market Watch.dc.html")
+ * ---------------------------------------------------------------------------------
+ *  - The ticker tape marquee ("Tckr First Run"'s `TickerTape`) is removed — the
+ *    design import has no scrolling-tape element anywhere in it (checked against
+ *    the `.dc.html` directly), and it is the design file, not the prior design
+ *    pass, that is the source of truth for this revamp.
+ *  - Hero cards (`HeroCards`/`HeroCard`) — Top Gainer / Top Loser / Most Active,
+ *    picked from an imperative `getSymbolSnapshot` sweep of the universe on the same
+ *    interval discipline as the active-preset re-sort above (never a per-tick
+ *    subscription), then each card independently subscribes to its own symbol
+ *    exactly like `StockListRow` (same throttled-subscribe/bounded-sparkline shape)
+ *    so its own price/percent/spark stay live between hero re-picks. Hidden while a
+ *    detail pane is open (mirrors the design's `isDetail`-collapsed hero row).
+ *  - Split-pane detail: `/symbols/:symbol` is now a *child* route of `/`
+ *    (`App.tsx`), rendered into this component's own `<Outlet />` rather than
+ *    replacing the whole page — the design's list-narrows/detail-slides-in-beside-it
+ *    layout. `useMatch('/symbols/:symbol')` tells this component whether a detail
+ *    pane is open (and for which symbol) purely from the URL, so opening/closing a
+ *    symbol never remounts `StockList` itself (search text, sort state, and every
+ *    row's subscription survive) — only the `<Outlet />` content and the grid's
+ *    column widths change. `StockDetail` itself is untouched: it already accepts a
+ *    bare `symbol` prop and owns its own subscribe/unsubscribe lifecycle, so it
+ *    renders identically whether it fills a page or a side pane.
  */
 import {
   useCallback,
@@ -56,7 +79,7 @@ import {
   useSyncExternalStore,
   type KeyboardEvent,
 } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Outlet, useMatch, useNavigate } from 'react-router-dom';
 import { compare, toDecimal, type DecimalString } from '../contracts/decimal.ts';
 import type { SymbolDefinition } from '../contracts/rest.ts';
 import { CloseCode } from '../contracts/closeCodes.ts';
@@ -107,6 +130,32 @@ const COLUMNS: readonly ColumnSpec[] = [
   { key: 'volume', label: 'Volume', sortable: true, hideNarrow: true, widthPercent: 12 },
   { key: 'lastUpdate', label: 'Last update', sortable: true, hideNarrow: true, widthPercent: 16 },
 ];
+
+/** Sum of the always-visible (`!hideNarrow`) columns' `widthPercent` — the
+ * denominator `narrowColumnWidthPercent` rescales against. */
+const NARROW_VISIBLE_WIDTH_TOTAL = COLUMNS.filter((column) => !column.hideNarrow).reduce(
+  (sum, column) => sum + column.widthPercent,
+  0,
+);
+
+/** `table-layout: fixed`'s `<colgroup>` widths are independent of which `<td>`s are
+ * actually visible — hiding a cell via `display: none` does not return its column's
+ * reserved width to the rest of the row (the browser does not auto-collapse a
+ * fixed-layout column just because every cell in it is hidden). Split-pane mode
+ * (`narrow`) hides the same columns the 640px breakpoint hides, but the list column
+ * itself can be far narrower than a real 640px viewport (see `StockList`'s grid), so
+ * the always-visible columns' original percentages (8/12/10, out of the *full*
+ * 8-column layout) leave most of the row blank and squeeze Symbol/Price/Change % into
+ * illegibly few pixels. Rescale them to fill 100% of the row instead; the 640px
+ * media-query narrow-hide path (real narrow viewports, untouched by this) does not
+ * call this — it keeps the original 8/12/10 of the full width, which is enough
+ * absolute pixels on an actual phone-width viewport. */
+function narrowColumnWidthPercent(column: ColumnSpec): number {
+  if (column.hideNarrow) {
+    return 0;
+  }
+  return (column.widthPercent / NARROW_VISIBLE_WIDTH_TOTAL) * 100;
+}
 
 type Preset = 'most-active' | 'gainers' | 'losers' | 'az';
 
@@ -187,6 +236,39 @@ function formatRelativeTime(lastUpdate: number, now: number): string {
   }
   const hours = Math.floor(minutes / 60);
   return `${hours}h ago`;
+}
+
+const NARROW_VIEWPORT_QUERY = '(max-width: 640px)';
+
+/** True below the 640px breakpoint (task 03's convention) — the *other* trigger,
+ * besides the split-pane, for narrowing the table down to Symbol/Price/Change %
+ * (see `StockListRow`'s `narrow` prop doc for why this needs to physically remove
+ * the hidden columns from the DOM rather than the CSS-only `display: none` this
+ * breakpoint used before the "Frosted Glass Revamp" split-pane pass: that CSS-only
+ * approach and `table-layout: fixed`'s per-column `<colgroup>` percentages
+ * miscompute in Chromium whenever a hidden column's `<col>` sits ahead of a visible
+ * one in the same `<colgroup>` — verified against this exact table, the visible
+ * column collapses to ~0 width instead of its specified percentage). Guarded for
+ * `window.matchMedia` not existing (jsdom in this repo's test environment has no
+ * `matchMedia` — see `shell.banner-everywhere.test.tsx`'s comment) so this always
+ * reads `false`, never throws, under test. */
+function useNarrowViewport(): boolean {
+  const getMatches = () =>
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia(NARROW_VIEWPORT_QUERY).matches
+      : false;
+  const [matches, setMatches] = useState(getMatches);
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return;
+    }
+    const mql = window.matchMedia(NARROW_VIEWPORT_QUERY);
+    const handleChange = () => setMatches(mql.matches);
+    handleChange();
+    mql.addEventListener('change', handleChange);
+    return () => mql.removeEventListener('change', handleChange);
+  }, []);
+  return matches;
 }
 
 // ---------------------------------------------------------------------------------
@@ -328,81 +410,6 @@ function MarketClosedBanner({ status }: { status: MarketStatus }) {
 }
 
 // ---------------------------------------------------------------------------------
-// Ticker tape — decorative marquee, refreshed on an interval, never a per-tick
-// subscription (see module doc).
-// ---------------------------------------------------------------------------------
-
-interface TapeItem {
-  readonly symbol: string;
-  readonly price: DecimalString;
-  readonly changePercent: number | undefined;
-}
-
-function readTapeItems(universe: readonly SymbolDefinition[]): readonly TapeItem[] {
-  return universe.map((def) => {
-    const view = getSymbolSnapshot(def.symbol);
-    return {
-      symbol: def.symbol,
-      price: view?.price ?? def.referencePrice,
-      changePercent: view?.changePercent,
-    };
-  });
-}
-
-function TickerTape({ universe, held }: { universe: readonly SymbolDefinition[]; held: boolean }) {
-  const [items, setItems] = useState<readonly TapeItem[]>(() => readTapeItems(universe));
-
-  useEffect(() => {
-    setItems(readTapeItems(universe));
-    const id = setInterval(() => setItems(readTapeItems(universe)), DISPLAY_REFRESH_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, [universe]);
-
-  if (items.length === 0) {
-    return null;
-  }
-
-  const track = [...items, ...items];
-
-  return (
-    <div className={`tckr-tape${held ? ' tckr-tape--held' : ''}`} aria-hidden="true">
-      <div className="tckr-tape__track">
-        {track.map((item, index) => (
-          <span key={`${item.symbol}-${index}`} className="tckr-tape__item">
-            {item.symbol}{' '}
-            <span className="tckr-tape__price">
-              <PriceCell
-                value={item.price}
-                muted={held}
-                flashDirectionOverride={
-                  item.changePercent === undefined
-                    ? undefined
-                    : item.changePercent > 0
-                      ? 'up'
-                      : item.changePercent < 0
-                        ? 'down'
-                        : null
-                }
-              />
-            </span>{' '}
-            <span
-              className={
-                item.changePercent === undefined
-                  ? 'tckr-tape__delta'
-                  : `tckr-tape__delta ${item.changePercent > 0 ? 'tckr-delta--up' : item.changePercent < 0 ? 'tckr-delta--down' : ''}`
-              }
-            >
-              {item.changePercent === undefined ? '0.00%' : `${formatSignedPercent(item.changePercent)}`}
-            </span>
-          </span>
-        ))}
-      </div>
-      {held ? <div className="tckr-tape__held-label">TAPE HELD</div> : null}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------------
 // Sparkline — decorative only. See module doc for the "text vs. pixel geometry"
 // boundary this keeps.
 // ---------------------------------------------------------------------------------
@@ -430,6 +437,168 @@ function Sparkline({ points, direction }: { points: readonly number[]; direction
   );
 }
 
+// ---------------------------------------------------------------------------------
+// Hero cards — Top Gainer / Top Loser / Most Active. See module doc.
+// ---------------------------------------------------------------------------------
+
+interface HeroPick {
+  readonly kind: 'gainer' | 'loser' | 'active';
+  readonly kicker: string;
+  readonly definition: SymbolDefinition;
+}
+
+/** Imperative, one-shot read of the whole universe's current snapshots — same
+ * "poll on an interval, never subscribe per-tick" discipline as `TickerTape`/the
+ * active-sort-preset resort above. Falls back to each definition's own
+ * `referencePrice`/0 for a symbol with no snapshot yet (pre-first-tick), so the
+ * picks are stable even immediately after mount. */
+function pickHeroes(universe: readonly SymbolDefinition[]): readonly HeroPick[] {
+  if (universe.length === 0) {
+    return [];
+  }
+  const metrics = universe.map((definition) => {
+    const view = getSymbolSnapshot(definition.symbol);
+    return { definition, changePercent: view?.changePercent ?? 0, volume: view?.volume ?? 0 };
+  });
+  const gainer = [...metrics].sort((a, b) => b.changePercent - a.changePercent)[0]!;
+  const loser = [...metrics].sort((a, b) => a.changePercent - b.changePercent)[0]!;
+  const active = [...metrics].sort((a, b) => b.volume - a.volume)[0]!;
+  const candidates: readonly HeroPick[] = [
+    { kind: 'gainer', kicker: 'TOP GAINER', definition: gainer.definition },
+    { kind: 'loser', kicker: 'TOP LOSER', definition: loser.definition },
+    { kind: 'active', kicker: 'MOST ACTIVE', definition: active.definition },
+  ];
+  // A tiny universe (or a fixture in a test) can have the same symbol win more than
+  // one slot — keep only the first (highest-priority) pick per symbol so a card never
+  // renders twice.
+  const seen = new Set<string>();
+  return candidates.filter((pick) => {
+    if (seen.has(pick.definition.symbol)) {
+      return false;
+    }
+    seen.add(pick.definition.symbol);
+    return true;
+  });
+}
+
+interface HeroCardProps {
+  readonly kicker: string;
+  readonly kind: HeroPick['kind'];
+  readonly definition: SymbolDefinition;
+  readonly priceDecimals: number;
+  readonly onActivate: (symbol: string) => void;
+}
+
+function HeroCard({ kicker, kind, definition, priceDecimals, onActivate }: HeroCardProps) {
+  const { symbol, name, referencePrice } = definition;
+
+  // Same throttled-subscribe shape as `StockListRow` — see that component's doc for
+  // why a hand-rolled interval/gate is the wrong tool here.
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      const throttledStoreChange = createThrottle(onStoreChange, DISPLAY_REFRESH_INTERVAL_MS);
+      const unsubscribe = subscribeSymbol(symbol, throttledStoreChange);
+      return () => {
+        throttledStoreChange.cancel();
+        unsubscribe();
+      };
+    },
+    [symbol],
+  );
+  const view = useSyncExternalStore(subscribe, () => getSymbolSnapshot(symbol));
+
+  const priceMuted = view === undefined;
+  const price = view?.price ?? referencePrice;
+  const changePercent = view?.changePercent;
+  const volumeLabel = view ? view.volume.toLocaleString('en-US') : '—';
+
+  // Bounded sparkline history — same shape/purpose as `StockListRow`'s (decorative
+  // only; every price shown as *text* here still goes through `PriceCell`).
+  const historyRef = useRef<number[]>([]);
+  const currentPriceNum = toPlotValue(price);
+  useEffect(() => {
+    const last = historyRef.current[historyRef.current.length - 1];
+    if (last !== currentPriceNum) {
+      historyRef.current = [...historyRef.current, currentPriceNum].slice(-26);
+    }
+  }, [currentPriceNum]);
+  const sparklinePoints =
+    historyRef.current[historyRef.current.length - 1] === currentPriceNum
+      ? historyRef.current
+      : [...historyRef.current, currentPriceNum];
+  const direction: 'up' | 'down' | 'flat' =
+    changePercent === undefined || changePercent === 0 ? 'flat' : changePercent > 0 ? 'up' : 'down';
+
+  const badgeText = kind === 'active' ? `${volumeLabel} QTY` : changePercent === undefined ? '—' : formatSignedPercent(changePercent);
+  const badgeDeltaClass =
+    kind === 'active' || changePercent === undefined
+      ? ''
+      : changePercent > 0
+        ? ' tckr-delta--up'
+        : changePercent < 0
+          ? ' tckr-delta--down'
+          : '';
+
+  const directionWord = direction === 'flat' ? 'unchanged' : direction;
+  const ariaLabel =
+    kind === 'active'
+      ? `${kicker}: ${symbol}, ${String(price)}, volume ${volumeLabel}`
+      : changePercent === undefined
+        ? `${kicker}: ${symbol}, ${String(price)}`
+        : `${kicker}: ${symbol}, ${String(price)}, ${directionWord} ${Math.abs(changePercent).toFixed(1)}%`;
+
+  return (
+    <button type="button" className="tckr-hero__card" aria-label={ariaLabel} onClick={() => onActivate(symbol)}>
+      <div className="tckr-hero__row">
+        <span className="tckr-hero__kicker" aria-hidden="true">
+          {kicker}
+        </span>
+        <span className={`tckr-hero__badge${badgeDeltaClass}`} aria-hidden="true">
+          {badgeText}
+        </span>
+      </div>
+      <div className="tckr-hero__identity" aria-hidden="true">
+        <span className="tckr-hero__symbol">{symbol}</span>
+        <span className="tckr-hero__name">{name}</span>
+      </div>
+      <div className="tckr-hero__price-row" aria-hidden="true">
+        <span className="tckr-hero__price">
+          <PriceCell value={price} decimals={priceDecimals} muted={priceMuted} />
+        </span>
+        <Sparkline points={sparklinePoints} direction={direction} />
+      </div>
+    </button>
+  );
+}
+
+function HeroCards({
+  picks,
+  priceDecimalsBySymbol,
+  onActivate,
+}: {
+  picks: readonly HeroPick[];
+  priceDecimalsBySymbol: Map<string, number>;
+  onActivate: (symbol: string) => void;
+}) {
+  if (picks.length === 0) {
+    return null;
+  }
+  return (
+    <div className="tckr-hero">
+      {picks.map((pick) => (
+        <HeroCard
+          key={pick.kind}
+          kicker={pick.kicker}
+          kind={pick.kind}
+          definition={pick.definition}
+          priceDecimals={priceDecimalsBySymbol.get(pick.definition.symbol) ?? 2}
+          onActivate={onActivate}
+        />
+      ))}
+    </div>
+  );
+}
+
 const STOCK_LIST_STYLES = `
 .tckr-stocklist { width: 100%; max-width: 100%; }
 
@@ -447,75 +616,20 @@ const STOCK_LIST_STYLES = `
   white-space: nowrap;
 }
 
-.tckr-tape {
-  overflow: hidden;
-  background: var(--tckr-color-surface);
-  border: 1px solid var(--tckr-color-border);
-  border-radius: 10px;
-  padding: 9px 0;
-  margin-bottom: 14px;
-  position: relative;
-  -webkit-mask-image: linear-gradient(90deg, transparent, black 32px, black calc(100% - 32px), transparent);
-  mask-image: linear-gradient(90deg, transparent, black 32px, black calc(100% - 32px), transparent);
-}
-.tckr-tape__track {
-  display: flex;
-  gap: 26px;
-  width: max-content;
-  white-space: nowrap;
-  transition: opacity 250ms ease, filter 250ms ease;
-}
-/* WCAG 2.2.2 (Pause/Stop/Hide): the marquee is decorative, so it must not scroll
-   unconditionally. Under "no-preference" it scrolls as before; under "reduce" it
-   renders as a static row of the first N items (whatever fits before the tape's own
-   overflow: hidden crops it) — an acceptable degraded state, not a paginated one. */
-@media (prefers-reduced-motion: no-preference) {
-  .tckr-tape__track { animation: tckr-tape-scroll 32s linear infinite; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .tckr-tape__track { animation: none; }
-}
-/* A trader who wants to actually read one ticker needs a way to stop the scroll —
-   hovering pauses it. Scoped to hover-capable pointers, matching the existing
-   .tckr-stocklist__row:hover pattern below (a touch tap shouldn't "stick" the tape
-   paused with no visible way to resume it). */
-@media (hover: hover) and (pointer: fine) {
-  .tckr-tape:hover .tckr-tape__track { animation-play-state: paused; }
-}
-.tckr-tape--held .tckr-tape__track { opacity: 0.32; filter: saturate(0.3); animation-play-state: paused; }
-.tckr-tape__held-label {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--tckr-font-mono);
-  font-size: 0.6rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  color: var(--tckr-color-warning);
-  background: linear-gradient(90deg, color-mix(in oklab, var(--tckr-color-surface) 88%, transparent), transparent, color-mix(in oklab, var(--tckr-color-surface) 88%, transparent));
-  animation: tckr-fade-in 200ms ease-out;
-}
 @keyframes tckr-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
-}
-.tckr-tape__item { font-family: var(--tckr-font-mono); font-size: 0.72rem; color: var(--tckr-color-text-muted); }
-.tckr-tape__price { color: var(--tckr-color-text); }
-.tckr-tape__delta { font-variant-numeric: tabular-nums; }
-@keyframes tckr-tape-scroll {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
 }
 
 .tckr-conn-banner {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
-  border-radius: 9px;
+  padding: 12px 16px;
+  border-radius: 999px;
   margin-bottom: 14px;
+  backdrop-filter: blur(var(--tckr-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--tckr-blur)) saturate(150%);
   animation: tckr-banner-in 220ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 @keyframes tckr-banner-in {
@@ -523,20 +637,20 @@ const STOCK_LIST_STYLES = `
   to { opacity: 1; transform: translateY(0); }
 }
 .tckr-conn-banner--warning {
-  background: color-mix(in oklab, var(--tckr-color-warning) 9%, transparent);
-  border: 1px solid color-mix(in oklab, var(--tckr-color-warning) 26%, transparent);
+  background: color-mix(in oklab, var(--tckr-color-warning) 16%, var(--tckr-glass-bg));
+  border: 1px solid color-mix(in oklab, var(--tckr-color-warning) 32%, transparent);
 }
 .tckr-conn-banner--danger {
-  background: color-mix(in oklab, var(--tckr-color-down) 9%, transparent);
-  border: 1px solid color-mix(in oklab, var(--tckr-color-down) 26%, transparent);
+  background: color-mix(in oklab, var(--tckr-color-down) 16%, var(--tckr-glass-bg));
+  border: 1px solid color-mix(in oklab, var(--tckr-color-down) 32%, transparent);
 }
 /* Neutral, not warning/danger-colored: the market being closed overnight/on the
    weekend is expected, routine state, not a problem with the connection — using the
    same amber/red treatment as a dropped stream would wrongly suggest something is
    wrong. */
 .tckr-conn-banner--info {
-  background: color-mix(in oklab, var(--tckr-color-text-muted) 9%, transparent);
-  border: 1px solid color-mix(in oklab, var(--tckr-color-text-muted) 26%, transparent);
+  background: var(--tckr-glass-bg);
+  border: 1px solid var(--tckr-glass-border);
 }
 .tckr-conn-banner--info .tckr-conn-banner__icon { color: var(--tckr-color-text-muted); }
 .tckr-conn-banner__icon { flex: none; font-size: 15px; color: var(--tckr-color-warning); }
@@ -583,10 +697,12 @@ const STOCK_LIST_STYLES = `
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 12px;
-  border: 1px solid var(--tckr-color-border);
-  border-radius: 8px;
-  background: var(--tckr-color-surface-raised);
+  padding: 10px 14px;
+  border: 1px solid var(--tckr-glass-border);
+  border-radius: 999px;
+  background: var(--tckr-glass-bg);
+  backdrop-filter: blur(var(--tckr-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--tckr-blur)) saturate(150%);
   transition: border-color 150ms ease;
 }
 .tckr-stocklist__search-wrap:focus-within { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; }
@@ -608,13 +724,23 @@ const STOCK_LIST_STYLES = `
   border-radius: 4px;
   padding: 3px 6px;
 }
-.tckr-stocklist__table-wrap { width: 100%; max-width: 100%; border: 1px solid var(--tckr-color-border); border-radius: 10px; overflow: hidden; background: var(--tckr-color-surface); }
+.tckr-stocklist__table-wrap {
+  width: 100%;
+  max-width: 100%;
+  border: 1px solid var(--tckr-glass-border);
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--tckr-glass-bg);
+  backdrop-filter: blur(var(--tckr-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--tckr-blur)) saturate(160%);
+  box-shadow: 0 18px 40px -30px rgba(0, 0, 0, 0.4);
+}
 .tckr-stocklist__table { width: 100%; max-width: 100%; border-collapse: collapse; table-layout: fixed; }
 .tckr-stocklist__table th,
 .tckr-stocklist__table td {
-  padding: 11px 10px;
+  padding: 12px 12px;
   text-align: left;
-  border-bottom: 1px solid var(--tckr-color-border);
+  border-bottom: 1px solid var(--tckr-glass-border);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -626,7 +752,7 @@ const STOCK_LIST_STYLES = `
   letter-spacing: 0.1em;
   color: var(--tckr-color-text-muted);
   text-transform: uppercase;
-  background: var(--tckr-color-surface-raised);
+  background: transparent;
 }
 .tckr-stocklist__cell--symbol { font-family: var(--tckr-font-mono); font-weight: 700; }
 .tckr-stocklist__cell--numeric { text-align: right; font-variant-numeric: tabular-nums; }
@@ -639,11 +765,15 @@ const STOCK_LIST_STYLES = `
   gap: 2px;
 }
 .tckr-stocklist__sort-button:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; }
-.tckr-stocklist__row { cursor: pointer; transition: background-color 120ms ease; }
+.tckr-stocklist__row { cursor: pointer; transition: background-color 120ms ease, box-shadow 120ms ease; }
 @media (hover: hover) and (pointer: fine) {
-  .tckr-stocklist__row:hover { background: var(--tckr-color-surface-raised); }
+  .tckr-stocklist__row:hover { background: color-mix(in oklab, var(--tckr-color-text) 6%, transparent); }
 }
 .tckr-stocklist__row:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: -2px; }
+.tckr-stocklist__row--selected {
+  background: color-mix(in oklab, var(--tckr-color-up) 12%, transparent);
+  box-shadow: inset 3px 0 0 var(--tckr-color-up);
+}
 .tckr-stocklist--stale .tckr-stocklist__table-wrap { transition: opacity 250ms ease; opacity: 0.72; }
 .tckr-stocklist__changepct {
   display: inline-block;
@@ -681,15 +811,196 @@ const STOCK_LIST_STYLES = `
 @media (max-width: 640px) {
   .tckr-stocklist__col--narrow-hide { display: none; }
 }
+
+/* ---- Hero cards (Top Gainer / Top Loser / Most Active) ---------------------
+ * .tckr-hero-wrap stays mounted at all times (rather than the hero row being
+ * conditionally rendered) purely so it has something to animate: collapsing via
+ * max-height — a plain length, reliably animatable — rather than the mock's own
+ * grid-template-rows track-size transition (an fr-track transition, which has the
+ * same cross-browser animation problem .tckr-stocklist__shell used to have, see
+ * that rule's doc below). The max-height ceiling below is a deliberately generous
+ * guess at the tallest this row ever renders (three cards can wrap to multiple
+ * lines on a narrow split-pane list column) — see this technique's well-known
+ * "expand finishes faster than the nominal duration once content is shorter than
+ * the ceiling" trade-off, which is fine for a one-directional reveal like this.
+ */
+.tckr-hero-wrap {
+  overflow: hidden;
+  max-height: 640px;
+  opacity: 1;
+  margin-bottom: 14px;
+  transition: max-height 480ms cubic-bezier(0.23, 1, 0.32, 1), opacity 300ms ease, margin-bottom 480ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.tckr-hero-wrap--collapsed {
+  max-height: 0;
+  opacity: 0;
+  margin-bottom: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tckr-hero-wrap {
+    transition: none;
+  }
+}
+.tckr-hero {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+.tckr-hero__card {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  width: 100%;
+  padding: 16px 18px 15px;
+  border-radius: 20px;
+  background: var(--tckr-glass-bg);
+  backdrop-filter: blur(var(--tckr-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--tckr-blur)) saturate(160%);
+  border: 1px solid var(--tckr-glass-border);
+  box-shadow: 0 18px 40px -28px rgba(0, 0, 0, 0.4);
+  transition: transform 160ms ease-out, border-color 160ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .tckr-hero__card:hover { transform: translateY(-2px); }
+}
+.tckr-hero__card:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; }
+.tckr-hero__row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.tckr-hero__kicker { font-family: var(--tckr-font-mono); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.14em; color: var(--tckr-color-text-muted); }
+.tckr-hero__badge {
+  font-family: var(--tckr-font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--tckr-color-surface-raised);
+  white-space: nowrap;
+}
+.tckr-hero__badge.tckr-delta--up { background: color-mix(in oklab, var(--tckr-color-up) 20%, transparent); }
+.tckr-hero__badge.tckr-delta--down { background: color-mix(in oklab, var(--tckr-color-down) 20%, transparent); }
+.tckr-hero__identity { display: flex; align-items: baseline; gap: 8px; margin-top: 12px; min-width: 0; }
+.tckr-hero__symbol { font-family: var(--tckr-font-mono); font-weight: 700; font-size: 1.2rem; }
+.tckr-hero__name { font-size: 0.75rem; color: var(--tckr-color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tckr-hero__price-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; margin-top: 10px; }
+.tckr-hero__price { font-family: var(--tckr-font-mono); font-weight: 600; font-size: 1.55rem; }
+.tckr-hero__price-row .tckr-sparkline { width: 96px; height: 30px; flex: none; }
+
+/* ---- Split-pane shell: list | detail (Frosted Glass Revamp) ----------------
+ * Flexbox, not CSS Grid: an earlier version of this animated via
+ * grid-template-columns between values using fr/minmax(...) tracks (e.g.
+ * "minmax(0, 1fr) 0fr" -> "minmax(280px, 420px) minmax(0, 1fr)"), which does not
+ * reliably animate in browsers — fr and minmax() track sizes are not smoothly
+ * interpolable the way a plain length/percentage is, so the layout snapped instead
+ * of sliding. width and opacity/transform, both plain animatable properties, do
+ * not have that problem: .tckr-stocklist__list-col's width transitions between two
+ * plain values (100% vs. a px width), and .tckr-stocklist__detail-pane — kept at
+ * flex: 1 1 auto throughout — simply fills whatever space the list column's
+ * shrinking width leaves behind, every frame, for free (the same technique any
+ * animated resizable-sidebar layout uses).
+ *
+ * .tckr-stocklist__detail-pane always renders the Outlet — when no child route
+ * matches, it renders nothing, so the pane is simply empty (zero visual width, since
+ * nothing is there to give it a flex-basis) rather than conditionally mounted.
+ */
+.tckr-stocklist__shell {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.tckr-stocklist__list-col {
+  min-width: 0;
+  width: 100%;
+  transition: width 480ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.tckr-stocklist__shell--split .tckr-stocklist__list-col {
+  width: 380px;
+  flex: none;
+}
+.tckr-stocklist__detail-pane {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateX(16px);
+  transition: opacity 300ms ease, transform 420ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.tckr-stocklist__shell--split .tckr-stocklist__detail-pane {
+  opacity: 1;
+  transform: translateX(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tckr-stocklist__list-col,
+  .tckr-stocklist__detail-pane {
+    transition: none;
+  }
+}
+/* StockDetail centers itself with a 760px max-width for its standalone-page use
+   (its own unit tests render it that way) — inside the narrower split pane it should
+   simply fill the column instead. */
+.tckr-stocklist__detail-pane .tckr-detail { max-width: none; margin: 0; }
+/* Force the same narrow-column-hiding the 640px breakpoint already uses whenever the
+   detail pane is open, regardless of actual viewport width — the list column is
+   narrow then even on a wide screen. */
+.tckr-stocklist__shell--split .tckr-stocklist__col--narrow-hide { display: none; }
+.tckr-stocklist__all-link { flex: none; }
+
+/* ---- Mobile: the split pane stacks instead of squeezing side by side ------
+ * The split pane's fixed 380px list column (above) simply does not fit next to a
+ * usable detail pane under ~800px wide — before this rule it would overflow the
+ * viewport horizontally with the detail pane pushed off-screen entirely
+ * (.tckr-shell's overflow-x: hidden was silently clipping it, not just clipping
+ * a decorative border). Below the breakpoint, opening a symbol instead hides the
+ * list (still mounted — its search text, sort state, and subscriptions survive
+ * exactly as on desktop, see the module doc) and gives the detail pane the full
+ * width, matching a normal mobile "drill in" pattern. The toolbar (search/sort
+ * pills) hides too: StockDetail's own topbar already has a "← All instruments"
+ * link back, so the toolbar's copy of that pill is redundant once the list
+ * itself isn't visible to search/sort.
+ */
+@media (max-width: 800px) {
+  .tckr-stocklist__shell {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .tckr-stocklist__detail-pane {
+    width: 100%;
+  }
+  .tckr-stocklist--split .tckr-stocklist__toolbar {
+    display: none;
+  }
+  .tckr-stocklist__shell--split .tckr-stocklist__list-col {
+    display: none;
+  }
+  .tckr-stocklist__shell--split .tckr-stocklist__detail-pane {
+    transform: none;
+  }
+}
 `;
 
 interface StockListRowProps {
   readonly definition: SymbolDefinition;
   readonly priceDecimals: number;
   readonly onActivate: (symbol: string) => void;
+  /** Whether this row's symbol is the one currently open in the split-pane detail
+   * view (see `useMatch('/symbols/:symbol')` in `StockList`). Purely presentational
+   * (a glass highlight + accent edge) — never affects subscription lifecycle. */
+  readonly selected?: boolean;
+  /** True when the split-pane detail view is open (narrows the list column well
+   * below the 640px breakpoint's own narrow-hide threshold). Unlike the 640px
+   * breakpoint — which hides the same cells purely via CSS (`display: none`,
+   * `.tckr-stocklist__col--narrow-hide`) — this omits the hidden `<td>`s (and,
+   * in `StockList`, the corresponding `<col>`/`<th>`) from the DOM entirely.
+   * `table-layout: fixed`'s per-column width comes from each column's `<col>`
+   * percentage, but Chromium (verified against this exact table) miscomputes it
+   * when a visible column's `<col>` sits *after* a `display: none`-hidden one in
+   * the same `<colgroup>` — the visible column collapses to ~0 width instead of
+   * its specified percentage. Removing the hidden columns' `<col>`/cells outright
+   * (rather than hiding them) sidesteps that entirely, at the cost of the two
+   * paths (640px viewport vs. split-pane) using different mechanisms for what is
+   * visually the same "narrow" state. */
+  readonly narrow?: boolean;
 }
 
-function StockListRow({ definition, priceDecimals, onActivate }: StockListRowProps) {
+function StockListRow({ definition, priceDecimals, onActivate, selected = false, narrow = false }: StockListRowProps) {
   const { symbol, name, referencePrice } = definition;
 
   // A hot symbol can tick dozens of times/sec even after `TickDispatcher`'s per-frame
@@ -721,8 +1032,28 @@ function StockListRow({ definition, priceDecimals, onActivate }: StockListRowPro
   // — mirroring how `StockDetail.tsx` scopes its own throttle instance to one effect's
   // lifetime, and `.cancel()` runs in this same subscription's cleanup so no trailing
   // call can ever fire after this row (or its subscription) is gone.
+  //
+  // Exception: the `selected` row (its detail pane is open beside it in the split
+  // view — see `StockList`'s `useMatch`) subscribes *unthrottled*. `StockDetail`
+  // keeps its own independent ~30s-throttled display cadence (client-contract.md's
+  // "human-trackable" pacing, unchanged, still covered by
+  // `StockDetail.display-throttle.test.tsx`) — but its throttle window is anchored
+  // to whenever *it* mounted, which is essentially never in phase with this row's own
+  // (anchored to whenever this row's subscription last fired, likely long before the
+  // symbol was even selected). Two independently-phased ~30s windows reading the same
+  // tape can disagree for most of a 30s window at any given instant — visibly so,
+  // with the row and the detail pane for the *same symbol* on screen simultaneously.
+  // Since this now only affects one row at a time (not the whole table), the
+  // performance concern the throttle exists for does not apply here: an unthrottled
+  // single row always shows the same true current store value `StockDetail`'s own
+  // fresh `getSnapshot()`/live tick will (very shortly) converge to, closing the gap
+  // in the direction that was actually reported (the row lagging behind a freshly
+  // opened, more current detail pane).
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
+      if (selected) {
+        return subscribeSymbol(symbol, onStoreChange);
+      }
       const throttledStoreChange = createThrottle(onStoreChange, DISPLAY_REFRESH_INTERVAL_MS);
       const unsubscribe = subscribeSymbol(symbol, throttledStoreChange);
       return () => {
@@ -730,7 +1061,7 @@ function StockListRow({ definition, priceDecimals, onActivate }: StockListRowPro
         unsubscribe();
       };
     },
-    [symbol],
+    [symbol, selected],
   );
   const view = useSyncExternalStore(subscribe, () => getSymbolSnapshot(symbol));
 
@@ -793,19 +1124,22 @@ function StockListRow({ definition, priceDecimals, onActivate }: StockListRowPro
 
   return (
     <tr
-      className="tckr-stocklist__row"
+      className={`tckr-stocklist__row${selected ? ' tckr-stocklist__row--selected' : ''}`}
       tabIndex={0}
       aria-label={rowAriaLabel}
+      aria-current={selected ? 'true' : undefined}
       data-symbol={symbol}
       data-render-count={renderCountRef.current}
       onClick={() => onActivate(symbol)}
       onKeyDown={handleKeyDown}
     >
       <td className="tckr-stocklist__cell tckr-stocklist__cell--symbol">{symbol}</td>
-      <td className="tckr-stocklist__cell tckr-stocklist__col--narrow-hide">
-        <Sparkline points={sparklinePoints} direction={sparklineDirection} />
-      </td>
-      <td className="tckr-stocklist__cell tckr-stocklist__col--narrow-hide">{name}</td>
+      {narrow ? null : (
+        <td className="tckr-stocklist__cell tckr-stocklist__col--narrow-hide">
+          <Sparkline points={sparklinePoints} direction={sparklineDirection} />
+        </td>
+      )}
+      {narrow ? null : <td className="tckr-stocklist__cell tckr-stocklist__col--narrow-hide">{name}</td>}
       <td className="tckr-stocklist__cell tckr-stocklist__cell--numeric">
         <PriceCell
           value={price}
@@ -816,9 +1150,11 @@ function StockListRow({ definition, priceDecimals, onActivate }: StockListRowPro
           }
         />
       </td>
-      <td className="tckr-stocklist__cell tckr-stocklist__cell--numeric tckr-stocklist__col--narrow-hide">
-        <PriceCell value={change} decimals={priceDecimals} sign muted={priceMuted} indicateSign />
-      </td>
+      {narrow ? null : (
+        <td className="tckr-stocklist__cell tckr-stocklist__cell--numeric tckr-stocklist__col--narrow-hide">
+          <PriceCell value={change} decimals={priceDecimals} sign muted={priceMuted} indicateSign />
+        </td>
+      )}
       <td className="tckr-stocklist__cell tckr-stocklist__cell--numeric">
         {changePercent === undefined ? (
           <span className="tckr-price-cell tckr-price-cell--muted">—</span>
@@ -832,10 +1168,12 @@ function StockListRow({ definition, priceDecimals, onActivate }: StockListRowPro
           </span>
         )}
       </td>
-      <td className="tckr-stocklist__cell tckr-stocklist__cell--numeric tckr-stocklist__col--narrow-hide">
-        {volumeLabel}
-      </td>
-      <td className="tckr-stocklist__cell tckr-stocklist__col--narrow-hide">{lastUpdateLabel}</td>
+      {narrow ? null : (
+        <td className="tckr-stocklist__cell tckr-stocklist__cell--numeric tckr-stocklist__col--narrow-hide">
+          {volumeLabel}
+        </td>
+      )}
+      {narrow ? null : <td className="tckr-stocklist__cell tckr-stocklist__col--narrow-hide">{lastUpdateLabel}</td>}
     </tr>
   );
 }
@@ -850,6 +1188,30 @@ export function StockList() {
   const [sortState, setSortState] = useState<SortState | null>(null);
   const { state: connState, remainingSecs } = useConnectionBanner();
   const marketStatus = useMarketStatus();
+
+  // Whether a `/symbols/:symbol` child route is open, read straight from the URL —
+  // see module doc "Split-pane detail". Purely presentational (grid columns, hero
+  // visibility, row highlight); the detail pane's own data lifecycle is owned
+  // entirely by `StockDetail` via the `<Outlet />` below, not by this value.
+  const detailMatch = useMatch('/symbols/:symbol');
+  const selectedSymbol = detailMatch?.params.symbol ?? null;
+  const isNarrowViewport = useNarrowViewport();
+
+  // Top Gainer / Top Loser / Most Active — same imperative-poll discipline as
+  // `TickerTape`/the active-sort-preset resort below (see module doc). Only runs
+  // once the universe is loaded; recomputes on the same cadence as everything else
+  // on this page.
+  const [heroTick, forceHeroRecompute] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => {
+    if (!universe) {
+      return;
+    }
+    const id = setInterval(() => forceHeroRecompute(), DISPLAY_REFRESH_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [universe]);
+  // `heroTick` is intentionally in this array even though the body never reads it —
+  // bumping it is exactly what forces this memo to recompute on the interval above.
+  const heroPicks = useMemo(() => (universe ? pickHeroes(universe) : []), [universe, heroTick]);
 
   // `sorted` below reads live snapshot values *imperatively*, only when it recomputes
   // (see module doc: resorting on every tick would reintroduce the whole-table
@@ -982,9 +1344,11 @@ export function StockList() {
 
   const handleRowActivate = useCallback(
     (symbol: string) => {
-      navigate(`/symbols/${symbol}`);
+      // Mirrors the design import's `toggle()`: activating the already-open symbol
+      // closes the detail pane instead of re-navigating to the same route.
+      navigate(selectedSymbol === symbol ? '/' : `/symbols/${symbol}`);
     },
-    [navigate],
+    [navigate, selectedSymbol],
   );
 
   const clearSearch = useCallback(() => setRawQuery(''), []);
@@ -994,25 +1358,49 @@ export function StockList() {
       <>
         <style>{STOCK_LIST_STYLES}</style>
         <h1 className="tckr-visually-hidden">Tckr Market Watch</h1>
-        <p className="tckr-stocklist__loading">Loading instruments…</p>
+        <div className={`tckr-stocklist__shell${selectedSymbol ? ' tckr-stocklist__shell--split' : ''}`}>
+          <div className="tckr-stocklist__list-col">
+            <p className="tckr-stocklist__loading">Loading instruments…</p>
+          </div>
+          <div className="tckr-stocklist__detail-pane">
+            <Outlet />
+          </div>
+        </div>
       </>
     );
   }
 
   const isStale = connState.kind === 'reconnecting' || connState.kind === 'closed';
   const activePreset = presetFor(sortState);
+  const isSplit = selectedSymbol !== null;
+  // The list column collapses to Symbol/Price/Change % whenever *either* the
+  // split-pane detail is open or the real viewport is narrow — see
+  // `useNarrowViewport`'s doc for why both paths share this one DOM-level
+  // mechanism instead of the split-pane using it and the viewport case keeping
+  // the old CSS-only `display: none` one.
+  const narrow = isSplit || isNarrowViewport;
 
   return (
-    <div className={`tckr-stocklist${isStale ? ' tckr-stocklist--stale' : ''}`}>
+    <div
+      className={`tckr-stocklist${isStale ? ' tckr-stocklist--stale' : ''}${isSplit ? ' tckr-stocklist--split' : ''}`}
+    >
       <style>{STOCK_LIST_STYLES}</style>
 
       <h1 className="tckr-visually-hidden">Tckr Market Watch</h1>
 
-      <TickerTape universe={universe} held={isStale} />
       <ConnectionBanner state={connState} remainingSecs={remainingSecs} />
       <MarketClosedBanner status={marketStatus} />
 
+      <div className={`tckr-hero-wrap${isSplit ? ' tckr-hero-wrap--collapsed' : ''}`}>
+        <HeroCards picks={heroPicks} priceDecimalsBySymbol={priceDecimalsBySymbol} onActivate={handleRowActivate} />
+      </div>
+
       <div className="tckr-stocklist__toolbar">
+        {isSplit ? (
+          <button type="button" className="tckr-pill tckr-stocklist__all-link" onClick={() => navigate('/')}>
+            ← All instruments
+          </button>
+        ) : null}
         <div className="tckr-stocklist__pills">
           {PRESETS.map((preset) => (
             <button
@@ -1042,74 +1430,90 @@ export function StockList() {
           <span className="tckr-stocklist__kbd">⌘K</span>
         </label>
       </div>
-      <div className="tckr-stocklist__table-wrap">
-        <table className="tckr-stocklist__table">
-          <colgroup>
-            {COLUMNS.map((column) => (
-              <col key={column.key} style={{ width: `${column.widthPercent}%` }} />
-            ))}
-          </colgroup>
-          <thead>
-            <tr>
-              {COLUMNS.map((column) => (
-                <th
-                  key={column.key}
-                  className={column.hideNarrow ? 'tckr-stocklist__col--narrow-hide' : undefined}
-                  aria-sort={
-                    column.sortable && sortState?.column === column.key
-                      ? sortState.direction === 'asc'
-                        ? 'ascending'
-                        : 'descending'
-                      : 'none'
-                  }
-                >
-                  {column.sortable ? (
-                    <button
-                      type="button"
-                      className="tckr-stocklist__sort-button"
-                      onClick={() => handleSort(column.key as SortColumn)}
+
+      <div className={`tckr-stocklist__shell${isSplit ? ' tckr-stocklist__shell--split' : ''}`}>
+        <div className="tckr-stocklist__list-col">
+          <div className="tckr-stocklist__table-wrap">
+            <table className="tckr-stocklist__table">
+              <colgroup>
+                {COLUMNS.filter((column) => !narrow || !column.hideNarrow).map((column) => (
+                  <col
+                    key={column.key}
+                    style={{ width: `${narrow ? narrowColumnWidthPercent(column) : column.widthPercent}%` }}
+                  />
+                ))}
+              </colgroup>
+              <thead>
+                <tr>
+                  {COLUMNS.filter((column) => !narrow || !column.hideNarrow).map((column) => (
+                    <th
+                      key={column.key}
+                      className={!narrow && column.hideNarrow ? 'tckr-stocklist__col--narrow-hide' : undefined}
+                      aria-sort={
+                        column.sortable && sortState?.column === column.key
+                          ? sortState.direction === 'asc'
+                            ? 'ascending'
+                            : 'descending'
+                          : 'none'
+                      }
                     >
-                      {column.label}
-                      {sortState?.column === column.key ? (sortState.direction === 'asc' ? ' ▲' : ' ▼') : ''}
-                    </button>
-                  ) : (
-                    column.label
-                  )}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.length === 0 ? (
-              <tr>
-                <td colSpan={COLUMNS.length} className="tckr-stocklist__empty">
-                  <div className="tckr-stocklist__empty-count">0 of {universe.length}</div>
-                  <div className="tckr-stocklist__empty-title">No instruments match &ldquo;{rawQuery}&rdquo;</div>
-                  <div className="tckr-stocklist__empty-detail">
-                    Search runs on symbol and name. Try a shorter query, or browse the full board.
-                  </div>
-                  <div className="tckr-stocklist__empty-actions">
-                    <button type="button" onClick={clearSearch}>
-                      Clear search
-                    </button>
-                    <button type="button" onClick={clearSearch}>
-                      Browse all {universe.length}
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              sorted.map((def) => (
-                <StockListRow
-                  key={def.symbol}
-                  definition={def}
-                  priceDecimals={priceDecimalsBySymbol.get(def.symbol) ?? 2}
-                  onActivate={handleRowActivate}
-                />
-              ))
-            )}
-          </tbody>
-        </table>
+                      {column.sortable ? (
+                        <button
+                          type="button"
+                          className="tckr-stocklist__sort-button"
+                          onClick={() => handleSort(column.key as SortColumn)}
+                        >
+                          {column.label}
+                          {sortState?.column === column.key ? (sortState.direction === 'asc' ? ' ▲' : ' ▼') : ''}
+                        </button>
+                      ) : (
+                        column.label
+                      )}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={narrow ? COLUMNS.filter((column) => !column.hideNarrow).length : COLUMNS.length}
+                      className="tckr-stocklist__empty"
+                    >
+                      <div className="tckr-stocklist__empty-count">0 of {universe.length}</div>
+                      <div className="tckr-stocklist__empty-title">No instruments match &ldquo;{rawQuery}&rdquo;</div>
+                      <div className="tckr-stocklist__empty-detail">
+                        Search runs on symbol and name. Try a shorter query, or browse the full board.
+                      </div>
+                      <div className="tckr-stocklist__empty-actions">
+                        <button type="button" onClick={clearSearch}>
+                          Clear search
+                        </button>
+                        <button type="button" onClick={clearSearch}>
+                          Browse all {universe.length}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  sorted.map((def) => (
+                    <StockListRow
+                      key={def.symbol}
+                      definition={def}
+                      priceDecimals={priceDecimalsBySymbol.get(def.symbol) ?? 2}
+                      onActivate={handleRowActivate}
+                      selected={def.symbol === selectedSymbol}
+                      narrow={narrow}
+                    />
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div className="tckr-stocklist__detail-pane">
+          <Outlet />
+        </div>
       </div>
     </div>
   );
