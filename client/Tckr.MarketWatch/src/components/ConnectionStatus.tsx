@@ -13,6 +13,27 @@
  * Mounted into `App`'s `statusSlot` (task 03) — see this task's report for the exact
  * `main.tsx` wiring lines.
  *
+ * ---------------------------------------------------------------------------------
+ * "Frosted Glass Revamp" restyle — one merged pill, same text
+ * ---------------------------------------------------------------------------------
+ * The header used to render this component's plain text next to a separate
+ * `StreamBadge` pill (task 07). The design import has one merged, colour-coded
+ * status pill instead — `main.tsx` no longer wires `StreamBadge` into the header at
+ * all (see its doc comment), and this component's own outer `<span>` now carries
+ * `data-state` too (`global.css`'s `.tckr-connection-status[data-state=...]` rules),
+ * so the whole pill's background/border/glow — not just the dot — changes colour
+ * with the state.
+ *
+ * The *text* deliberately does not change to the design's literal placeholder
+ * labels ("LIVE"/"RECONNECTING"/"DISCONNECTED"): `describeState()`/`closeMessage()`
+ * below give five *distinct, actionable* messages for `closed` (see
+ * `status.close-codes.test.tsx`'s "4429 names the remedy") — collapsing all of them
+ * to one generic "DISCONNECTED" label would throw away real, load-bearing product
+ * information the design's own simplified 3-state placeholder never had to
+ * represent. It would also collide with `StreamBadge`'s own, unrelated use of the
+ * word "LIVE" for the entitlement stream (a genuinely different concept — see that
+ * file's doc) if both were ever visible together again later.
+ *
  * No props: like `StreamBadge`, this component observes only the shared
  * `MarketDataSource` singleton (`getSharedSource()`, from task 02's `config.ts`) — never
  * a concrete source, never a client-side default for what it displays.
@@ -130,7 +151,7 @@ export function ConnectionStatus() {
   const elapsedText = state.kind === 'connected' ? formatElapsed(Date.now() - state.since) : '';
 
   return (
-    <span className="tckr-connection-status" role="status">
+    <span className="tckr-connection-status" data-state={state.kind} role="status">
       <span className="tckr-status-dot" data-state={state.kind} aria-hidden="true" />
       <span data-testid="connection-status">{describeState(state, remainingSecs, elapsedText)}</span>
     </span>

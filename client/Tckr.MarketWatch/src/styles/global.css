@@ -13,21 +13,28 @@
   box-sizing: border-box;
 }
 
+/* `min-height`, not `height`: `height: 100%` on all three would clip each box to
+   exactly one viewport tall (the percentage chain's basis), so on any page taller
+   than one viewport — this app's list view, essentially always — body's own box
+   (and therefore anywhere relying on it, e.g. a forced repaint after a theme
+   change) would stop at the first viewport's height while real content keeps
+   scrolling past it. `min-height` lets each box grow to fit its actual content. */
 html,
 body,
 #root {
-  height: 100%;
+  min-height: 100%;
 }
 
 body {
   margin: 0;
-  background: var(--tckr-color-surface);
+  background: var(--tckr-bg-gradient);
   color: var(--tckr-color-text);
   font-family: var(--tckr-font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
 .tckr-shell {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 100%;
@@ -36,41 +43,62 @@ body {
   overflow-x: hidden;
 }
 
-/* ---- Simulated data banner ------------------------------------------------ */
-/* Always the first element in .tckr-shell. Not dismissible: no button, no
-   affordance to hide it, on any route. */
-.tckr-banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 10px 16px;
-  background: color-mix(in oklab, var(--tckr-color-warning) 12%, var(--tckr-color-surface));
-  color: var(--tckr-color-text);
-  border-bottom: 1px solid var(--tckr-color-border);
-  font-size: 0.8rem;
-  line-height: 1.45;
+/* ---- Frosted-glass background blobs ---------------------------------------
+ * Purely decorative (`aria-hidden`), fixed behind every route so the glass
+ * panels below (header, banners, table, hero cards) have something colourful
+ * and blurred to actually show through — a flat single-colour background makes
+ * `backdrop-filter: blur(...)` invisible. Design import:
+ * "Tckr.MarketWatch Frosted Glass Revamp/Tckr Market Watch.dc.html".
+ */
+.tckr-blob {
+  position: fixed;
+  z-index: -1;
+  border-radius: 50%;
+  filter: blur(70px);
+  pointer-events: none;
 }
-
-.tckr-banner__icon {
-  flex: 0 0 auto;
-  color: var(--tckr-color-warning);
+.tckr-blob--a {
+  top: -180px;
+  right: -80px;
+  width: 720px;
+  height: 560px;
+  background: radial-gradient(circle at 60% 40%, var(--tckr-blob-a), transparent 68%);
 }
-
-.tckr-banner__text {
-  flex: 1 1 auto;
+.tckr-blob--b {
+  top: 90px;
+  right: 280px;
+  width: 480px;
+  height: 440px;
+  background: radial-gradient(circle at 50% 50%, var(--tckr-blob-b), transparent 70%);
+}
+.tckr-blob--c {
+  bottom: -220px;
+  left: -140px;
+  width: 720px;
+  height: 600px;
+  background: radial-gradient(circle at 40% 60%, var(--tckr-blob-c), transparent 70%);
+}
+@media (max-width: 640px) {
+  .tckr-blob {
+    display: none;
+  }
 }
 
 /* ---- Header ---------------------------------------------------------------- */
 .tckr-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   width: 100%;
   padding: 14px 20px;
-  background: var(--tckr-color-surface-raised);
-  border-bottom: 1px solid var(--tckr-color-border);
+  background: var(--tckr-glass-bg);
+  backdrop-filter: blur(var(--tckr-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--tckr-blur)) saturate(160%);
+  border-bottom: 1px solid var(--tckr-glass-border);
 }
 
 .tckr-header__brand {
@@ -91,15 +119,6 @@ body {
   flex: none;
 }
 
-.tckr-header__tape-tag {
-  font-family: var(--tckr-font-mono);
-  font-size: 0.65rem;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  color: var(--tckr-color-warning);
-  white-space: nowrap;
-}
-
 .tckr-header__slots {
   display: flex;
   align-items: center;
@@ -107,6 +126,35 @@ body {
   flex-wrap: wrap;
   justify-content: flex-end;
   font-family: var(--tckr-font-mono);
+}
+
+/* ---- Theme toggle ----------------------------------------------------------- */
+.tckr-theme-toggle {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid var(--tckr-glass-border);
+  background: var(--tckr-glass-bg);
+  color: var(--tckr-color-text);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 120ms ease-out, border-color 150ms ease;
+}
+.tckr-theme-toggle:hover {
+  border-color: var(--tckr-color-accent);
+}
+.tckr-theme-toggle:active {
+  transform: scale(0.92);
+}
+.tckr-theme-toggle:focus-visible {
+  outline: 2px solid var(--tckr-color-accent);
+  outline-offset: 2px;
 }
 
 /* ---- Page container --------------------------------------------------------- */
@@ -128,8 +176,8 @@ body {
   font-size: 0.65rem;
   font-weight: 600;
   letter-spacing: 0.09em;
-  padding: 5px 9px;
-  border-radius: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
   border: 1px solid var(--tckr-color-border);
   white-space: nowrap;
 }
@@ -160,13 +208,40 @@ body {
   flex: none;
 }
 
+/* Merged status pill (Frosted Glass Revamp) — see ConnectionStatus.tsx's doc for
+ * why the *text* stays as-is while this became one colour-coded pill instead of a
+ * plain muted line beside a separate badge. */
 .tckr-connection-status {
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
-  color: var(--tckr-color-text-muted);
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
+  font-family: var(--tckr-font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--tckr-glass-border);
+  background: var(--tckr-glass-bg);
+  color: var(--tckr-color-text-muted);
+  white-space: nowrap;
+}
+.tckr-connection-status[data-state='connected'] {
+  color: var(--tckr-color-up);
+  background: color-mix(in oklab, var(--tckr-color-up) 16%, var(--tckr-glass-bg));
+  border-color: color-mix(in oklab, var(--tckr-color-up) 32%, transparent);
+  box-shadow: 0 4px 14px color-mix(in oklab, var(--tckr-color-up) 30%, transparent);
+}
+.tckr-connection-status[data-state='connecting'],
+.tckr-connection-status[data-state='reconnecting'] {
+  color: var(--tckr-color-warning);
+  background: color-mix(in oklab, var(--tckr-color-warning) 16%, var(--tckr-glass-bg));
+  border-color: color-mix(in oklab, var(--tckr-color-warning) 32%, transparent);
+}
+.tckr-connection-status[data-state='closed'] {
+  color: var(--tckr-color-down);
+  background: color-mix(in oklab, var(--tckr-color-down) 16%, var(--tckr-glass-bg));
+  border-color: color-mix(in oklab, var(--tckr-color-down) 32%, transparent);
 }
 
 .tckr-status-dot {
@@ -225,9 +300,5 @@ body {
 
   .tckr-page {
     padding: 12px;
-  }
-
-  .tckr-banner {
-    padding: 8px 12px;
   }
 }

@@ -2,25 +2,48 @@
  * The application frame — task 03 (docs/phase-3-web-client/03-app-shell.md).
  *
  * Layout (top to bottom, always in this order in the DOM):
- *   1. `SimulatedBanner` — permanent, present on every route.
- *   2. Header — brand, plus two named slots (`statusSlot`, `badgeSlot`) that
- *      task 07 renders `ConnectionStatus` / `StreamBadge` into, without editing
- *      this file. The "◆ SIMULATED TAPE" tag only renders when the `simulated`
- *      prop is true — this file must not decide that itself (see below), so the
- *      composition root passes it in already resolved.
- *   3. `<Routes>` — `/` and `/symbols/:symbol`, rendered inside `.tckr-page`.
+ *   1. Decorative background blobs (`.tckr-blob`, styles in global.css) — the
+ *      "Frosted Glass Revamp" design import's blurred colour blobs, fixed behind
+ *      every route so the glass panels have something to blur. Purely decorative
+ *      markup (`aria-hidden`), no data.
+ *   2. Header — brand, plus a named `statusSlot` that task 07 renders
+ *      `ConnectionStatus` into, without editing this file. `ThemeToggle`
+ *      (light/dark, `src/theme/useTheme.ts`) is rendered directly rather than
+ *      through a slot: it needs no data-layer wiring, so it does not need
+ *      main.tsx's composition-root treatment the way the data-driven slot does.
+ *   3. `<Routes>` — rendered inside `.tckr-page`.
  *
  * This file does not import anything from `src/data/**` directly — see
  * `shell.no-data-import.test.ts`. It does render `StockList` (task 04) and
  * `StockDetail` (task 06), which own their own data-layer wiring.
  *
- * Route targets: `/` renders task 04's `StockList` (no props); `/symbols/:symbol`
- * renders task 06's `StockDetail` via `StockDetailRoute`, which reads the `symbol`
- * route param with `useParams` and passes it straight through.
+ * Route targets — nested, not sibling, routes (Frosted Glass Revamp split-pane
+ * layout): `/` renders task 04's `StockList` as a persistent *layout* route, and
+ * `/symbols/:symbol` is a *child* route rendered into `StockList`'s own `<Outlet />`
+ * (via `StockDetailRoute`, which reads the `symbol` route param with `useParams` and
+ * passes it straight through). Nesting them this way — rather than two sibling
+ * `<Route>`s, which is what this file had before the revamp — means React Router
+ * does not unmount/remount `StockList` when a symbol is opened or closed: the list's
+ * search text, sort state, and subscriptions all survive, and only the detail pane
+ * (behind `StockDetail`'s own lazy import, still code-split from `uplot`) slides in
+ * or out beside it. `StockList` reads `useMatch('/symbols/:symbol')` itself to know
+ * whether a detail pane is open, for the split grid layout — see that file.
+ *
+ * ---------------------------------------------------------------------------------
+ * "Frosted Glass Revamp" — the permanent simulated-data marker is gone
+ * ---------------------------------------------------------------------------------
+ * This file used to also render a permanent, non-dismissible `SimulatedBanner`
+ * (task 03's FR-7.4 disclosure) above the header, and the header itself used to
+ * show a "◆ SIMULATED TAPE" tag when `simulated` was true. Both are removed — a
+ * deliberate product decision to match the design import exactly (it has neither),
+ * not an oversight — along with `SimulatedBanner.tsx`, its tests
+ * (`shell.banner-everywhere.test.tsx`, `shell.banner-delay-label.test.tsx`), and the
+ * "header simulated-tape tag" tests in `shell.slots.test.tsx`. `git log` has all of
+ * it verbatim if a future requirement needs it restored.
  */
 import { lazy, Suspense, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
-import { SimulatedBanner } from './components/SimulatedBanner';
+import { ThemeToggle } from './components/ThemeToggle';
 import { StockList } from './pages/StockList';
 
 // Lazy-loaded so the chart library (`uplot`), only needed on the per-symbol
@@ -34,21 +57,15 @@ const StockDetail = lazy(() =>
 export interface AppHeaderProps {
   /** Rendered by task 07's `ConnectionStatus`. */
   statusSlot?: ReactNode | undefined;
-  /** Rendered by task 07's `StreamBadge`. */
+  /** Generic second header slot — no longer populated by `main.tsx` (see the
+   * "permanent simulated-data marker is gone" note above for why `StreamBadge`
+   * specifically is no longer wired in here), but the slot mechanism itself is
+   * still exercised directly by `shell.slots.test.tsx` and stays available for
+   * whatever a future header addition needs. */
   badgeSlot?: ReactNode | undefined;
-  /**
-   * Whether the active `MarketDataSource` is the simulator. This file must stay
-   * data-source-agnostic (see the module doc comment / `shell.no-data-import.test.ts`),
-   * so it cannot import `src/data/config.ts` to check `resolveClientConfig().source`
-   * itself — the composition root (`main.tsx`) resolves that and passes the boolean
-   * down, the same pattern `SimulatedBanner`'s `delayedOffsetMs` prop already uses.
-   * Defaults to `false` (tag hidden) so a caller that forgets to pass it never falsely
-   * claims a real gateway deployment is simulated.
-   */
-  simulated?: boolean | undefined;
 }
 
-function AppHeader({ statusSlot, badgeSlot, simulated }: AppHeaderProps) {
+function AppHeader({ statusSlot, badgeSlot }: AppHeaderProps) {
   return (
     <header className="tckr-header">
       <div className="tckr-header__brand">
@@ -56,9 +73,9 @@ function AppHeader({ statusSlot, badgeSlot, simulated }: AppHeaderProps) {
         <span>Tckr</span>
       </div>
       <div className="tckr-header__slots">
-        {simulated ? <span className="tckr-header__tape-tag">◆ SIMULATED TAPE</span> : null}
         {statusSlot}
         {badgeSlot}
+        <ThemeToggle />
       </div>
     </header>
   );
@@ -78,21 +95,20 @@ export interface AppProps {
   statusSlot?: ReactNode | undefined;
   /** See `AppHeaderProps.badgeSlot`. */
   badgeSlot?: ReactNode | undefined;
-  /** Forwarded to `SimulatedBanner` — see its doc comment. */
-  delayedOffsetMs?: number | undefined;
-  /** See `AppHeaderProps.simulated`. */
-  simulated?: boolean | undefined;
 }
 
-export function App({ statusSlot, badgeSlot, delayedOffsetMs, simulated }: AppProps) {
+export function App({ statusSlot, badgeSlot }: AppProps) {
   return (
     <div className="tckr-shell">
-      <SimulatedBanner delayedOffsetMs={delayedOffsetMs} />
-      <AppHeader statusSlot={statusSlot} badgeSlot={badgeSlot} simulated={simulated} />
+      <span className="tckr-blob tckr-blob--a" aria-hidden="true" />
+      <span className="tckr-blob tckr-blob--b" aria-hidden="true" />
+      <span className="tckr-blob tckr-blob--c" aria-hidden="true" />
+      <AppHeader statusSlot={statusSlot} badgeSlot={badgeSlot} />
       <main className="tckr-page">
         <Routes>
-          <Route path="/" element={<StockList />} />
-          <Route path="/symbols/:symbol" element={<StockDetailRoute />} />
+          <Route path="/" element={<StockList />}>
+            <Route path="symbols/:symbol" element={<StockDetailRoute />} />
+          </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
