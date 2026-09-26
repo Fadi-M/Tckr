@@ -75,6 +75,11 @@
      ratio already passes easily. */
   --tckr-chip-text-up: #0d6841;
   --tckr-chip-text-down: #a33025;
+  /* Tckr logo (design import: "Tckr Logo Final.dc.html" / logo/README.md). Exact
+     brand values, deliberately not aliased to --tckr-color-text/-up: the logo spec
+     pins ink/white and green/mint independently of the app's text and price tokens. */
+  --tckr-logo-ink: #14181f;
+  --tckr-logo-candle: #0f7a4d;
 }
 
 /* Explicit "system" dark preference. `:not([data-theme="light"])` lets a future
@@ -110,6 +115,8 @@
     --tckr-chart-body-border: rgba(255, 255, 255, 0.08);
     --tckr-chip-text-up: var(--tckr-color-up);
     --tckr-chip-text-down: var(--tckr-color-down);
+    --tckr-logo-ink: #ffffff;
+    --tckr-logo-candle: #3fd79c;
   }
 }
 
@@ -144,4 +151,6 @@
   --tckr-chart-body-border: rgba(255, 255, 255, 0.08);
   --tckr-chip-text-up: var(--tckr-color-up);
   --tckr-chip-text-down: var(--tckr-color-down);
+  --tckr-logo-ink: #ffffff;
+  --tckr-logo-candle: #3fd79c;
 }

@@ -6,9 +6,9 @@
  *      "Frosted Glass Revamp" design import's blurred colour blobs, fixed behind
  *      every route so the glass panels have something to blur. Purely decorative
  *      markup (`aria-hidden`), no data.
- *   2. Header — brand, plus a named `statusSlot` that task 07 renders
- *      `ConnectionStatus` into, without editing this file. `ThemeToggle`
- *      (light/dark, `src/theme/useTheme.ts`) is rendered directly rather than
+ *   2. Header — the Tckr logo lockup (`TckrLogo`, links home), plus a named
+ *      `statusSlot` that task 07 renders `ConnectionStatus` into, without editing
+ *      this file. `ThemeToggle` (light/dark, `src/theme/useTheme.ts`) is rendered directly rather than
  *      through a slot: it needs no data-layer wiring, so it does not need
  *      main.tsx's composition-root treatment the way the data-driven slot does.
  *   3. `<Routes>` — rendered inside `.tckr-page`.
@@ -42,7 +42,8 @@
  * it verbatim if a future requirement needs it restored.
  */
 import { lazy, Suspense, type ReactNode } from 'react';
-import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { TckrLogo } from './components/TckrLogo';
 import { ThemeToggle } from './components/ThemeToggle';
 import { StockList } from './pages/StockList';
 
@@ -70,10 +71,13 @@ function AppHeader({ statusSlot, badgeSlot }: AppHeaderProps) {
     <header
       className="sticky top-0 z-[5] flex items-center justify-between gap-3 w-full px-5 py-3.5 bg-glass backdrop-blur-tckr backdrop-saturate-[160%] border-b border-glass-border reduced-transparency:bg-surface contrast-more:bg-surface reduced-transparency:backdrop-blur-none contrast-more:backdrop-blur-none max-[640px]:flex-col max-[640px]:items-stretch"
     >
-      <div className="flex items-center gap-2.5 font-extrabold text-[1.05rem] tracking-[-0.02em] whitespace-nowrap">
-        <span className="w-[9px] h-[9px] rounded-[2px] bg-up flex-none" aria-hidden="true" />
-        <span>Tckr</span>
-      </div>
+      <Link
+        to="/"
+        aria-label="Tckr"
+        className="flex items-center rounded-md no-underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent max-[640px]:self-start"
+      >
+        <TckrLogo size={24} />
+      </Link>
       <div className="flex items-center gap-3.5 flex-wrap justify-end font-mono max-[640px]:justify-start">
         {statusSlot}
         {badgeSlot}
