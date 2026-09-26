@@ -47,8 +47,8 @@ describe('routing', () => {
     // `useMatch`), "COMI" now legitimately also appears in a hero card and the
     // list's own (narrowed) row — so this must query the specific detail-heading
     // element rather than plain text.
-    const symbolNode = await screen.findByText('COMI', { selector: '.tckr-detail__symbol' });
-    expect(symbolNode.className).toBe('tckr-detail__symbol');
+    const symbolNode = await screen.findByTestId('stock-detail-symbol');
+    expect(symbolNode.textContent).toBe('COMI');
   });
 
   it('redirects an unknown path to /', async () => {

@@ -43,8 +43,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
 import { ConnectionStatus } from './components/ConnectionStatus';
 import { resolveClientConfig } from './data/config';
-import './styles/tokens.css';
-import './styles/global.css';
+import './styles/tailwind.css';
 
 const rootElement = document.getElementById('root');
 if (rootElement) {

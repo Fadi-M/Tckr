@@ -332,22 +332,38 @@ function closeDetail(code: CloseCode): string {
   }
 }
 
+// Shared banner treatment — ConnectionBanner (warning/danger) and MarketClosedBanner
+// (info) all render the same frosted-glass pill shape, animate in the same way, and
+// share the same reduced-transparency/contrast-more opaque fallback (previously
+// `.tckr-conn-banner` + a `--warning`/`--danger`/`--info` modifier). Each tone's
+// background/border is a `color-mix` the design tokens don't expose as a plain
+// utility, so it stays as an arbitrary value here rather than a new token.
+const CONN_BANNER_BASE =
+  'flex items-center gap-3 px-4 py-3 rounded-full mb-3.5 backdrop-blur-tckr backdrop-saturate-150 animate-banner-in reduced-transparency:backdrop-blur-none reduced-transparency:backdrop-saturate-100 contrast-more:backdrop-blur-none contrast-more:backdrop-saturate-100';
+const CONN_BANNER_WARNING =
+  'bg-[color-mix(in_oklab,var(--tckr-color-warning)_16%,var(--tckr-glass-bg))] border border-[color-mix(in_oklab,var(--tckr-color-warning)_32%,transparent)] reduced-transparency:bg-[color-mix(in_oklab,var(--tckr-color-warning)_16%,var(--tckr-color-surface))] contrast-more:bg-[color-mix(in_oklab,var(--tckr-color-warning)_16%,var(--tckr-color-surface))]';
+const CONN_BANNER_DANGER =
+  'bg-[color-mix(in_oklab,var(--tckr-color-down)_16%,var(--tckr-glass-bg))] border border-[color-mix(in_oklab,var(--tckr-color-down)_32%,transparent)] reduced-transparency:bg-[color-mix(in_oklab,var(--tckr-color-down)_16%,var(--tckr-color-surface))] contrast-more:bg-[color-mix(in_oklab,var(--tckr-color-down)_16%,var(--tckr-color-surface))]';
+const CONN_BANNER_INFO = 'bg-glass border border-glass-border reduced-transparency:bg-surface contrast-more:bg-surface';
+const CONN_BANNER_ACTION =
+  "[font-family:inherit] [font-style:inherit] [line-height:inherit] font-semibold text-[0.75rem] px-[13px] py-[7px] rounded-md border border-border bg-text text-surface cursor-pointer flex-none [transition:transform_120ms_ease-out,opacity_150ms_ease] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2";
+
 function ConnectionBanner({ state, remainingSecs }: { state: ConnectionState; remainingSecs: number }) {
   if (state.kind === 'reconnecting') {
     return (
-      <div className="tckr-conn-banner tckr-conn-banner--warning" role="alert">
-        <span className="tckr-conn-banner__icon" aria-hidden="true">
+      <div className={`${CONN_BANNER_BASE} ${CONN_BANNER_WARNING}`} role="alert">
+        <span className="flex-none text-[15px] text-warning" aria-hidden="true">
           ◴
         </span>
-        <div className="tckr-conn-banner__body">
-          <div className="tckr-conn-banner__title">The stream dropped — retrying in {remainingSecs}s</div>
-          <div className="tckr-conn-banner__detail">
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-[0.85rem]">The stream dropped — retrying in {remainingSecs}s</div>
+          <div className="mt-[3px] text-[0.78rem] text-text-muted">
             Attempt {state.attempt}. Prices below are the last values received and are no longer moving.
           </div>
         </div>
         <button
           type="button"
-          className="tckr-conn-banner__action"
+          className={CONN_BANNER_ACTION}
           onClick={() => {
             reconnectSharedSource();
           }}
@@ -360,17 +376,17 @@ function ConnectionBanner({ state, remainingSecs }: { state: ConnectionState; re
 
   if (state.kind === 'closed') {
     return (
-      <div className="tckr-conn-banner tckr-conn-banner--danger" role="alert">
-        <span className="tckr-conn-banner__icon" aria-hidden="true">
+      <div className={`${CONN_BANNER_BASE} ${CONN_BANNER_DANGER}`} role="alert">
+        <span className="flex-none text-[15px] text-down" aria-hidden="true">
           ⚠
         </span>
-        <div className="tckr-conn-banner__body">
-          <div className="tckr-conn-banner__title">Disconnected</div>
-          <div className="tckr-conn-banner__detail">{closeDetail(state.code)}</div>
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-[0.85rem]">Disconnected</div>
+          <div className="mt-[3px] text-[0.78rem] text-text-muted">{closeDetail(state.code)}</div>
         </div>
         <button
           type="button"
-          className="tckr-conn-banner__action"
+          className={CONN_BANNER_ACTION}
           onClick={() => {
             reconnectSharedSource();
           }}
@@ -398,13 +414,13 @@ function MarketClosedBanner({ status }: { status: MarketStatus }) {
     return null;
   }
   return (
-    <div className="tckr-conn-banner tckr-conn-banner--info" role="status">
-      <span className="tckr-conn-banner__icon" aria-hidden="true">
+    <div className={`${CONN_BANNER_BASE} ${CONN_BANNER_INFO}`} role="status">
+      <span className="flex-none text-[15px] text-text-muted" aria-hidden="true">
         ◷
       </span>
-      <div className="tckr-conn-banner__body">
-        <div className="tckr-conn-banner__title">Market closed</div>
-        <div className="tckr-conn-banner__detail">
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold text-[0.85rem]">Market closed</div>
+        <div className="mt-[3px] text-[0.78rem] text-text-muted">
           Showing the last completed session. Reopens {formatNextOpen(status)} Cairo time.
         </div>
       </div>
@@ -417,11 +433,28 @@ function MarketClosedBanner({ status }: { status: MarketStatus }) {
 // boundary this keeps.
 // ---------------------------------------------------------------------------------
 
-function Sparkline({ points, direction }: { points: readonly number[]; direction: 'up' | 'down' | 'flat' }) {
-  const lineClass = `tckr-sparkline__line tckr-sparkline__line--${direction}`;
+function Sparkline({
+  points,
+  direction,
+  variant = 'row',
+}: {
+  points: readonly number[];
+  direction: 'up' | 'down' | 'flat';
+  /** `'row'` (the default, `StockListRow`'s inline cell) sizes to `width:100%;
+   * height:34px`. `'hero'` (`HeroCard`'s price row) instead sizes to the fixed
+   * `96px x 30px` the design gives it there — this is a *different, non-overlapping*
+   * className, not a base-then-override pair, so the two sizings never fight over
+   * the same `width`/`height` utility (previously a `.tckr-hero__price-row
+   * .tckr-sparkline` descendant-selector override). */
+  variant?: 'row' | 'hero';
+}) {
+  const sizeClass = variant === 'hero' ? 'block w-24 h-[30px] flex-none' : 'block w-full h-[34px]';
+  const lineClass = `[stroke-width:1.6] [transition:stroke_200ms_ease] ${
+    direction === 'up' ? 'stroke-up' : direction === 'down' ? 'stroke-down' : 'stroke-text-muted'
+  }`;
   if (points.length < 2) {
     return (
-      <svg viewBox="0 0 100 34" preserveAspectRatio="none" className="tckr-sparkline" aria-hidden="true">
+      <svg viewBox="0 0 100 34" preserveAspectRatio="none" className={sizeClass} aria-hidden="true">
         <line x1="0" y1="17" x2="100" y2="17" className={lineClass} />
       </svg>
     );
@@ -434,7 +467,7 @@ function Sparkline({ points, direction }: { points: readonly number[]; direction
     .map((p, i) => `${(i * step).toFixed(2)},${(30 - ((p - min) / span) * 28).toFixed(2)}`)
     .join(' ');
   return (
-    <svg viewBox="0 0 100 34" preserveAspectRatio="none" className="tckr-sparkline" aria-hidden="true">
+    <svg viewBox="0 0 100 34" preserveAspectRatio="none" className={sizeClass} aria-hidden="true">
       <polyline points={coords} fill="none" className={lineClass} />
     </svg>
   );
@@ -492,6 +525,17 @@ interface HeroCardProps {
   readonly onActivate: (symbol: string) => void;
 }
 
+// `all: unset` on the card button had no direct Tailwind equivalent (see module's
+// migration notes) — only the native-button chrome that the rest of this rule does
+// NOT go on to re-declare (appearance, margin, outline, inherited text properties)
+// needs an explicit reset here; every property the original rule re-declares after
+// `all: unset` (box-sizing, cursor, width, padding, border-radius, background,
+// backdrop-filter, border, box-shadow, transition) is just applied directly below,
+// with no separate reset step, so there is never a same-property class pair whose
+// winner depends on Tailwind's internal utility ordering.
+const HERO_CARD_CLASS =
+  'appearance-none m-0 p-0 outline-none text-inherit text-left [font-family:inherit] [font-style:inherit] [line-height:inherit] box-border cursor-pointer w-full pt-4 px-[18px] pb-[15px] rounded-[20px] bg-glass border border-glass-border shadow-[0_18px_40px_-28px_rgba(0,0,0,0.4)] backdrop-blur-tckr backdrop-saturate-[1.6] [transition:transform_160ms_ease-out,border-color_160ms_ease] fine-hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none reduced-transparency:backdrop-saturate-100 contrast-more:bg-surface contrast-more:backdrop-blur-none contrast-more:backdrop-saturate-100';
+
 function HeroCard({ kicker, kind, definition, priceDecimals, onActivate }: HeroCardProps) {
   const { symbol, name, referencePrice } = definition;
 
@@ -524,14 +568,21 @@ function HeroCard({ kicker, kind, definition, priceDecimals, onActivate }: HeroC
   const direction = sparklineDirection(changePercent);
 
   const badgeText = kind === 'active' ? `${volumeLabel} QTY` : changePercent === undefined ? '—' : formatSignedPercent(changePercent);
+  // Branches the badge's *entire* background/text-color set rather than layering a
+  // base `bg-surface-raised` plus a conditional override — both would be plain,
+  // equal-specificity utility classes targeting the same `background-color`, so
+  // which one wins would depend on Tailwind's internal generation order rather than
+  // anything in this file (previously a `.tckr-hero__badge.tckr-delta--up/--down`
+  // compound-class selector, which doesn't have a Tailwind utility-class
+  // equivalent — see module's migration notes).
   const badgeDeltaClass =
     kind === 'active' || changePercent === undefined
-      ? ''
+      ? 'bg-surface-raised'
       : changePercent > 0
-        ? ' tckr-delta--up'
+        ? 'bg-[color-mix(in_oklab,var(--tckr-color-up)_20%,transparent)] text-chip-up'
         : changePercent < 0
-          ? ' tckr-delta--down'
-          : '';
+          ? 'bg-[color-mix(in_oklab,var(--tckr-color-down)_20%,transparent)] text-chip-down'
+          : 'bg-surface-raised';
 
   const directionWord = direction === 'flat' ? 'unchanged' : direction;
   const ariaLabel =
@@ -542,24 +593,27 @@ function HeroCard({ kicker, kind, definition, priceDecimals, onActivate }: HeroC
         : `${kicker}: ${symbol}, ${String(price)}, ${directionWord} ${Math.abs(changePercent).toFixed(1)}%`;
 
   return (
-    <button type="button" className="tckr-hero__card" aria-label={ariaLabel} onClick={() => onActivate(symbol)}>
-      <div className="tckr-hero__row">
-        <span className="tckr-hero__kicker" aria-hidden="true">
+    <button type="button" className={HERO_CARD_CLASS} aria-label={ariaLabel} onClick={() => onActivate(symbol)}>
+      <div className="flex items-center justify-between gap-2.5">
+        <span className="font-mono text-[0.62rem] font-semibold tracking-[0.14em] text-text-muted" aria-hidden="true">
           {kicker}
         </span>
-        <span className={`tckr-hero__badge${badgeDeltaClass}`} aria-hidden="true">
+        <span
+          className={`font-mono text-[0.68rem] font-semibold px-2.5 py-[3px] rounded-full whitespace-nowrap ${badgeDeltaClass}`}
+          aria-hidden="true"
+        >
           {badgeText}
         </span>
       </div>
-      <div className="tckr-hero__identity" aria-hidden="true">
-        <span className="tckr-hero__symbol">{symbol}</span>
-        <span className="tckr-hero__name">{name}</span>
+      <div className="flex items-baseline gap-2 mt-3 min-w-0" aria-hidden="true">
+        <span className="font-mono font-bold text-[1.2rem]">{symbol}</span>
+        <span className="text-[0.75rem] text-text-muted overflow-hidden text-ellipsis whitespace-nowrap">{name}</span>
       </div>
-      <div className="tckr-hero__price-row" aria-hidden="true">
-        <span className="tckr-hero__price">
+      <div className="flex items-end justify-between gap-2.5 mt-2.5" aria-hidden="true">
+        <span className="font-mono font-semibold text-[1.55rem]">
           <PriceCell value={price} decimals={priceDecimals} muted={priceMuted} />
         </span>
-        <Sparkline points={sparklinePoints} direction={direction} />
+        <Sparkline points={sparklinePoints} direction={direction} variant="hero" />
       </div>
     </button>
   );
@@ -578,7 +632,7 @@ function HeroCards({
     return null;
   }
   return (
-    <div className="tckr-hero">
+    <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
       {picks.map((pick) => (
         <HeroCard
           key={pick.kind}
@@ -593,467 +647,14 @@ function HeroCards({
   );
 }
 
-const STOCK_LIST_STYLES = `
-.tckr-stocklist { width: 100%; max-width: 100%; }
-
-/* Screen-reader-only page heading (Lighthouse: pages need a heading landmark for
-   heading-based navigation) — visible to assistive tech, invisible on-screen so it
-   doesn't disrupt the existing "no visible page title" design. Standard
-   clip-rect visually-hidden pattern; scoped to this file since no shared
-   visually-hidden utility exists yet in src/styles/. */
-.tckr-visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-}
-
-@keyframes tckr-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.tckr-conn-banner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: 999px;
-  margin-bottom: 14px;
-  backdrop-filter: blur(var(--tckr-blur)) saturate(150%);
-  -webkit-backdrop-filter: blur(var(--tckr-blur)) saturate(150%);
-  animation: tckr-banner-in 220ms var(--tckr-ease-out);
-}
-@keyframes tckr-banner-in {
-  from { opacity: 0; transform: translateY(-6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.tckr-conn-banner--warning {
-  background: color-mix(in oklab, var(--tckr-color-warning) 16%, var(--tckr-glass-bg));
-  border: 1px solid color-mix(in oklab, var(--tckr-color-warning) 32%, transparent);
-}
-.tckr-conn-banner--danger {
-  background: color-mix(in oklab, var(--tckr-color-down) 16%, var(--tckr-glass-bg));
-  border: 1px solid color-mix(in oklab, var(--tckr-color-down) 32%, transparent);
-}
-/* Neutral, not warning/danger-colored: the market being closed overnight/on the
-   weekend is expected, routine state, not a problem with the connection — using the
-   same amber/red treatment as a dropped stream would wrongly suggest something is
-   wrong. */
-.tckr-conn-banner--info {
-  background: var(--tckr-glass-bg);
-  border: 1px solid var(--tckr-glass-border);
-}
-.tckr-conn-banner--info .tckr-conn-banner__icon { color: var(--tckr-color-text-muted); }
-.tckr-conn-banner__icon { flex: none; font-size: 15px; color: var(--tckr-color-warning); }
-.tckr-conn-banner--danger .tckr-conn-banner__icon { color: var(--tckr-color-down); }
-.tckr-conn-banner__body { flex: 1 1 auto; min-width: 0; }
-.tckr-conn-banner__title { font-weight: 600; font-size: 0.85rem; }
-.tckr-conn-banner__detail { margin-top: 3px; font-size: 0.78rem; color: var(--tckr-color-text-muted); }
-.tckr-conn-banner__action {
-  flex: none;
-  font: inherit;
-  font-weight: 600;
-  font-size: 0.75rem;
-  padding: 7px 13px;
-  border-radius: 6px;
-  border: 1px solid var(--tckr-color-border);
-  background: var(--tckr-color-text);
-  color: var(--tckr-color-surface);
-  cursor: pointer;
-  transition: transform 120ms ease-out, opacity 150ms ease;
-}
-.tckr-conn-banner__action:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; }
-.tckr-conn-banner__action:active { transform: scale(0.96); }
-
-/* Accessible fallback for this banner's frosted-glass effect, mirroring
- * .tckr-header's own fallback in global.css: a viewer who has asked the OS for
- * reduced transparency or more contrast gets a fully opaque banner with no blur
- * instead, using the same opaque-over-'--tckr-color-surface' mix each variant's own
- * background already uses '--tckr-glass-bg' for, so this doesn't invent new colours. */
-@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
-  .tckr-conn-banner {
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-  .tckr-conn-banner--warning {
-    background: color-mix(in oklab, var(--tckr-color-warning) 16%, var(--tckr-color-surface));
-  }
-  .tckr-conn-banner--danger {
-    background: color-mix(in oklab, var(--tckr-color-down) 16%, var(--tckr-color-surface));
-  }
-  .tckr-conn-banner--info {
-    background: var(--tckr-color-surface);
-  }
-}
-
-.tckr-stocklist__toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
-.tckr-stocklist__pills { display: flex; gap: 6px; flex-wrap: wrap; }
-.tckr-pill {
-  font: inherit;
-  font-size: 0.72rem;
-  font-weight: 500;
-  padding: 7px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--tckr-color-border);
-  background: transparent;
-  color: var(--tckr-color-text-muted);
-  cursor: pointer;
-  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, transform 120ms ease-out;
-}
-.tckr-pill--active { background: var(--tckr-color-text); color: var(--tckr-color-surface); border-color: var(--tckr-color-text); font-weight: 600; }
-.tckr-pill:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; }
-.tckr-pill:active { transform: scale(0.96); }
-.tckr-stocklist__search-wrap {
-  flex: 1 1 240px;
-  min-width: 160px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  border: 1px solid var(--tckr-glass-border);
-  border-radius: 999px;
-  background: var(--tckr-glass-bg);
-  backdrop-filter: blur(var(--tckr-blur)) saturate(150%);
-  -webkit-backdrop-filter: blur(var(--tckr-blur)) saturate(150%);
-  transition: border-color 150ms ease;
-}
-.tckr-stocklist__search-wrap:focus-within { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; }
-/* Accessible fallback for this search field's frosted-glass effect — see
- * .tckr-conn-banner's identical fallback above for why. */
-@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
-  .tckr-stocklist__search-wrap {
-    background: var(--tckr-color-surface);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-}
-.tckr-stocklist__search-icon { color: var(--tckr-color-text-muted); font-size: 13px; flex: none; }
-.tckr-stocklist__search {
-  all: unset;
-  flex: 1 1 auto;
-  min-width: 0;
-  color: var(--tckr-color-text);
-  font-size: 0.85rem;
-}
-.tckr-stocklist__search::placeholder { color: var(--tckr-color-text-muted); }
-.tckr-stocklist__kbd {
-  flex: none;
-  font-family: var(--tckr-font-mono);
-  font-size: 0.65rem;
-  color: var(--tckr-color-text-muted);
-  border: 1px solid var(--tckr-color-border);
-  border-radius: 4px;
-  padding: 3px 6px;
-}
-.tckr-stocklist__table-wrap {
-  width: 100%;
-  max-width: 100%;
-  border: 1px solid var(--tckr-glass-border);
-  border-radius: 18px;
-  overflow: hidden;
-  background: var(--tckr-glass-bg);
-  backdrop-filter: blur(var(--tckr-blur)) saturate(160%);
-  -webkit-backdrop-filter: blur(var(--tckr-blur)) saturate(160%);
-  box-shadow: 0 18px 40px -30px rgba(0, 0, 0, 0.4);
-}
-/* Accessible fallback for the table's frosted-glass effect — see .tckr-conn-banner's
- * identical fallback above for why. */
-@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
-  .tckr-stocklist__table-wrap {
-    background: var(--tckr-color-surface);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-}
-.tckr-stocklist__table { width: 100%; max-width: 100%; border-collapse: collapse; table-layout: fixed; }
-.tckr-stocklist__table th,
-.tckr-stocklist__table td {
-  padding: 12px 12px;
-  text-align: left;
-  border-bottom: 1px solid var(--tckr-glass-border);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.tckr-stocklist__table thead th {
-  font-family: var(--tckr-font-mono);
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  color: var(--tckr-color-text-muted);
-  text-transform: uppercase;
-  background: transparent;
-}
-.tckr-stocklist__cell--symbol { font-family: var(--tckr-font-mono); font-weight: 700; }
-.tckr-stocklist__cell--numeric { text-align: right; font-variant-numeric: tabular-nums; }
-.tckr-stocklist__sort-button {
-  all: unset;
-  cursor: pointer;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-.tckr-stocklist__sort-button:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; }
-.tckr-stocklist__row { cursor: pointer; transition: background-color 120ms ease, box-shadow 120ms ease; }
-@media (hover: hover) and (pointer: fine) {
-  .tckr-stocklist__row:hover { background: color-mix(in oklab, var(--tckr-color-text) 6%, transparent); }
-}
-.tckr-stocklist__row:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: -2px; }
-.tckr-stocklist__row--selected {
-  background: color-mix(in oklab, var(--tckr-color-up) 12%, transparent);
-  box-shadow: inset 3px 0 0 var(--tckr-color-up);
-}
-.tckr-stocklist--stale .tckr-stocklist__table-wrap { transition: opacity 250ms ease; opacity: 0.72; }
-.tckr-stocklist__changepct {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 5px;
-  background: var(--tckr-color-surface-raised);
-}
-.tckr-stocklist__changepct { transition: background-color 200ms ease; }
-/* Light theme only: color: var(--tckr-color-up/-down) (from .tckr-delta--up/--down
- * in global.css) over this chip's own light-tinted background measures 4.40:1 /
- * 4.42:1 against the real card background — just under WCAG AA's 4.5:1 minimum for
- * normal text. Dark theme's identical rule passes easily (5-8:1) because dark's
- * up/down tokens are far brighter against a near-black card; light's near-white card
- * doesn't give the same headroom against the same saturated hue. Darken the *text*
- * only (background/opacity untouched) for light theme, then reset back to the plain
- * token colour once dark is active, reusing the dark-scoping convention
- * StockDetail.tsx already established (:root[data-theme="dark"] /
- * @media (prefers-color-scheme: dark)) — so dark's own contrast is unchanged. */
-.tckr-stocklist__changepct.tckr-delta--up {
-  background: color-mix(in oklab, var(--tckr-color-up) 14%, transparent);
-  color: #0d6841;
-}
-.tckr-stocklist__changepct.tckr-delta--down {
-  background: color-mix(in oklab, var(--tckr-color-down) 14%, transparent);
-  color: #a33025;
-}
-:root[data-theme="dark"] .tckr-stocklist__changepct.tckr-delta--up { color: var(--tckr-color-up); }
-:root[data-theme="dark"] .tckr-stocklist__changepct.tckr-delta--down { color: var(--tckr-color-down); }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .tckr-stocklist__changepct.tckr-delta--up { color: var(--tckr-color-up); }
-  :root:not([data-theme="light"]) .tckr-stocklist__changepct.tckr-delta--down { color: var(--tckr-color-down); }
-}
-.tckr-sparkline { width: 100%; height: 34px; display: block; }
-.tckr-sparkline__line { stroke-width: 1.6; transition: stroke 200ms ease; }
-.tckr-sparkline__line--up { stroke: var(--tckr-color-up); }
-.tckr-sparkline__line--down { stroke: var(--tckr-color-down); }
-.tckr-sparkline__line--flat { stroke: var(--tckr-color-text-muted); }
-.tckr-stocklist__empty { text-align: center; color: var(--tckr-color-text-muted); padding: 44px 16px; white-space: normal; animation: tckr-fade-in 200ms ease-out; }
-.tckr-stocklist__empty-count { font-family: var(--tckr-font-mono); font-size: 0.78rem; letter-spacing: 0.04em; }
-.tckr-stocklist__empty-title { margin-top: 12px; font-weight: 700; font-size: 1.05rem; color: var(--tckr-color-text); }
-.tckr-stocklist__empty-detail { margin: 8px auto 0; max-width: 340px; font-size: 0.82rem; line-height: 1.55; }
-.tckr-stocklist__empty-actions { margin-top: 18px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-.tckr-stocklist__empty-actions button {
-  font: inherit;
-  font-weight: 600;
-  font-size: 0.78rem;
-  padding: 9px 14px;
-  border-radius: 7px;
-  cursor: pointer;
-  transition: transform 120ms ease-out, opacity 150ms ease;
-}
-.tckr-stocklist__empty-actions button:active { transform: scale(0.96); }
-.tckr-stocklist__empty-actions button:first-child { border: none; background: var(--tckr-color-text); color: var(--tckr-color-surface); }
-.tckr-stocklist__empty-actions button:last-child { border: 1px solid var(--tckr-color-border); background: transparent; color: var(--tckr-color-text); }
-.tckr-stocklist__empty-actions button:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; }
-.tckr-stocklist__loading { color: var(--tckr-color-text-muted); }
-@media (max-width: 640px) {
-  .tckr-stocklist__col--narrow-hide { display: none; }
-}
-
-/* ---- Hero cards (Top Gainer / Top Loser / Most Active) ---------------------
- * .tckr-hero-wrap stays mounted at all times (rather than the hero row being
- * conditionally rendered) purely so it has something to animate: collapsing via
- * max-height — a plain length, reliably animatable — rather than the mock's own
- * grid-template-rows track-size transition (an fr-track transition, which has the
- * same cross-browser animation problem .tckr-stocklist__shell used to have, see
- * that rule's doc below). The max-height ceiling below is a deliberately generous
- * guess at the tallest this row ever renders (three cards can wrap to multiple
- * lines on a narrow split-pane list column) — see this technique's well-known
- * "expand finishes faster than the nominal duration once content is shorter than
- * the ceiling" trade-off, which is fine for a one-directional reveal like this.
- */
-.tckr-hero-wrap {
-  overflow: hidden;
-  max-height: 640px;
-  opacity: 1;
-  margin-bottom: 14px;
-  transition: max-height 480ms var(--tckr-ease-out), opacity 300ms ease, margin-bottom 480ms var(--tckr-ease-out);
-}
-.tckr-hero-wrap--collapsed {
-  max-height: 0;
-  opacity: 0;
-  margin-bottom: 0;
-}
-@media (prefers-reduced-motion: reduce) {
-  .tckr-hero-wrap {
-    transition: none;
-  }
-}
-.tckr-hero {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
-}
-.tckr-hero__card {
-  all: unset;
-  box-sizing: border-box;
-  cursor: pointer;
-  width: 100%;
-  padding: 16px 18px 15px;
-  border-radius: 20px;
-  background: var(--tckr-glass-bg);
-  backdrop-filter: blur(var(--tckr-blur)) saturate(160%);
-  -webkit-backdrop-filter: blur(var(--tckr-blur)) saturate(160%);
-  border: 1px solid var(--tckr-glass-border);
-  box-shadow: 0 18px 40px -28px rgba(0, 0, 0, 0.4);
-  transition: transform 160ms ease-out, border-color 160ms ease;
-}
-@media (hover: hover) and (pointer: fine) {
-  .tckr-hero__card:hover { transform: translateY(-2px); }
-}
-.tckr-hero__card:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; }
-/* Accessible fallback for this card's frosted-glass effect — see .tckr-conn-banner's
- * identical fallback above for why. */
-@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
-  .tckr-hero__card {
-    background: var(--tckr-color-surface);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-}
-.tckr-hero__row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.tckr-hero__kicker { font-family: var(--tckr-font-mono); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.14em; color: var(--tckr-color-text-muted); }
-.tckr-hero__badge {
-  font-family: var(--tckr-font-mono);
-  font-size: 0.68rem;
-  font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: var(--tckr-color-surface-raised);
-  white-space: nowrap;
-}
-/* Light theme only: measured 4.02:1 / 4.05:1 against the real hero card background —
- * below WCAG AA. Same fix/reasoning as .tckr-stocklist__changepct above (see that
- * rule's comment): darken text only, for light theme only, reset for dark. */
-.tckr-hero__badge.tckr-delta--up {
-  background: color-mix(in oklab, var(--tckr-color-up) 20%, transparent);
-  color: #0d6841;
-}
-.tckr-hero__badge.tckr-delta--down {
-  background: color-mix(in oklab, var(--tckr-color-down) 20%, transparent);
-  color: #a33025;
-}
-:root[data-theme="dark"] .tckr-hero__badge.tckr-delta--up { color: var(--tckr-color-up); }
-:root[data-theme="dark"] .tckr-hero__badge.tckr-delta--down { color: var(--tckr-color-down); }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .tckr-hero__badge.tckr-delta--up { color: var(--tckr-color-up); }
-  :root:not([data-theme="light"]) .tckr-hero__badge.tckr-delta--down { color: var(--tckr-color-down); }
-}
-.tckr-hero__identity { display: flex; align-items: baseline; gap: 8px; margin-top: 12px; min-width: 0; }
-.tckr-hero__symbol { font-family: var(--tckr-font-mono); font-weight: 700; font-size: 1.2rem; }
-.tckr-hero__name { font-size: 0.75rem; color: var(--tckr-color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tckr-hero__price-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; margin-top: 10px; }
-.tckr-hero__price { font-family: var(--tckr-font-mono); font-weight: 600; font-size: 1.55rem; }
-.tckr-hero__price-row .tckr-sparkline { width: 96px; height: 30px; flex: none; }
-
-/* ---- Split-pane shell: list | detail (Frosted Glass Revamp) ----------------
- * Flexbox, not CSS Grid: an earlier version of this animated via
- * grid-template-columns between values using fr/minmax(...) tracks (e.g.
- * "minmax(0, 1fr) 0fr" -> "minmax(280px, 420px) minmax(0, 1fr)"), which does not
- * reliably animate in browsers — fr and minmax() track sizes are not smoothly
- * interpolable the way a plain length/percentage is, so the layout snapped instead
- * of sliding. width and opacity/transform, both plain animatable properties, do
- * not have that problem: .tckr-stocklist__list-col's width transitions between two
- * plain values (100% vs. a px width), and .tckr-stocklist__detail-pane — kept at
- * flex: 1 1 auto throughout — simply fills whatever space the list column's
- * shrinking width leaves behind, every frame, for free (the same technique any
- * animated resizable-sidebar layout uses).
- *
- * .tckr-stocklist__detail-pane always renders the Outlet — when no child route
- * matches, it renders nothing, so the pane is simply empty (zero visual width, since
- * nothing is there to give it a flex-basis) rather than conditionally mounted.
- */
-.tckr-stocklist__shell {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-}
-.tckr-stocklist__list-col {
-  min-width: 0;
-  width: 100%;
-  transition: width 480ms var(--tckr-ease-out);
-}
-.tckr-stocklist__shell--split .tckr-stocklist__list-col {
-  width: 380px;
-  flex: none;
-}
-.tckr-stocklist__detail-pane {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  opacity: 0;
-  transform: translateX(16px);
-  transition: opacity 300ms ease, transform 420ms var(--tckr-ease-out);
-}
-.tckr-stocklist__shell--split .tckr-stocklist__detail-pane {
-  opacity: 1;
-  transform: translateX(0);
-}
-@media (prefers-reduced-motion: reduce) {
-  .tckr-stocklist__list-col,
-  .tckr-stocklist__detail-pane {
-    transition: none;
-  }
-}
-/* StockDetail centers itself with a 760px max-width for its standalone-page use
-   (its own unit tests render it that way) — inside the narrower split pane it should
-   simply fill the column instead. */
-.tckr-stocklist__detail-pane .tckr-detail { max-width: none; margin: 0; }
-/* Force the same narrow-column-hiding the 640px breakpoint already uses whenever the
-   detail pane is open, regardless of actual viewport width — the list column is
-   narrow then even on a wide screen. */
-.tckr-stocklist__shell--split .tckr-stocklist__col--narrow-hide { display: none; }
-.tckr-stocklist__all-link { flex: none; }
-
-/* ---- Mobile: the split pane stacks instead of squeezing side by side ------
- * The split pane's fixed 380px list column (above) simply does not fit next to a
- * usable detail pane under ~800px wide — before this rule it would overflow the
- * viewport horizontally with the detail pane pushed off-screen entirely
- * (.tckr-shell's overflow-x: hidden was silently clipping it, not just clipping
- * a decorative border). Below the breakpoint, opening a symbol instead hides the
- * list (still mounted — its search text, sort state, and subscriptions survive
- * exactly as on desktop, see the module doc) and gives the detail pane the full
- * width, matching a normal mobile "drill in" pattern. The toolbar (search/sort
- * pills) hides too: StockDetail's own topbar already has a "← All instruments"
- * link back, so the toolbar's copy of that pill is redundant once the list
- * itself isn't visible to search/sort.
- */
-@media (max-width: 800px) {
-  .tckr-stocklist__shell {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .tckr-stocklist__detail-pane {
-    width: 100%;
-  }
-  .tckr-stocklist--split .tckr-stocklist__toolbar {
-    display: none;
-  }
-  .tckr-stocklist__shell--split .tckr-stocklist__list-col {
-    display: none;
-  }
-  .tckr-stocklist__shell--split .tckr-stocklist__detail-pane {
-    transform: none;
-  }
-}
-`;
+// Shared `<th>`/`<td>` base — previously the tag-selector `.tckr-stocklist__table
+// th, .tckr-stocklist__table td { ... }`, which applied automatically without a
+// class; Tailwind utilities need an explicit class on every cell instead. Excludes
+// `text-align` on purpose — every cell chooses `text-left` or `text-right` for
+// itself (see call sites) rather than this constant asserting one and a numeric
+// cell overriding it, which would be two same-specificity utility classes fighting
+// over the same property.
+const CELL_BASE = 'p-3 border-b border-glass-border overflow-hidden text-ellipsis whitespace-nowrap';
 
 interface StockListRowProps {
   readonly definition: SymbolDefinition;
@@ -1192,9 +793,31 @@ function StockListRow({ definition, priceDecimals, onActivate, selected = false,
     }
   };
 
+  // The changePercent chip's whole background/text-color set is branched together
+  // (rather than a base `bg-surface-raised` plus a conditional up/down override) for
+  // the same reason `HeroCard`'s badge is — see that component's `badgeDeltaClass`
+  // comment. Previously a `.tckr-stocklist__changepct.tckr-delta--up/--down`
+  // compound-class selector.
+  const changeDeltaClass =
+    changePercent === undefined || changePercent === 0
+      ? 'bg-surface-raised'
+      : changePercent > 0
+        ? 'bg-[color-mix(in_oklab,var(--tckr-color-up)_14%,transparent)] text-chip-up'
+        : 'bg-[color-mix(in_oklab,var(--tckr-color-down)_14%,transparent)] text-chip-down';
+
   return (
     <tr
-      className={`tckr-stocklist__row${selected ? ' tckr-stocklist__row--selected' : ''}`}
+      // `fine-hover:` compiles to a `:hover`-suffixed class, which (like the plain
+      // CSS this replaces) has higher specificity than the plain `bg-[...]` class
+      // `selected` adds below, so hovering a selected row still shows the ordinary
+      // hover tint instead of the selected highlight — matching the original
+      // `.tckr-stocklist__row:hover` (two compound selectors) outranking
+      // `.tckr-stocklist__row--selected` (one class) under real CSS specificity
+      // rules. That relationship survives here because Tailwind gives a pseudo-class
+      // variant genuinely higher specificity, not just later source order.
+      className={`cursor-pointer [transition:background-color_120ms_ease,box-shadow_120ms_ease] fine-hover:bg-[color-mix(in_oklab,var(--tckr-color-text)_6%,transparent)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2${
+        selected ? ' bg-[color-mix(in_oklab,var(--tckr-color-up)_12%,transparent)] shadow-[inset_3px_0_0_var(--tckr-color-up)]' : ''
+      }`}
       tabIndex={0}
       aria-label={rowAriaLabel}
       aria-current={selected ? 'true' : undefined}
@@ -1203,14 +826,14 @@ function StockListRow({ definition, priceDecimals, onActivate, selected = false,
       onClick={() => onActivate(symbol)}
       onKeyDown={handleKeyDown}
     >
-      <td className="tckr-stocklist__cell tckr-stocklist__cell--symbol">{symbol}</td>
+      <td className={`${CELL_BASE} text-left font-mono font-bold`}>{symbol}</td>
       {narrow ? null : (
-        <td className="tckr-stocklist__cell tckr-stocklist__col--narrow-hide">
+        <td className={`${CELL_BASE} text-left max-[640px]:hidden`}>
           <Sparkline points={sparklinePoints} direction={direction} />
         </td>
       )}
-      {narrow ? null : <td className="tckr-stocklist__cell tckr-stocklist__col--narrow-hide">{name}</td>}
-      <td className="tckr-stocklist__cell tckr-stocklist__cell--numeric">
+      {narrow ? null : <td className={`${CELL_BASE} text-left max-[640px]:hidden`}>{name}</td>}
+      <td className={`${CELL_BASE} text-right tabular-nums`}>
         <PriceCell
           value={price}
           decimals={priceDecimals}
@@ -1221,32 +844,82 @@ function StockListRow({ definition, priceDecimals, onActivate, selected = false,
         />
       </td>
       {narrow ? null : (
-        <td className="tckr-stocklist__cell tckr-stocklist__cell--numeric tckr-stocklist__col--narrow-hide">
+        <td className={`${CELL_BASE} text-right tabular-nums max-[640px]:hidden`}>
           <PriceCell value={change} decimals={priceDecimals} sign muted={priceMuted} indicateSign />
         </td>
       )}
-      <td className="tckr-stocklist__cell tckr-stocklist__cell--numeric">
+      <td className={`${CELL_BASE} text-right tabular-nums`}>
         {changePercent === undefined ? (
-          <span className="tckr-price-cell tckr-price-cell--muted">—</span>
+          <span className="font-mono tabular-nums text-text-muted italic">—</span>
         ) : (
           <span
-            className={`tckr-price-cell tckr-stocklist__changepct${
-              changePercent > 0 ? ' tckr-delta--up' : changePercent < 0 ? ' tckr-delta--down' : ''
-            }`}
+            className={`font-mono tabular-nums inline-block px-2 py-1 rounded-[5px] [transition:background-color_200ms_ease] ${changeDeltaClass}`}
           >
             {formatSignedPercent(changePercent)}
           </span>
         )}
       </td>
       {narrow ? null : (
-        <td className="tckr-stocklist__cell tckr-stocklist__cell--numeric tckr-stocklist__col--narrow-hide">
-          {volumeLabel}
-        </td>
+        <td className={`${CELL_BASE} text-right tabular-nums max-[640px]:hidden`}>{volumeLabel}</td>
       )}
-      {narrow ? null : <td className="tckr-stocklist__cell tckr-stocklist__col--narrow-hide">{lastUpdateLabel}</td>}
+      {narrow ? null : <td className={`${CELL_BASE} text-left max-[640px]:hidden`}>{lastUpdateLabel}</td>}
     </tr>
   );
 }
+
+// ---------------------------------------------------------------------------------
+// Shared class fragments for `StockList`'s own return (below) — kept as named
+// constants/helpers, in the same spirit as `CONN_BANNER_*` above, rather than
+// inlined into the JSX twice (the loading branch and the loaded branch both render
+// the split shell). Where a modifier flips a property the base value also sets
+// (width, opacity/transform, max-height/margin — previously
+// `.tckr-stocklist__shell--split .tckr-stocklist__list-col` etc., a parent-state ->
+// child-class selector with no Tailwind utility-class equivalent), the helper
+// returns one full mutually-exclusive class string per state rather than a base
+// string plus a conditionally-appended override, so there is never a pair of
+// same-specificity utility classes whose winner depends on Tailwind's internal
+// ordering.
+// ---------------------------------------------------------------------------------
+
+const SHELL_CLASS = 'flex items-start gap-4 max-[800px]:flex-col max-[800px]:items-stretch';
+
+function shellListColClass(split: boolean): string {
+  return `min-w-0 [transition:width_480ms_var(--tckr-ease-out)] motion-reduce:transition-none ${
+    split ? 'flex-none w-[380px] max-[800px]:hidden' : 'w-full'
+  }`;
+}
+
+function shellDetailPaneClass(split: boolean): string {
+  return `flex-1 min-w-0 overflow-hidden [transition:opacity_300ms_ease,transform_420ms_var(--tckr-ease-out)] motion-reduce:transition-none max-[800px]:w-full ${
+    split ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4'
+  }`;
+}
+
+function heroWrapClass(split: boolean): string {
+  return `overflow-hidden [transition:max-height_480ms_var(--tckr-ease-out),opacity_300ms_ease,margin-bottom_480ms_var(--tckr-ease-out)] motion-reduce:transition-none ${
+    split ? 'max-h-0 opacity-0 mb-0' : 'max-h-[640px] opacity-100 mb-3.5'
+  }`;
+}
+
+const PILL_BASE =
+  '[font-family:inherit] [font-style:inherit] [line-height:inherit] text-[0.72rem] px-3 py-[7px] rounded-full border cursor-pointer [transition:background-color_150ms_ease,color_150ms_ease,border-color_150ms_ease,transform_120ms_ease-out] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2';
+const PILL_ACTIVE = 'bg-text text-surface border-text font-semibold';
+const PILL_INACTIVE = 'bg-transparent text-text-muted border-border font-medium';
+
+const SEARCH_WRAP_CLASS =
+  'flex-[1_1_240px] min-w-[160px] flex items-center gap-2 py-2.5 px-3.5 border border-glass-border rounded-full bg-glass backdrop-blur-tckr backdrop-saturate-150 [transition:border-color_150ms_ease] focus-within:outline-2 focus-within:outline-accent focus-within:outline-offset-2 reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none reduced-transparency:backdrop-saturate-100 contrast-more:bg-surface contrast-more:backdrop-blur-none contrast-more:backdrop-saturate-100';
+
+function tableWrapClass(stale: boolean): string {
+  const base =
+    'w-full max-w-full border border-glass-border rounded-[18px] overflow-hidden bg-glass backdrop-blur-tckr backdrop-saturate-[1.6] shadow-[0_18px_40px_-30px_rgba(0,0,0,0.4)] [transition:opacity_250ms_ease] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none reduced-transparency:backdrop-saturate-100 contrast-more:bg-surface contrast-more:backdrop-blur-none contrast-more:backdrop-saturate-100';
+  return stale ? `${base} opacity-[0.72]` : base;
+}
+
+const SORT_BUTTON_CLASS =
+  'appearance-none bg-transparent border-none m-0 p-0 outline-none text-inherit [font-family:inherit] [font-style:inherit] [line-height:inherit] [letter-spacing:inherit] [text-transform:inherit] cursor-pointer font-semibold inline-flex items-center gap-0.5 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2';
+
+const EMPTY_ACTION_BUTTON_BASE =
+  '[font-family:inherit] [font-style:inherit] [line-height:inherit] font-semibold text-[0.78rem] px-3.5 py-[9px] rounded-[7px] cursor-pointer [transition:transform_120ms_ease-out,opacity_150ms_ease] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2';
 
 export function StockList() {
   const navigate = useNavigate();
@@ -1424,15 +1097,15 @@ export function StockList() {
   const clearSearch = useCallback(() => setRawQuery(''), []);
 
   if (universe === null) {
+    const loadingSplit = selectedSymbol !== null;
     return (
       <>
-        <style>{STOCK_LIST_STYLES}</style>
-        <h1 className="tckr-visually-hidden">Tckr Market Watch</h1>
-        <div className={`tckr-stocklist__shell${selectedSymbol ? ' tckr-stocklist__shell--split' : ''}`}>
-          <div className="tckr-stocklist__list-col">
-            <p className="tckr-stocklist__loading">Loading instruments…</p>
+        <h1 className="sr-only">Tckr Market Watch</h1>
+        <div className={SHELL_CLASS}>
+          <div className={shellListColClass(loadingSplit)}>
+            <p className="text-text-muted">Loading instruments…</p>
           </div>
-          <div className="tckr-stocklist__detail-pane">
+          <div className={shellDetailPaneClass(loadingSplit)}>
             <Outlet />
           </div>
         </div>
@@ -1451,60 +1124,58 @@ export function StockList() {
   const narrow = isSplit || isNarrowViewport;
 
   return (
-    <div
-      className={`tckr-stocklist${isStale ? ' tckr-stocklist--stale' : ''}${isSplit ? ' tckr-stocklist--split' : ''}`}
-    >
-      <style>{STOCK_LIST_STYLES}</style>
-
-      <h1 className="tckr-visually-hidden">Tckr Market Watch</h1>
+    <div className="w-full max-w-full">
+      <h1 className="sr-only">Tckr Market Watch</h1>
 
       <ConnectionBanner state={connState} remainingSecs={remainingSecs} />
       <MarketClosedBanner status={marketStatus} />
 
-      <div className={`tckr-hero-wrap${isSplit ? ' tckr-hero-wrap--collapsed' : ''}`}>
+      <div className={heroWrapClass(isSplit)}>
         <HeroCards picks={heroPicks} priceDecimalsBySymbol={priceDecimalsBySymbol} onActivate={handleRowActivate} />
       </div>
 
-      <div className="tckr-stocklist__toolbar">
+      <div className={`flex items-center gap-2.5 mb-3 flex-wrap${isSplit ? ' max-[800px]:hidden' : ''}`}>
         {isSplit ? (
-          <button type="button" className="tckr-pill tckr-stocklist__all-link" onClick={() => navigate('/')}>
+          <button type="button" className={`${PILL_BASE} ${PILL_INACTIVE} flex-none`} onClick={() => navigate('/')}>
             ← All instruments
           </button>
         ) : null}
-        <div className="tckr-stocklist__pills">
+        <div className="flex gap-1.5 flex-wrap">
           {PRESETS.map((preset) => (
             <button
               key={preset.id}
               type="button"
-              className={`tckr-pill${activePreset === preset.id ? ' tckr-pill--active' : ''}`}
+              className={`${PILL_BASE} ${activePreset === preset.id ? PILL_ACTIVE : PILL_INACTIVE}`}
               onClick={() => setSortState(preset.sort)}
             >
               {preset.label}
             </button>
           ))}
         </div>
-        <label className="tckr-stocklist__search-wrap" htmlFor="tckr-stocklist-search">
-          <span className="tckr-stocklist__search-icon" aria-hidden="true">
+        <label className={SEARCH_WRAP_CLASS} htmlFor="tckr-stocklist-search">
+          <span className="text-text-muted text-[13px] flex-none" aria-hidden="true">
             ⌕
           </span>
           <input
             id="tckr-stocklist-search"
             ref={searchInputRef}
             type="search"
-            className="tckr-stocklist__search"
+            className="appearance-none bg-transparent border-none m-0 p-0 outline-none [font-family:inherit] [font-style:inherit] [line-height:inherit] flex-[1_1_auto] min-w-0 text-text text-[0.85rem] placeholder:text-text-muted"
             aria-label="Search symbol or name"
             placeholder="Search symbol or name"
             value={rawQuery}
             onChange={(event) => setRawQuery(event.target.value)}
           />
-          <span className="tckr-stocklist__kbd">⌘K</span>
+          <span className="flex-none font-mono text-[0.65rem] text-text-muted border border-border rounded px-1.5 py-[3px]">
+            ⌘K
+          </span>
         </label>
       </div>
 
-      <div className={`tckr-stocklist__shell${isSplit ? ' tckr-stocklist__shell--split' : ''}`}>
-        <div className="tckr-stocklist__list-col">
-          <div className="tckr-stocklist__table-wrap">
-            <table className="tckr-stocklist__table">
+      <div className={SHELL_CLASS}>
+        <div className={shellListColClass(isSplit)}>
+          <div className={tableWrapClass(isStale)}>
+            <table className="w-full max-w-full border-collapse table-fixed">
               <colgroup>
                 {COLUMNS.filter((column) => !narrow || !column.hideNarrow).map((column) => (
                   <col
@@ -1518,7 +1189,9 @@ export function StockList() {
                   {COLUMNS.filter((column) => !narrow || !column.hideNarrow).map((column) => (
                     <th
                       key={column.key}
-                      className={!narrow && column.hideNarrow ? 'tckr-stocklist__col--narrow-hide' : undefined}
+                      className={`${CELL_BASE} text-left font-mono text-[0.62rem] font-semibold tracking-[0.1em] text-text-muted uppercase bg-transparent${
+                        !narrow && column.hideNarrow ? ' max-[640px]:hidden' : ''
+                      }`}
                       aria-sort={
                         column.sortable && sortState?.column === column.key
                           ? sortState.direction === 'asc'
@@ -1528,11 +1201,7 @@ export function StockList() {
                       }
                     >
                       {column.sortable ? (
-                        <button
-                          type="button"
-                          className="tckr-stocklist__sort-button"
-                          onClick={() => handleSort(column.key as SortColumn)}
-                        >
+                        <button type="button" className={SORT_BUTTON_CLASS} onClick={() => handleSort(column.key as SortColumn)}>
                           {column.label}
                           {sortState?.column === column.key ? (sortState.direction === 'asc' ? ' ▲' : ' ▼') : ''}
                         </button>
@@ -1548,18 +1217,28 @@ export function StockList() {
                   <tr>
                     <td
                       colSpan={narrow ? COLUMNS.filter((column) => !column.hideNarrow).length : COLUMNS.length}
-                      className="tckr-stocklist__empty"
+                      className="text-center text-text-muted px-4 py-11 whitespace-normal animate-fade-in"
                     >
-                      <div className="tckr-stocklist__empty-count">0 of {universe.length}</div>
-                      <div className="tckr-stocklist__empty-title">No instruments match &ldquo;{rawQuery}&rdquo;</div>
-                      <div className="tckr-stocklist__empty-detail">
+                      <div className="font-mono text-[0.78rem] tracking-[0.04em]">0 of {universe.length}</div>
+                      <div className="mt-3 font-bold text-[1.05rem] text-text">
+                        No instruments match &ldquo;{rawQuery}&rdquo;
+                      </div>
+                      <div className="mt-2 mx-auto max-w-[340px] text-[0.82rem] leading-[1.55]">
                         Search runs on symbol and name. Try a shorter query, or browse the full board.
                       </div>
-                      <div className="tckr-stocklist__empty-actions">
-                        <button type="button" onClick={clearSearch}>
+                      <div className="mt-[18px] flex gap-2 justify-center flex-wrap">
+                        <button
+                          type="button"
+                          className={`${EMPTY_ACTION_BUTTON_BASE} border-0 bg-text text-surface`}
+                          onClick={clearSearch}
+                        >
                           Clear search
                         </button>
-                        <button type="button" onClick={clearSearch}>
+                        <button
+                          type="button"
+                          className={`${EMPTY_ACTION_BUTTON_BASE} border border-border bg-transparent text-text`}
+                          onClick={clearSearch}
+                        >
                           Browse all {universe.length}
                         </button>
                       </div>
@@ -1581,7 +1260,7 @@ export function StockList() {
             </table>
           </div>
         </div>
-        <div className="tckr-stocklist__detail-pane">
+        <div className={shellDetailPaneClass(isSplit)}>
           <Outlet />
         </div>
       </div>

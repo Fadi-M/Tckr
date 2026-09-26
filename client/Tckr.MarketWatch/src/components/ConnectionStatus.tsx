@@ -114,6 +114,29 @@ function describeState(state: ConnectionState, remainingSecs: number, elapsedTex
   }
 }
 
+// `.tckr-connection-status`/`.tckr-status-dot` were styled by a `[data-state=...]`
+// attribute selector in global.css. Tailwind utility classes can't attribute-select on
+// the element's own data attribute, so the per-state colour/background/border/shadow
+// are computed here instead, keyed off `state.kind`, and combined with the shared
+// layout-only base classes below.
+const PILL_STATE_CLASSES: Record<ConnectionState['kind'], string> = {
+  connecting:
+    'text-warning bg-[color-mix(in_oklab,var(--tckr-color-warning)_16%,var(--tckr-glass-bg))] border-[color-mix(in_oklab,var(--tckr-color-warning)_32%,transparent)]',
+  reconnecting:
+    'text-warning bg-[color-mix(in_oklab,var(--tckr-color-warning)_16%,var(--tckr-glass-bg))] border-[color-mix(in_oklab,var(--tckr-color-warning)_32%,transparent)]',
+  connected:
+    'text-up bg-[color-mix(in_oklab,var(--tckr-color-up)_16%,var(--tckr-glass-bg))] border-[color-mix(in_oklab,var(--tckr-color-up)_32%,transparent)] shadow-[0_4px_14px_color-mix(in_oklab,var(--tckr-color-up)_30%,transparent)]',
+  closed:
+    'text-down bg-[color-mix(in_oklab,var(--tckr-color-down)_16%,var(--tckr-glass-bg))] border-[color-mix(in_oklab,var(--tckr-color-down)_32%,transparent)]',
+};
+
+const DOT_STATE_CLASSES: Record<ConnectionState['kind'], string> = {
+  connecting: 'bg-warning',
+  reconnecting: 'bg-warning',
+  connected: 'bg-up',
+  closed: 'bg-down',
+};
+
 function seedState(): ConnectionState {
   const source = getSharedSource();
   const current = source.connectionState?.();
@@ -154,8 +177,12 @@ export function ConnectionStatus() {
   const elapsedText = state.kind === 'connected' ? formatElapsed(Date.now() - state.since) : '';
 
   return (
-    <span className="tckr-connection-status" data-state={state.kind} role="status">
-      <span className="tckr-status-dot" data-state={state.kind} aria-hidden="true" />
+    <span
+      className={`inline-flex items-center gap-2 font-mono text-[0.7rem] font-semibold tracking-[0.08em] px-[13px] py-[7px] rounded-full border whitespace-nowrap ${PILL_STATE_CLASSES[state.kind]}`}
+      data-state={state.kind}
+      role="status"
+    >
+      <span className={`w-1.5 h-1.5 rounded-full flex-none ${DOT_STATE_CLASSES[state.kind]}`} data-state={state.kind} aria-hidden="true" />
       <span data-testid="connection-status">{describeState(state, remainingSecs, elapsedText)}</span>
     </span>
   );

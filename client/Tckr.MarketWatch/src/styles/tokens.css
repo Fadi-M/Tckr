@@ -58,6 +58,23 @@
   --tckr-glass-border-card: rgba(255, 255, 255, 0.88);
   --tckr-glass-bg-stat: rgba(255, 255, 255, 0.7);
   --tckr-glass-border-stat: rgba(255, 255, 255, 0.9);
+  /* Tailwind migration (ui-revamp): two more additive, non-required tokens for the
+     only two places a rule differed between light/dark *without* already being a
+     plain token-color swap — PriceChart's glass body (priceChart.css) and the
+     WCAG-contrast-adjusted chip text color (StockList's change% chip / hero badge,
+     see the light-only-darkened-text comment next to their light-mode value below).
+     Centralizing them here lets every className become one arbitrary-value Tailwind
+     utility referencing the token, with no separate `[data-theme="dark"]`/
+     `prefers-color-scheme` override rule needed anywhere else in the app. */
+  --tckr-chart-body-bg: rgba(255, 255, 255, 0.5);
+  --tckr-chart-body-border: rgba(20, 24, 31, 0.06);
+  /* Light theme only: color: var(--tckr-color-up/-down) over the chip/badge's own
+     light-tinted background measures under WCAG AA's 4.5:1 minimum for normal text
+     (see StockList.tsx's original inline comment for the measured ratios). Darken the
+     *text* only for light theme; dark theme keeps the plain up/down token, since its
+     ratio already passes easily. */
+  --tckr-chip-text-up: #0d6841;
+  --tckr-chip-text-down: #a33025;
 }
 
 /* Explicit "system" dark preference. `:not([data-theme="light"])` lets a future
@@ -88,6 +105,11 @@
     --tckr-glass-border-card: rgba(255, 255, 255, 0.12);
     --tckr-glass-bg-stat: rgba(255, 255, 255, 0.06);
     --tckr-glass-border-stat: rgba(255, 255, 255, 0.1);
+    /* See the :root comment above these two tokens. */
+    --tckr-chart-body-bg: rgba(255, 255, 255, 0.04);
+    --tckr-chart-body-border: rgba(255, 255, 255, 0.08);
+    --tckr-chip-text-up: var(--tckr-color-up);
+    --tckr-chip-text-down: var(--tckr-color-down);
   }
 }
 
@@ -117,4 +139,9 @@
   --tckr-glass-border-card: rgba(255, 255, 255, 0.12);
   --tckr-glass-bg-stat: rgba(255, 255, 255, 0.06);
   --tckr-glass-border-stat: rgba(255, 255, 255, 0.1);
+  /* See the :root comment above these two tokens. */
+  --tckr-chart-body-bg: rgba(255, 255, 255, 0.04);
+  --tckr-chart-body-border: rgba(255, 255, 255, 0.08);
+  --tckr-chip-text-up: var(--tckr-color-up);
+  --tckr-chip-text-down: var(--tckr-color-down);
 }

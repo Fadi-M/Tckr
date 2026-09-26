@@ -84,7 +84,6 @@ import { onStreamDiscard } from '../data/store.ts';
 import { DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
 import { RingBuffer, toPlotValue } from './ringBuffer.ts';
 import { formatYAxisLabel } from './axes.ts';
-import './priceChart.css';
 
 /** One point of session history, already converted to this component's own numeric/x
  * representation (`t`: epoch ms, matching `SymbolView.lastUpdate`'s convention) — the
@@ -198,7 +197,8 @@ export function PriceChart({
   const hasData = (history?.length ?? 0) > 0 || livePrice !== undefined;
 
   // The design import's floating "{rangeLabel} · {N} ticks" / "H {high}" / "L {low}"
-  // overlay pills (see priceChart.css) — computed from this component's own buffer, the
+  // overlay pills (styled inline via Tailwind utilities in the JSX below) — computed
+  // from this component's own buffer, the
   // one place that already knows every plotted point, rather than asking the parent to
   // duplicate that computation from its own copy of the data. `null` until the buffer
   // holds at least one point. `high`/`low` are plot-space numbers (the same ones the old
@@ -458,26 +458,36 @@ export function PriceChart({
   }, []);
 
   return (
-    <div className="tckr-price-chart">
-      <div className="tckr-price-chart__body" style={{ height }}>
+    <div className="flex flex-col w-full min-w-0">
+      <div
+        className="relative w-full min-w-0 border rounded-2xl overflow-hidden bg-chart-body border-chart-body-border"
+        style={{ height }}
+      >
         {!hasData && (
-          <div className="tckr-price-chart__empty" data-testid="price-chart-empty-state">
+          <div
+            className="absolute inset-0 z-1 flex items-center justify-center text-text-muted bg-surface-raised text-[0.9rem] text-center p-3"
+            data-testid="price-chart-empty-state"
+          >
             Waiting for ticks…
           </div>
         )}
         <div
           ref={containerRef}
-          className="tckr-price-chart__canvas"
+          className="w-full h-full [&_.u-cursor-x]:border-l-[var(--tckr-color-text-muted)]! [&_.u-cursor-pt]:border-[var(--tckr-color-accent)]! [&_.u-cursor-pt]:bg-[var(--tckr-color-accent)]!"
           role="img"
           aria-label={`Price chart for ${symbol}`}
         />
         {stats ? (
           <>
-            <span className="tckr-price-chart__pill tckr-price-chart__pill--range">
+            <span className="absolute z-2 font-mono text-[0.72rem] text-text bg-surface border border-border px-2 py-[3px] rounded-[7px] pointer-events-none top-3 left-3.5">
               {rangeLabel} · {stats.count} ticks
             </span>
-            <span className="tckr-price-chart__pill tckr-price-chart__pill--high">H {formatYAxisLabel(stats.high, tickSize)}</span>
-            <span className="tckr-price-chart__pill tckr-price-chart__pill--low">L {formatYAxisLabel(stats.low, tickSize)}</span>
+            <span className="absolute z-2 font-mono text-[0.72rem] text-text bg-surface border border-border px-2 py-[3px] rounded-[7px] pointer-events-none top-3 right-3.5">
+              H {formatYAxisLabel(stats.high, tickSize)}
+            </span>
+            <span className="absolute z-2 font-mono text-[0.72rem] text-text bg-surface border border-border px-2 py-[3px] rounded-[7px] pointer-events-none bottom-3 right-3.5">
+              L {formatYAxisLabel(stats.low, tickSize)}
+            </span>
           </>
         ) : null}
       </div>
