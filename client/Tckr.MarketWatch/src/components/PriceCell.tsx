@@ -113,7 +113,7 @@ export function PriceCell({
 
   const wrapperClassName = [
     'font-mono tabular-nums',
-    muted ? 'text-text-muted italic' : '',
+    muted ? 'text-text-muted' : '',
     signClass,
   ]
     .filter(Boolean)

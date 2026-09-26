@@ -24,9 +24,10 @@
  * code changes.
  *
  * The pre-open auction (09:30–10:00 Cairo, per EGX's real session structure) is
- * deliberately treated as still-`'closed'` here — this module models a binary
- * open/closed state, not a three-state pre-open/continuous/closing-auction model,
- * matching what the UI actually needs to show.
+ * deliberately treated as still-`'closed'` by `getMarketStatus` — continuous trading
+ * (the only phase that produces ticks) is binary open/closed. `isPreOpenAuction` below
+ * is a separate, purely descriptive refinement of a `'closed'` status, so the UI can
+ * say "pre-open auction" in that window instead of a flat "closed".
  */
 
 const CAIRO_TIME_ZONE = 'Africa/Cairo';
@@ -34,6 +35,8 @@ const CAIRO_TIME_ZONE = 'Africa/Cairo';
 /** Sunday(0)–Thursday(4) trade; Friday(5)/Saturday(6) are EGX's weekend. */
 export const MARKET_OPEN = { hour: 10, minute: 0 } as const;
 export const MARKET_CLOSE = { hour: 14, minute: 30 } as const;
+/** How long before `MARKET_OPEN` EGX's pre-open auction starts (09:30 Cairo). */
+export const PRE_OPEN_AUCTION_MS = 30 * 60 * 1000;
 
 const CAIRO_WEEKDAY_INDEX: Readonly<Record<string, number>> = {
   Sun: 0,
@@ -265,4 +268,14 @@ export function formatCairoTimeShort(epochMs: number): string {
 export function formatNextOpen(status: Extract<MarketStatus, { state: 'closed' }>): string {
   const weekday = CAIRO_WEEKDAY_SHORT_NAMES[getCairoParts(status.nextOpenAt).weekday];
   return `${weekday} ${formatCairoTimeShort(status.nextOpenAt)}`;
+}
+
+/** True during the pre-open auction: the market is `'closed'` for continuous trading,
+ * but opens within `PRE_OPEN_AUCTION_MS` on the same trading day (09:30–10:00 Cairo). */
+export function isPreOpenAuction(status: MarketStatus, nowMs: number): boolean {
+  if (status.state !== 'closed') {
+    return false;
+  }
+  const untilOpen = status.nextOpenAt - nowMs;
+  return untilOpen > 0 && untilOpen <= PRE_OPEN_AUCTION_MS;
 }

@@ -11,19 +11,11 @@
  * `ConnectionStatus` takes no props — it reads the shared `MarketDataSource`
  * singleton itself — so it is simply instantiated as the header's `statusSlot`.
  *
- * `badgeSlot` (task 03's second header slot, previously `<StreamBadge />`) is no
- * longer wired in here — the Frosted Glass Revamp design import's header has a
- * single merged status pill, not two separate elements (see `ConnectionStatus`'s
- * own restyle for why its *text* stays as-is rather than being renamed to the
- * design's literal "LIVE"/"RECONNECTING"/"DISCONNECTED" labels). `StreamBadge`, the
- * component that used to be the candidate for this slot, has since been deleted as
- * dead code: despite being fully built and fully tested, it was never actually
- * mounted anywhere in the running app, and its LIVE/DELAYED entitlement signal is
- * already fully covered by `StockDetail`'s own per-symbol delayed-note (see
- * `StockDetail.tsx`'s `tckr-detail__delayed-note` and
- * `StockDetail.delayed-labelling.test.tsx`). `git log` has the removed component
- * and its two dedicated test files to restore verbatim if a future requirement
- * needs it back.
+ * `badgeSlot` carries `StreamBadge`, the always-visible LIVE/DELAYED entitlement pill.
+ * Like `ConnectionStatus` it takes no props and reads `identity()` from the shared
+ * singleton itself. It was briefly deleted as dead code when nothing mounted it; it is
+ * back because PRODUCT.md requires the live/delayed distinction to be visible on every
+ * screen, not only on the detail view's per-symbol note (the 2026-09-26 critique's P0).
  *
  * ---------------------------------------------------------------------------------
  * "Frosted Glass Revamp" — the permanent simulated-data marker is gone
@@ -42,6 +34,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
 import { ConnectionStatus } from './components/ConnectionStatus';
+import { StreamBadge } from './components/StreamBadge';
 import { resolveClientConfig } from './data/config';
 import './styles/tailwind.css';
 
@@ -65,7 +58,7 @@ if (rootElement) {
     createRoot(rootElement).render(
       <StrictMode>
         <BrowserRouter>
-          <App statusSlot={<ConnectionStatus />} />
+          <App statusSlot={<ConnectionStatus />} badgeSlot={<StreamBadge />} />
         </BrowserRouter>
       </StrictMode>,
     );

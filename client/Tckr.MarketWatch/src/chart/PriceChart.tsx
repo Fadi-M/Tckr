@@ -465,7 +465,7 @@ export function PriceChart({
       >
         {!hasData && (
           <div
-            className="absolute inset-0 z-1 flex items-center justify-center text-text-muted bg-surface-raised text-[0.9rem] text-center p-3"
+            className="absolute inset-0 z-1 flex items-center justify-center text-text-muted bg-surface-raised text-small text-center p-3"
             data-testid="price-chart-empty-state"
           >
             Waiting for ticks…
@@ -475,17 +475,24 @@ export function PriceChart({
           ref={containerRef}
           className="w-full h-full [&_.u-cursor-x]:border-l-[var(--tckr-color-text-muted)]! [&_.u-cursor-pt]:border-[var(--tckr-color-accent)]! [&_.u-cursor-pt]:bg-[var(--tckr-color-accent)]!"
           role="img"
-          aria-label={`Price chart for ${symbol}`}
+          // The readout pills are `aria-hidden` decoration for sighted users; the same
+          // numbers go into the image's accessible name so a screen-reader user gets
+          // the chart's substance, not just its existence.
+          aria-label={
+            stats
+              ? `Price chart for ${symbol}, ${rangeLabel}: ${stats.count} ticks, high ${formatYAxisLabel(stats.high, tickSize)}, low ${formatYAxisLabel(stats.low, tickSize)}`
+              : `Price chart for ${symbol}, waiting for ticks`
+          }
         />
         {stats ? (
           <>
-            <span className="absolute z-2 font-mono text-[0.72rem] text-text bg-surface border border-border px-2 py-[3px] rounded-[7px] pointer-events-none top-3 left-3.5">
+            <span aria-hidden="true" className="absolute z-2 font-mono text-caption text-text bg-surface border border-border px-2 py-[3px] rounded-[7px] pointer-events-none top-3 left-3.5">
               {rangeLabel} · {stats.count} ticks
             </span>
-            <span className="absolute z-2 font-mono text-[0.72rem] text-text bg-surface border border-border px-2 py-[3px] rounded-[7px] pointer-events-none top-3 right-3.5">
+            <span aria-hidden="true" className="absolute z-2 font-mono text-caption text-text bg-surface border border-border px-2 py-[3px] rounded-[7px] pointer-events-none top-3 right-3.5">
               H {formatYAxisLabel(stats.high, tickSize)}
             </span>
-            <span className="absolute z-2 font-mono text-[0.72rem] text-text bg-surface border border-border px-2 py-[3px] rounded-[7px] pointer-events-none bottom-3 right-3.5">
+            <span aria-hidden="true" className="absolute z-2 font-mono text-caption text-text bg-surface border border-border px-2 py-[3px] rounded-[7px] pointer-events-none bottom-3 right-3.5">
               L {formatYAxisLabel(stats.low, tickSize)}
             </span>
           </>

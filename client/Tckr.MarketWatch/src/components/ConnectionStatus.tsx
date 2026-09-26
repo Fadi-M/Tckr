@@ -16,13 +16,11 @@
  * ---------------------------------------------------------------------------------
  * "Frosted Glass Revamp" restyle — one merged pill, same text
  * ---------------------------------------------------------------------------------
- * The header used to render this component's plain text next to a separate
- * `StreamBadge` pill (task 07). The design import has one merged, colour-coded
- * status pill instead — `main.tsx` no longer wires `StreamBadge` into the header at
- * all (see its doc comment), and this component's own outer `<span>` now carries
- * `data-state` too (`global.css`'s `.tckr-connection-status[data-state=...]` rules),
- * so the whole pill's background/border/glow — not just the dot — changes colour
- * with the state.
+ * The whole pill's background/border/glow — not just the dot — changes colour with
+ * the state. The entitlement stream (LIVE/DELAYED) is a separate concept with its own
+ * pill, `StreamBadge`, mounted beside this one; this component only describes the
+ * transport. When connected while EGX is not trading, the pill steps down to neutral
+ * glass (see `CONNECTED_IDLE_CLASSES`) so it never glows green over a still market.
  *
  * The *text* deliberately does not change to the design's literal placeholder
  * labels ("LIVE"/"RECONNECTING"/"DISCONNECTED"): `describeState()`/`closeMessage()`
@@ -30,14 +28,10 @@
  * `status.close-codes.test.tsx`'s "4429 names the remedy") — collapsing all of them
  * to one generic "DISCONNECTED" label would throw away real, load-bearing product
  * information the design's own simplified 3-state placeholder never had to
- * represent. It would also have collided with `StreamBadge`'s own, unrelated use of
- * the word "LIVE" for the entitlement stream (a genuinely different concept) back
- * when both were mounted together — moot now that `StreamBadge` has been deleted as
- * dead code (see `main.tsx`'s doc comment), but the reasoning above still explains
- * why this component's text stays as five distinct messages rather than collapsing
- * to the design's placeholder labels.
+ * represent. "LIVE" in particular belongs to `StreamBadge` (the entitlement stream), a
+ * genuinely different concept from "the socket is up".
  *
- * No props: like `StreamBadge` before it was removed, this component observes only the shared
+ * No props: like `StreamBadge`, this component observes only the shared
  * `MarketDataSource` singleton (`getSharedSource()`, from task 02's `config.ts`) — never
  * a concrete source, never a client-side default for what it displays.
  *
@@ -72,6 +66,8 @@ import { useEffect, useState } from 'react';
 import { getSharedSource } from '../data/config.ts';
 import type { ConnectionState } from '../data/MarketDataSource.ts';
 import { CloseCode } from '../contracts/closeCodes.ts';
+import { isPreOpenAuction } from '../data/marketCalendar.ts';
+import { useMarketStatus } from './useMarketStatus.ts';
 
 function closeMessage(code: CloseCode): string {
   switch (code) {
@@ -130,6 +126,12 @@ const PILL_STATE_CLASSES: Record<ConnectionState['kind'], string> = {
     'text-down bg-[color-mix(in_oklab,var(--tckr-color-down)_16%,var(--tckr-glass-bg))] border-[color-mix(in_oklab,var(--tckr-color-down)_32%,transparent)]',
 };
 
+// Connected while EGX is not trading: the socket is healthy but there is nothing to
+// stream, so the pill steps down to neutral glass — no green fill, no glow. A glowing
+// "Connected" beside "Market closed" read as "prices are moving" and trained users to
+// ignore the pill; the glow is now reserved for a connection that is carrying trades.
+const CONNECTED_IDLE_CLASSES = 'text-text-muted bg-glass border-glass-border';
+
 const DOT_STATE_CLASSES: Record<ConnectionState['kind'], string> = {
   connecting: 'bg-warning',
   reconnecting: 'bg-warning',
@@ -150,6 +152,7 @@ function seedState(): ConnectionState {
 
 export function ConnectionStatus() {
   const [state, setState] = useState<ConnectionState>(seedState);
+  const marketStatus = useMarketStatus();
   const [eventReceivedAt, setEventReceivedAt] = useState<number>(() => Date.now());
   // A ticking counter, incremented at most once per second while the displayed text is
   // time-dependent (`reconnecting`'s countdown, `connected`'s elapsed time). It exists
@@ -176,14 +179,32 @@ export function ConnectionStatus() {
   const remainingSecs = state.kind === 'reconnecting' ? remainingSeconds(state.nextRetryMs - (Date.now() - eventReceivedAt)) : 0;
   const elapsedText = state.kind === 'connected' ? formatElapsed(Date.now() - state.since) : '';
 
+  const idle = state.kind === 'connected' && marketStatus.state !== 'open';
+  const idleReason = isPreOpenAuction(marketStatus, Date.now())
+    ? 'EGX is in its pre-open auction, so no trades are streaming yet'
+    : 'EGX is closed, so no trades are streaming';
+
   return (
     <span
-      className={`inline-flex items-center gap-2 font-mono text-[0.7rem] font-semibold tracking-[0.08em] px-[13px] py-[7px] rounded-full border whitespace-nowrap ${PILL_STATE_CLASSES[state.kind]}`}
+      className={`inline-flex items-center gap-2 font-mono text-label font-semibold tracking-[0.08em] px-[13px] py-[7px] rounded-full border whitespace-nowrap transition-[background-color,border-color,color,box-shadow] duration-[250ms] ease-out ${
+        idle ? CONNECTED_IDLE_CLASSES : PILL_STATE_CLASSES[state.kind]
+      }`}
       data-state={state.kind}
+      data-idle={idle || undefined}
       role="status"
+      title={idle ? `Connected to the feed. ${idleReason}.` : undefined}
     >
-      <span className={`w-1.5 h-1.5 rounded-full flex-none ${DOT_STATE_CLASSES[state.kind]}`} data-state={state.kind} aria-hidden="true" />
-      <span data-testid="connection-status">{describeState(state, remainingSecs, elapsedText)}</span>
+      <span className={`w-1.5 h-1.5 rounded-full flex-none transition-[background-color] duration-[250ms] ${DOT_STATE_CLASSES[state.kind]}`} data-state={state.kind} aria-hidden="true" />
+      {state.kind === 'connected' ? (
+        // Same text as `describeState`, split so the elapsed time can drop on phones,
+        // where the header has to fit the logo, stream badge, this pill and the theme
+        // toggle on one row.
+        <span data-testid="connection-status">
+          Connected<span className="max-[640px]:hidden"> · {elapsedText}</span>
+        </span>
+      ) : (
+        <span data-testid="connection-status">{describeState(state, remainingSecs, elapsedText)}</span>
+      )}
     </span>
   );
 }

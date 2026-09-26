@@ -65,6 +65,27 @@
 }
 
 @theme {
+  /* Type scale — one role per step (DESIGN.md › Typography). Components use these
+     role utilities (`text-label`, `text-caption`, …), never arbitrary `text-[…]` sizes.
+     Size alone never separates two jobs at the same step: weight and tone do
+     (e.g. a banner's 600/Ink title over its 400/Slate detail line). */
+  --text-label: 0.6875rem; /* 11px — tracked mono labels, badges, key hints */
+  --text-label--line-height: 1.3;
+  --text-caption: 0.75rem; /* 12px — control labels, readouts, secondary lines */
+  --text-caption--line-height: 1.45;
+  --text-small: 0.875rem; /* 14px — banner/note titles, search input, empty-state copy */
+  --text-small--line-height: 1.45;
+  --text-body: 1rem; /* 16px — table cells, names, delta pills */
+  --text-body--line-height: 1.5;
+  --text-title: 1.25rem; /* 20px — card symbols, stat values, empty-state heading */
+  --text-title--line-height: 1.2;
+  --text-price: 1.5rem; /* 24px — hero-card prices */
+  --text-price--line-height: 1.1;
+  --text-headline: 1.875rem; /* 30px — detail symbol */
+  --text-headline--line-height: 1.1;
+  --text-display: 3.25rem; /* 52px — detail hero price, the one number the page exists to show */
+  --text-display--line-height: 1;
+
   /* PriceCell's transient flash — see PriceCell.tsx's original module doc: keyed by
      React `key` so it restarts on every value change, purely presentational. */
   --animate-price-flash-up: tckr-price-flash-up-bg 500ms var(--tckr-ease-out);
@@ -74,6 +95,11 @@
   /* StockList's empty-state fade and connection/market banners' entrance. */
   --animate-fade-in: tckr-fade-in 200ms ease-out;
   --animate-banner-in: tckr-banner-in 220ms var(--tckr-ease-out);
+
+  /* StreamBadge: one ring pulse, in the badge's own colour, when the entitlement flips
+     LIVE <-> DELAYED mid-session — the highest-stakes status change in the product,
+     so it is the one status change that asks for the eye. Never on first paint. */
+  --animate-stream-change: tckr-stream-change 900ms var(--tckr-ease-out);
 
   /* StockDetail's card/stats entrance reveal. */
   --animate-detail-reveal: tckr-detail-reveal 220ms var(--tckr-ease-out);
@@ -123,6 +149,18 @@
       transform: translateY(0);
     }
   }
+  @keyframes tckr-stream-change {
+    0% {
+      transform: scale(0.92);
+      box-shadow: 0 0 0 0 color-mix(in oklab, currentColor 45%, transparent);
+    }
+    35% {
+      transform: scale(1);
+    }
+    100% {
+      box-shadow: 0 0 0 10px color-mix(in oklab, currentColor 0%, transparent);
+    }
+  }
   @keyframes tckr-detail-reveal {
     from {
       opacity: 0;
@@ -133,4 +171,89 @@
       transform: translateY(0);
     }
   }
+}
+
+/* ---------------------------------------------------------------------------------
+   Split-pane view transition (`src/components/useViewTransitionNavigate.ts`).
+   Opening or closing a symbol changes the layout once; these rules animate the
+   browser's snapshots of the named regions instead, which runs on the compositor
+   rather than re-running layout every frame.
+   - tckr-list: the instrument table morphs between full width and the 380px column.
+     Its snapshots keep their natural size (no stretching) and the group clips them,
+     so the table reveals or crops from the right edge, as the old width animation did.
+   - tckr-detail: slides in 16px from the right and fades, or fades out when closing.
+   - tckr-hero: fades out when the split opens, back in when it closes.
+   --------------------------------------------------------------------------------- */
+::view-transition-group(*) {
+  animation-duration: 420ms;
+  animation-timing-function: var(--tckr-ease-out);
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 240ms;
+}
+
+::view-transition-group(tckr-list) {
+  overflow: clip;
+}
+::view-transition-old(tckr-list),
+::view-transition-new(tckr-list) {
+  width: auto;
+  height: auto;
+  animation-duration: 240ms;
+}
+
+::view-transition-new(tckr-detail):only-child {
+  animation: tckr-vt-slide-in 420ms var(--tckr-ease-out) both;
+}
+::view-transition-old(tckr-detail):only-child,
+::view-transition-old(tckr-hero):only-child {
+  animation: tckr-vt-fade-out 200ms ease both;
+}
+::view-transition-new(tckr-hero):only-child {
+  animation: tckr-vt-fade-in 300ms ease both;
+}
+
+@keyframes tckr-vt-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+@keyframes tckr-vt-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes tckr-vt-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/* Theme switch (`src/theme/useTheme.ts`): per-element colour transitions are suppressed
+   while the theme changes, so the page switches as one piece instead of each chip and
+   pill fading on its own schedule; the view transition, when available, cross-fades
+   the whole page once. */
+.tckr-theme-switching,
+.tckr-theme-switching *,
+.tckr-theme-switching *::before,
+.tckr-theme-switching *::after {
+  transition: none !important;
+}
+.tckr-theme-transition::view-transition-old(*),
+.tckr-theme-transition::view-transition-new(*) {
+  animation-duration: 280ms;
+  animation-timing-function: ease;
+}
+.tckr-theme-transition::view-transition-group(*) {
+  animation-duration: 280ms;
 }

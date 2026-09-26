@@ -15,6 +15,35 @@ export interface UseThemeResult {
   readonly toggleTheme: () => void;
 }
 
+const SWITCHING_CLASS = 'tckr-theme-switching';
+
+function prefersReducedMotion(): boolean {
+  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+/**
+ * Applies a user-initiated theme switch as one change. Without this, every element
+ * with its own colour transition (chips, pills, rows) faded on its own schedule, so for
+ * ~200ms parts of the page showed the old theme's background behind the new theme's
+ * text. `SWITCHING_CLASS` suppresses those per-element transitions (see tailwind.css)
+ * for the duration of the switch. Where the View Transitions API exists and motion is
+ * allowed, the whole page cross-fades once (280ms); otherwise the switch is instant.
+ */
+function switchThemeSmoothly(apply: () => void): void {
+  const root = document.documentElement;
+  root.classList.add(SWITCHING_CLASS);
+  if (typeof document.startViewTransition === 'function' && !prefersReducedMotion()) {
+    root.classList.add('tckr-theme-transition');
+    const transition = document.startViewTransition(apply);
+    void transition.finished.finally(() => root.classList.remove(SWITCHING_CLASS, 'tckr-theme-transition'));
+    return;
+  }
+  apply();
+  // Two frames: one for the new colours to be computed and painted without
+  // transitions, one more before transitions are allowed again.
+  requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove(SWITCHING_CLASS)));
+}
+
 export function useTheme(): UseThemeResult {
   // Initializes from whatever is already applied to the document — index.html's
   // inline script has already run by the time React mounts — rather than resolving a
@@ -27,7 +56,8 @@ export function useTheme(): UseThemeResult {
   }, []);
 
   const toggleTheme = useCallback(() => {
-    setTheme(theme === 'dark' ? 'light' : 'dark');
+    const next = theme === 'dark' ? 'light' : 'dark';
+    switchThemeSmoothly(() => setTheme(next));
   }, [theme, setTheme]);
 
   // Stay in sync if the theme changes from elsewhere — another mounted `useTheme()`

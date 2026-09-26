@@ -46,9 +46,9 @@
  * ---------------------------------------------------------------------------------
  * "Frosted Glass Revamp" — the "MARKET CLOSED" indicator is gone
  * ---------------------------------------------------------------------------------
- * This page used to import `useMarketStatus`, render a closed badge next to the
- * symbol identity, and pass the resulting `marketOpen` boolean into `PriceChart`.
- * All three are gone as of this redesign — a deliberate product decision, not an
+ * This page used to render a closed badge next to the symbol identity and pass a
+ * `marketOpen` boolean into `PriceChart`. Both are gone as of this redesign (the page
+ * still reads `useMarketStatus`, but only to pick the chart's initial range) — a deliberate product decision, not an
  * oversight, matching the design import (which has no such indicator anywhere on the
  * detail screen). Product has signed off on this removal. This creates a known,
  * accepted asymmetry with `StockList.tsx`, whose `MarketClosedBanner` is unchanged —
@@ -62,12 +62,15 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getSharedSource, resolveClientConfig } from '../data/config.ts';
+import { getSharedSource } from '../data/config.ts';
 import { compare, percentChange, subtract, toDecimal, type DecimalString } from '../contracts/decimal.ts';
 import { formatCairoClock } from '../data/marketCalendar.ts';
 import type { Snapshot, SymbolDefinition } from '../contracts/rest.ts';
 import type { IsoUtc, Stream, Tick } from '../contracts/messages.ts';
+import { ClockIcon } from '../components/icons.tsx';
 import { PriceCell } from '../components/PriceCell.tsx';
+import { streamDelay } from '../components/streamDelay.ts';
+import { useMarketStatus } from '../components/useMarketStatus.ts';
 import { PriceChart, type ChartHistoryPoint } from '../chart/PriceChart.tsx';
 import { createThrottle, DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
 
@@ -117,13 +120,6 @@ function formatExchangeTime(iso: IsoUtc): string {
   return formatCairoClock(Date.parse(iso));
 }
 
-function formatOffset(ms: number): string {
-  if (ms > 0 && ms % 1000 === 0) {
-    return `${ms / 1000}s`;
-  }
-  return `${ms}ms`;
-}
-
 /** 'up'/'down' for a nonzero signed change, `null` at exactly zero — the single
  * source of truth for "is this symbol up or down since open" that both the Change
  * indicator's persistent colour and the raw price's flash colour key off of (see
@@ -142,7 +138,7 @@ function deltaDirection(change: DecimalString): 'up' | 'down' | null {
 // both present on one element would leave Tailwind's generated-CSS source order,
 // not the className string's order, deciding which background wins).
 const DELTA_PILL_BASE_CLASSES =
-  'inline-flex items-center font-mono text-[0.9375rem] font-semibold py-1.5 px-3 rounded-full border tabular-nums';
+  'inline-flex items-center font-mono text-body font-semibold py-1.5 px-3 rounded-full border tabular-nums';
 
 // Same "Delta" convention used app-wide (up = text-up, down = text-down), but this
 // pill's color-mix percentages (20%/35%) are specific to this design import rather
@@ -200,7 +196,7 @@ const RANGE_LABELS: Record<RangeKey, string> = {
 // re-declared explicitly here instead (mirrors `ThemeToggle`'s own `all: unset`
 // conversion elsewhere in this migration).
 const RANGE_PILL_BASE_CLASSES =
-  'appearance-none cursor-pointer font-mono text-xs font-semibold py-[7px] px-3.5 rounded-full border outline-none focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2';
+  'appearance-none cursor-pointer font-mono text-caption font-semibold py-[7px] px-3.5 rounded-full border outline-none focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2';
 const RANGE_PILL_VARIANT_CLASSES = {
   active: 'bg-text text-surface border-text',
   inactive: 'bg-surface-raised text-text-muted border-border',
@@ -298,7 +294,13 @@ export function StockDetail({ symbol }: { symbol: string }) {
   // look at a chart, not per-symbol state, so it carries over to whichever symbol
   // they open next (same reasoning as `sortState` surviving a search on the list
   // page).
-  const [range, setRange] = useState<RangeKey>('60S');
+  //
+  // The *initial* range depends on the session: during continuous trading the last 60
+  // seconds is the interesting window, but outside it (closed, pre-open) that window
+  // is empty or flat — a "2 ticks" line that reads as a dead feed — so the chart opens
+  // on the whole completed SESSION instead.
+  const marketStatus = useMarketStatus();
+  const [range, setRange] = useState<RangeKey>(() => (marketStatus.state === 'open' ? '60S' : 'SESSION'));
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [quote, setQuote] = useState<DetailQuote | undefined>(undefined);
@@ -586,7 +588,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
     );
   }
 
-  const delayedOffsetMs = resolveClientConfig().simulated.delayedOffsetMs;
+  const delay = streamDelay();
   const tickSize = universeDef?.tickSize ?? FALLBACK_TICK_SIZE;
 
   return (
@@ -596,12 +598,12 @@ export function StockDetail({ symbol }: { symbol: string }) {
           <div>
             <div className="flex items-baseline gap-3 flex-wrap">
               <h1
-                className="font-mono font-semibold text-[1.875rem] tracking-[0.01em]"
+                className="font-mono font-semibold text-headline tracking-[0.01em]"
                 data-testid="stock-detail-symbol"
               >
                 {symbol}
               </h1>
-              <span className="text-[0.9375rem] text-text-muted">{universeDef?.name ?? ''}</span>
+              <span className="text-body text-text-muted">{universeDef?.name ?? ''}</span>
             </div>
 
             {phase === 'loading' || !quote ? (
@@ -612,7 +614,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
               <>
                 <div className="flex items-baseline gap-3.5 mt-2.5 flex-wrap">
                   <span
-                    className="font-mono font-semibold text-[3.25rem] tracking-[-0.02em] tabular-nums"
+                    className="font-mono font-semibold text-display tracking-[-0.02em] tabular-nums"
                     data-testid="stock-detail-price"
                   >
                     <PriceCell value={quote.price} flashDirectionOverride={deltaDirection(quote.change)} />
@@ -624,15 +626,9 @@ export function StockDetail({ symbol }: { symbol: string }) {
                     {quote.changePercentText}%
                   </span>
                 </div>
-                <p className="mt-2 font-mono text-[0.78125rem] text-text-muted" data-testid="stock-detail-asof">
+                <p className="mt-2 font-mono text-caption text-text-muted" data-testid="stock-detail-asof">
                   as of {formatExchangeTime(quote.exchangeTimestamp)} Cairo
-                  {quote.stream === 'DELAYED' ? (
-                    <>
-                      {' '}
-                      · DELAYED — showing data from a simulated {formatOffset(delayedOffsetMs)} delay window (this is
-                      a simulation artifact; the real delay is 15 minutes)
-                    </>
-                  ) : null}
+                  {quote.stream === 'DELAYED' ? ` · DELAYED ${delay.short}${delay.simulated ? ' (simulated)' : ''}` : null}
                 </p>
               </>
             )}
@@ -655,14 +651,13 @@ export function StockDetail({ symbol }: { symbol: string }) {
 
         {quote?.stream === 'DELAYED' ? (
           <div className="mt-1 flex gap-2.5 py-3 px-3.5 rounded-[14px] bg-[color-mix(in_oklab,var(--tckr-color-warning)_9%,transparent)] border border-[color-mix(in_oklab,var(--tckr-color-warning)_24%,transparent)]">
-            <span className="flex-none text-warning text-sm" aria-hidden="true">
-              ◷
-            </span>
+            <ClockIcon className="mt-px text-warning" />
             <div>
-              <div className="font-semibold text-[0.82rem]">You are on the delayed stream</div>
-              <div className="mt-[3px] text-[0.78rem] text-text-muted leading-normal">
-                Your entitlement gives you prices behind the live tape. In this simulation the gap is faked at{' '}
-                {formatOffset(delayedOffsetMs)}; on a real exchange feed it would be 15 minutes.
+              <div className="font-semibold text-small">Delayed prices</div>
+              <div className="mt-[3px] text-caption text-text-muted leading-normal">
+                {delay.simulated
+                  ? `Every price here is ${delay.short} behind the exchange. This demo simulates the delay; a real delayed entitlement runs 15 minutes behind.`
+                  : `Every price here is ${delay.short} behind the exchange, per your entitlement.`}
               </div>
             </div>
           </div>
@@ -690,38 +685,38 @@ export function StockDetail({ symbol }: { symbol: string }) {
           data-testid="stock-detail-footer"
         >
           <div className="bg-glass-stat border border-glass-border-stat backdrop-blur-[20px] rounded-2xl py-[13px] px-[15px] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
-            <span className="block font-mono text-[0.65625rem] tracking-[0.14em] text-text-muted">Open</span>
-            <span className="block mt-[5px] font-mono text-xl font-semibold tabular-nums">
+            <span className="block font-mono text-label tracking-[0.14em] text-text-muted">Open</span>
+            <span className="block mt-[5px] font-mono text-title font-semibold tabular-nums">
               <PriceCell value={extras?.open ?? quote.price} />
             </span>
           </div>
           <div className="bg-glass-stat border border-glass-border-stat backdrop-blur-[20px] rounded-2xl py-[13px] px-[15px] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
-            <span className="block font-mono text-[0.65625rem] tracking-[0.14em] text-text-muted">High</span>
-            <span className="block mt-[5px] font-mono text-xl font-semibold tabular-nums">
+            <span className="block font-mono text-label tracking-[0.14em] text-text-muted">High</span>
+            <span className="block mt-[5px] font-mono text-title font-semibold tabular-nums">
               <PriceCell value={extras?.high ?? quote.price} />
             </span>
           </div>
           <div className="bg-glass-stat border border-glass-border-stat backdrop-blur-[20px] rounded-2xl py-[13px] px-[15px] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
-            <span className="block font-mono text-[0.65625rem] tracking-[0.14em] text-text-muted">Low</span>
-            <span className="block mt-[5px] font-mono text-xl font-semibold tabular-nums">
+            <span className="block font-mono text-label tracking-[0.14em] text-text-muted">Low</span>
+            <span className="block mt-[5px] font-mono text-title font-semibold tabular-nums">
               <PriceCell value={extras?.low ?? quote.price} />
             </span>
           </div>
           <div className="bg-glass-stat border border-glass-border-stat backdrop-blur-[20px] rounded-2xl py-[13px] px-[15px] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
-            <span className="block font-mono text-[0.65625rem] tracking-[0.14em] text-text-muted">Volume</span>
-            <span className="block mt-[5px] font-mono text-xl font-semibold tabular-nums">
+            <span className="block font-mono text-label tracking-[0.14em] text-text-muted">Volume</span>
+            <span className="block mt-[5px] font-mono text-title font-semibold tabular-nums">
               {new Intl.NumberFormat('en-US').format(quote.volume)}
             </span>
           </div>
           <div className="bg-glass-stat border border-glass-border-stat backdrop-blur-[20px] rounded-2xl py-[13px] px-[15px] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
-            <span className="block font-mono text-[0.65625rem] tracking-[0.14em] text-text-muted">Lot</span>
-            <span className="block mt-[5px] font-mono text-xl font-semibold tabular-nums">
+            <span className="block font-mono text-label tracking-[0.14em] text-text-muted">Lot</span>
+            <span className="block mt-[5px] font-mono text-title font-semibold tabular-nums">
               {universeDef?.lotSize ?? '—'}
             </span>
           </div>
           <div className="bg-glass-stat border border-glass-border-stat backdrop-blur-[20px] rounded-2xl py-[13px] px-[15px] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
-            <span className="block font-mono text-[0.65625rem] tracking-[0.14em] text-text-muted">Tick</span>
-            <span className="block mt-[5px] font-mono text-xl font-semibold tabular-nums">
+            <span className="block font-mono text-label tracking-[0.14em] text-text-muted">Tick</span>
+            <span className="block mt-[5px] font-mono text-title font-semibold tabular-nums">
               {universeDef ? <PriceCell value={universeDef.tickSize} /> : '—'}
             </span>
           </div>

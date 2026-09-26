@@ -16,25 +16,32 @@ export interface TckrLogoProps {
   size?: number;
 }
 
+/** The candlestick "T" on its own (58×72 viewBox; width = 0.8 × height), themed like
+ * the lockup. Decorative (`aria-hidden`). Minimum height 16px per the logo spec. */
+export function TckrMark({ height }: { readonly height: number }) {
+  return (
+    <svg
+      width={Math.round(height * 0.8)}
+      height={height}
+      viewBox="0 0 58 72"
+      fill="none"
+      aria-hidden="true"
+      focusable="false"
+      className="flex-none"
+    >
+      <rect x="2" y="4" width="54" height="11" rx="5.5" fill="var(--tckr-logo-ink)" />
+      <rect x="27" y="15" width="4" height="10" fill="var(--tckr-logo-candle)" />
+      <rect x="17" y="25" width="24" height="34" rx="6" fill="var(--tckr-logo-candle)" />
+      <rect x="27" y="59" width="4" height="11" rx="2" fill="var(--tckr-logo-candle)" />
+    </svg>
+  );
+}
+
 export function TckrLogo({ size = 24 }: TckrLogoProps) {
   const markHeight = Math.round(size * 1.15);
-  const markWidth = Math.round(markHeight * 0.8);
   return (
     <span className="inline-flex items-end" style={{ gap: Math.max(1, Math.round(size * 0.06)) }}>
-      <svg
-        width={markWidth}
-        height={markHeight}
-        viewBox="0 0 58 72"
-        fill="none"
-        aria-hidden="true"
-        focusable="false"
-        className="flex-none"
-      >
-        <rect x="2" y="4" width="54" height="11" rx="5.5" fill="var(--tckr-logo-ink)" />
-        <rect x="27" y="15" width="4" height="10" fill="var(--tckr-logo-candle)" />
-        <rect x="17" y="25" width="24" height="34" rx="6" fill="var(--tckr-logo-candle)" />
-        <rect x="27" y="59" width="4" height="11" rx="2" fill="var(--tckr-logo-candle)" />
-      </svg>
+      <TckrMark height={markHeight} />
       <span
         aria-hidden="true"
         className="font-mono font-semibold tracking-[-0.02em] leading-[0.92] text-[var(--tckr-logo-ink)]"
