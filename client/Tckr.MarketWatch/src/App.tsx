@@ -6,11 +6,12 @@
  *      "Frosted Glass Revamp" design import's blurred colour blobs, fixed behind
  *      every route so the glass panels have something to blur. Purely decorative
  *      markup (`aria-hidden`), no data.
- *   2. Header — the Tckr logo lockup (`TckrLogo`, links home), plus a named
- *      `statusSlot` that task 07 renders `ConnectionStatus` into, without editing
- *      this file. `ThemeToggle` (light/dark, `src/theme/useTheme.ts`) is rendered directly rather than
- *      through a slot: it needs no data-layer wiring, so it does not need
- *      main.tsx's composition-root treatment the way the data-driven slot does.
+ *   2. Header — the Tckr logo lockup (`TckrLogo`, links home), then two named slots
+ *      `main.tsx` fills without editing this file: `badgeSlot` (`StreamBadge`, the
+ *      LIVE/DELAYED entitlement) and `statusSlot` (`ConnectionStatus`). One row at
+ *      every width. `ThemeToggle` (light/dark, `src/theme/useTheme.ts`) is rendered
+ *      directly rather than through a slot: it needs no data-layer wiring, so it does
+ *      not need main.tsx's composition-root treatment the way the data-driven slots do.
  *   3. `<Routes>` — rendered inside `.tckr-page`.
  *
  * This file does not import anything from `src/data/**` directly — see
@@ -41,9 +42,10 @@
  * "header simulated-tape tag" tests in `shell.slots.test.tsx`. `git log` has all of
  * it verbatim if a future requirement needs it restored.
  */
-import { lazy, Suspense, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, type MouseEvent, type ReactNode } from 'react';
 import { Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { TckrLogo } from './components/TckrLogo';
+import { useViewTransitionNavigate } from './components/useViewTransitionNavigate';
 import { ThemeToggle } from './components/ThemeToggle';
 import { StockList } from './pages/StockList';
 
@@ -51,36 +53,69 @@ import { StockList } from './pages/StockList';
 // detail page, is not fetched by users who only ever visit the list page at
 // `/`. This keeps `StockDetail` (and everything it statically imports, i.e.
 // `PriceChart`/`uplot`) in its own chunk, split out of the initial bundle.
-const StockDetail = lazy(() =>
-  import('./pages/StockDetail').then((module) => ({ default: module.StockDetail })),
-);
+//
+// The chunk is still warmed once the browser is idle after first paint (see `App`),
+// and once loaded the component is rendered directly rather than through `lazy`.
+// Opening a symbol runs a view transition that snapshots the first commit after
+// navigation; `lazy` suspends on its first render even when the chunk is already
+// cached, so that commit would be the Suspense "Loading…" fallback instead of the
+// detail pane. The chunk stays out of the initial bundle either way.
+type StockDetailModule = typeof import('./pages/StockDetail');
+let loadedStockDetail: StockDetailModule['StockDetail'] | null = null;
+const loadStockDetail = () =>
+  import('./pages/StockDetail').then((module) => {
+    loadedStockDetail = module.StockDetail;
+    return module;
+  });
+const LazyStockDetail = lazy(() => loadStockDetail().then((module) => ({ default: module.StockDetail })));
+
+function usePrefetchStockDetail(): void {
+  useEffect(() => {
+    if (typeof window.requestIdleCallback === 'function') {
+      const id = window.requestIdleCallback(() => void loadStockDetail());
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = window.setTimeout(() => void loadStockDetail(), 2000);
+    return () => window.clearTimeout(id);
+  }, []);
+}
 
 export interface AppHeaderProps {
   /** Rendered by task 07's `ConnectionStatus`. */
   statusSlot?: ReactNode | undefined;
-  /** Generic second header slot — no longer populated by `main.tsx` (`StreamBadge`,
-   * the component that used to be its candidate occupant, has since been deleted as
-   * dead code — see `main.tsx`'s doc comment), but the slot mechanism itself is
-   * still exercised directly by `shell.slots.test.tsx` and stays available for
-   * whatever a future header addition needs. */
+  /** Rendered by `StreamBadge` (the LIVE/DELAYED entitlement pill). Placed before
+   * `statusSlot`: which stream you are on matters more than socket uptime. */
   badgeSlot?: ReactNode | undefined;
 }
 
 function AppHeader({ statusSlot, badgeSlot }: AppHeaderProps) {
+  const navigateWithTransition = useViewTransitionNavigate();
+  // Going home from a symbol closes the split pane, so the logo uses the same view
+  // transition as the list's own navigation. Only a plain left-click is intercepted;
+  // modifier-clicks keep the link's normal new-tab/new-window behaviour.
+  const handleLogoClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return;
+    }
+    event.preventDefault();
+    navigateWithTransition('/');
+  };
+
   return (
     <header
-      className="sticky top-0 z-[5] flex items-center justify-between gap-3 w-full px-5 py-3.5 bg-glass backdrop-blur-tckr backdrop-saturate-[160%] border-b border-glass-border reduced-transparency:bg-surface contrast-more:bg-surface reduced-transparency:backdrop-blur-none contrast-more:backdrop-blur-none max-[640px]:flex-col max-[640px]:items-stretch"
+      className="sticky top-0 z-[5] flex items-center justify-between gap-3 w-full px-5 py-3.5 bg-glass backdrop-blur-tckr backdrop-saturate-[160%] border-b border-glass-border reduced-transparency:bg-surface contrast-more:bg-surface reduced-transparency:backdrop-blur-none contrast-more:backdrop-blur-none max-[640px]:px-4 max-[640px]:gap-2"
     >
       <Link
         to="/"
+        onClick={handleLogoClick}
         aria-label="Tckr"
-        className="flex items-center rounded-md no-underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent max-[640px]:self-start"
+        className="flex items-center rounded-md no-underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent flex-none"
       >
         <TckrLogo size={24} />
       </Link>
-      <div className="flex items-center gap-3.5 flex-wrap justify-end font-mono max-[640px]:justify-start">
-        {statusSlot}
+      <div className="flex items-center gap-2.5 flex-wrap justify-end min-w-0 font-mono max-[640px]:gap-1.5">
         {badgeSlot}
+        {statusSlot}
         <ThemeToggle />
       </div>
     </header>
@@ -89,6 +124,7 @@ function AppHeader({ statusSlot, badgeSlot }: AppHeaderProps) {
 
 function StockDetailRoute() {
   const { symbol } = useParams<{ symbol: string }>();
+  const StockDetail = loadedStockDetail ?? LazyStockDetail;
   return (
     <Suspense fallback={<p className="text-text-muted">Loading…</p>}>
       <StockDetail symbol={symbol ?? ''} />
@@ -104,6 +140,7 @@ export interface AppProps {
 }
 
 export function App({ statusSlot, badgeSlot }: AppProps) {
+  usePrefetchStockDetail();
   return (
     <div className="relative flex flex-col min-h-full w-full max-w-[100vw] overflow-x-hidden">
       <span

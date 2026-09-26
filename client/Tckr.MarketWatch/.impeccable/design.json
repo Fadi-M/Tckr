@@ -1,196 +1,570 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-15T08:56:38Z",
+  "generatedAt": "2026-09-26T01:19:14+00:00",
   "title": "Design System: Tckr Market Watch",
   "extensions": {
     "colorMeta": {
-      "terminal-mint": {
+      "exchange-green": {
         "role": "primary",
-        "displayName": "Terminal Mint",
-        "canonical": "oklch(78% 0.15 155)",
+        "displayName": "Exchange Green",
+        "canonical": "oklch(51.2% 0.115 158.3)",
+        "dark": "#3fd79c",
         "tonalRamp": [
-          "oklch(18% 0.04 155)",
-          "oklch(30% 0.08 155)",
-          "oklch(42% 0.11 155)",
-          "oklch(54% 0.13 155)",
-          "oklch(66% 0.15 155)",
-          "oklch(78% 0.15 155)",
-          "oklch(88% 0.11 155)",
-          "oklch(95% 0.05 155)"
+          "#010f06",
+          "#052c1a",
+          "#094f31",
+          "#05764a",
+          "#3d9b6c",
+          "#65c18f",
+          "#89e5b2",
+          "#c4ffdc"
         ]
       },
-      "alert-coral": {
+      "brick-red": {
         "role": "secondary",
-        "displayName": "Alert Coral",
-        "canonical": "oklch(70% 0.17 25)",
+        "displayName": "Brick Red",
+        "canonical": "oklch(54.3% 0.174 29.7)",
+        "dark": "#f2705f",
         "tonalRamp": [
-          "oklch(18% 0.05 25)",
-          "oklch(30% 0.09 25)",
-          "oklch(42% 0.13 25)",
-          "oklch(54% 0.16 25)",
-          "oklch(63% 0.17 25)",
-          "oklch(70% 0.17 25)",
-          "oklch(84% 0.11 25)",
-          "oklch(95% 0.05 25)"
+          "#1f0000",
+          "#4a0301",
+          "#7c130a",
+          "#b1291d",
+          "#db5342",
+          "#fe806e",
+          "#fbbcb1",
+          "#fee9e5"
         ]
       },
-      "amber-caution": {
+      "session-amber": {
         "role": "tertiary",
-        "displayName": "Amber Caution",
-        "canonical": "oklch(75% 0.13 75)",
+        "displayName": "Session Amber",
+        "canonical": "oklch(50.8% 0.108 73.3)",
+        "dark": "#d9a441",
         "tonalRamp": [
-          "oklch(18% 0.04 75)",
-          "oklch(30% 0.07 75)",
-          "oklch(42% 0.10 75)",
-          "oklch(54% 0.12 75)",
-          "oklch(66% 0.13 75)",
-          "oklch(75% 0.13 75)",
-          "oklch(87% 0.09 75)",
-          "oklch(95% 0.04 75)"
+          "#130900",
+          "#331f03",
+          "#5b3b03",
+          "#845915",
+          "#ad7b32",
+          "#d4a059",
+          "#f9c37c",
+          "#feebd3"
         ]
       },
-      "surface": {
+      "ink": {
         "role": "neutral",
-        "displayName": "Near-Black Surface",
-        "canonical": "oklch(15% 0.003 250)",
+        "displayName": "Ink",
+        "canonical": "oklch(20.8% 0.015 261.6)",
+        "dark": "#f2f1ee",
         "tonalRamp": [
-          "oklch(15% 0.003 250)",
-          "oklch(22% 0.003 250)",
-          "oklch(30% 0.003 250)",
-          "oklch(42% 0.003 250)",
-          "oklch(55% 0.003 250)",
-          "oklch(68% 0.003 250)",
-          "oklch(82% 0.003 250)",
-          "oklch(95% 0.003 250)"
+          "#080b12",
+          "#20242c",
+          "#3e434b",
+          "#5e636c",
+          "#818690",
+          "#a6abb5",
+          "#c8ced8",
+          "#e9eff9"
         ]
       },
-      "surface-raised": {
+      "slate": {
         "role": "neutral",
-        "displayName": "Raised Surface",
-        "canonical": "oklch(19% 0.003 250)"
+        "displayName": "Slate",
+        "canonical": "oklch(50.1% 0.025 259.2)",
+        "dark": "#9296a0",
+        "tonalRamp": [
+          "#050b16",
+          "#1d2430",
+          "#3a4350",
+          "#5b6472",
+          "#7d8796",
+          "#a2acbb",
+          "#c4cfdf",
+          "#e6effe"
+        ]
       },
-      "text": {
+      "paper": {
         "role": "neutral",
-        "displayName": "Off-White Text",
-        "canonical": "oklch(96% 0.004 90)"
+        "displayName": "Paper",
+        "canonical": "oklch(100.0% 0.000 89.9)",
+        "dark": "#0c0d0e",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#242424",
+          "#424242",
+          "#636363",
+          "#868686",
+          "#ababab",
+          "#cecece",
+          "#eeeeee"
+        ]
       },
-      "text-muted": {
+      "paper-raised": {
         "role": "neutral",
-        "displayName": "Muted Slate Text",
-        "canonical": "oklch(65% 0.006 260)"
+        "displayName": "Paper Raised",
+        "canonical": "oklch(97.0% 0.003 264.5)",
+        "dark": "#17181a",
+        "tonalRamp": [
+          "#0b0b0c",
+          "#232425",
+          "#414244",
+          "#626365",
+          "#858688",
+          "#aaabad",
+          "#cdced0",
+          "#edeef0"
+        ]
       },
-      "border": {
+      "hairline": {
         "role": "neutral",
-        "displayName": "Hairline Border",
-        "canonical": "rgba(255, 255, 255, 0.1)"
+        "displayName": "Hairline",
+        "canonical": "oklch(89.1% 0.009 264.5)",
+        "dark": "rgba(255, 255, 255, 0.1)",
+        "tonalRamp": [
+          "#090b0f",
+          "#222428",
+          "#404247",
+          "#616368",
+          "#83868c",
+          "#a8abb1",
+          "#cbced4",
+          "#ebeef5"
+        ]
+      },
+      "frost-top": {
+        "role": "neutral",
+        "displayName": "Frost Top",
+        "canonical": "oklch(96.5% 0.002 165.1)",
+        "dark": "#0b0d0e",
+        "tonalRamp": [
+          "#0a0b0b",
+          "#232424",
+          "#414342",
+          "#626463",
+          "#858786",
+          "#a9abaa",
+          "#cccecd",
+          "#edefee"
+        ]
+      },
+      "frost-bottom": {
+        "role": "neutral",
+        "displayName": "Frost Bottom",
+        "canonical": "oklch(93.7% 0.003 174.5)",
+        "dark": "#101214",
+        "tonalRamp": [
+          "#0a0c0b",
+          "#222524",
+          "#414342",
+          "#616463",
+          "#848786",
+          "#a9abaa",
+          "#cbcecd",
+          "#ecefee"
+        ]
+      },
+      "chip-text-up": {
+        "role": "primary",
+        "displayName": "Chip Text Up",
+        "canonical": "oklch(45.8% 0.102 158.2)",
+        "dark": "#3fd79c",
+        "tonalRamp": [
+          "#000f06",
+          "#002c18",
+          "#0c4f31",
+          "#21744d",
+          "#49996f",
+          "#6fbf92",
+          "#92e2b5",
+          "#c5fedc"
+        ]
+      },
+      "chip-text-down": {
+        "role": "secondary",
+        "displayName": "Chip Text Down",
+        "canonical": "oklch(48.3% 0.153 29.3)",
+        "dark": "#f47d6e",
+        "tonalRamp": [
+          "#1e0100",
+          "#490402",
+          "#810402",
+          "#a9362a",
+          "#d25c4d",
+          "#fc8171",
+          "#ffbaaf",
+          "#fee9e6"
+        ]
+      },
+      "logo-ink": {
+        "role": "neutral",
+        "displayName": "Logo Ink",
+        "canonical": "oklch(20.8% 0.015 261.6)",
+        "dark": "#ffffff",
+        "tonalRamp": [
+          "#080b12",
+          "#20242c",
+          "#3e434b",
+          "#5e636c",
+          "#818690",
+          "#a6abb5",
+          "#c8ced8",
+          "#e9eff9"
+        ]
+      },
+      "logo-candle": {
+        "role": "primary",
+        "displayName": "Logo Candle",
+        "canonical": "oklch(51.2% 0.115 158.3)",
+        "dark": "#3fd79c",
+        "tonalRamp": [
+          "#010f06",
+          "#052c1a",
+          "#094f31",
+          "#05764a",
+          "#3d9b6c",
+          "#65c18f",
+          "#89e5b2",
+          "#c4ffdc"
+        ]
+      },
+      "glass": {
+        "role": "neutral",
+        "displayName": "Glass",
+        "dark": "rgba(255, 255, 255, 0.055)"
+      },
+      "glass-strong": {
+        "role": "neutral",
+        "displayName": "Glass Strong",
+        "dark": "rgba(255, 255, 255, 0.09)"
+      },
+      "glass-edge": {
+        "role": "neutral",
+        "displayName": "Glass Edge",
+        "dark": "rgba(255, 255, 255, 0.1)"
+      },
+      "glass-card": {
+        "role": "neutral",
+        "displayName": "Glass Card",
+        "dark": "rgba(255, 255, 255, 0.06)"
+      },
+      "glass-card-edge": {
+        "role": "neutral",
+        "displayName": "Glass Card Edge",
+        "dark": "rgba(255, 255, 255, 0.12)"
+      },
+      "glass-stat": {
+        "role": "neutral",
+        "displayName": "Glass Stat",
+        "dark": "rgba(255, 255, 255, 0.06)"
+      },
+      "glass-stat-edge": {
+        "role": "neutral",
+        "displayName": "Glass Stat Edge",
+        "dark": "rgba(255, 255, 255, 0.1)"
+      },
+      "glow-mint": {
+        "role": "neutral",
+        "displayName": "Glow Mint",
+        "dark": "rgba(63, 215, 156, 0.26)"
+      },
+      "glow-coral": {
+        "role": "neutral",
+        "displayName": "Glow Coral",
+        "dark": "rgba(242, 112, 95, 0.18)"
+      },
+      "glow-periwinkle": {
+        "role": "neutral",
+        "displayName": "Glow Periwinkle",
+        "dark": "rgba(120, 150, 255, 0.16)"
       }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display (Hero Price)", "purpose": "The stock-detail page's headline price — the largest, most weighted text in the system, and the only 'display' moment given to a number rather than a headline." },
-      "headline": { "displayName": "Headline (Symbol Identity)", "purpose": "The traded symbol on the detail page (e.g. COMI)." },
-      "body": { "displayName": "Body", "purpose": "Table cells, copy, buttons, search input — anything a human wrote." },
-      "label": { "displayName": "Label", "purpose": "Uppercase-tracked micro-labels: table headers, badges, stat labels, the tape tag." }
+      "display": {
+        "displayName": "Display",
+        "purpose": "Detail panel hero price only (text-display)."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Detail panel symbol (text-headline)."
+      },
+      "price": {
+        "displayName": "Price",
+        "purpose": "Hero-card prices (text-price)."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Hero-card symbols, stat values, empty-state heading (text-title)."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Table cells, company names, delta pills (text-body)."
+      },
+      "small": {
+        "displayName": "Small",
+        "purpose": "Banner/note titles, search input, empty-state copy (text-small); Body on coarse pointers for the input."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Control labels, readouts, secondary detail lines (text-caption)."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Tracked mono labels, badges, key hints; the size floor (text-label)."
+      },
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "The 'ckr' of the Tckr logo lockup."
+      }
     },
-    "shadows": [],
+    "shadows": [
+      {
+        "name": "card-float",
+        "value": "0 18px 40px -28px rgba(0,0,0,0.4)",
+        "purpose": "Hero cards; the detail panel uses the same shape tinted rgba(20,24,31,0.4)."
+      },
+      {
+        "name": "table-float",
+        "value": "0 18px 40px -30px rgba(0,0,0,0.4)",
+        "purpose": "Instrument table card."
+      },
+      {
+        "name": "selected-bar",
+        "value": "inset 3px 0 0 var(--tckr-color-up)",
+        "purpose": "Selected (open) table row: a signal, not elevation."
+      },
+      {
+        "name": "live-glow",
+        "value": "0 4px 14px color-mix(in oklab, var(--tckr-color-up) 30%, transparent)",
+        "purpose": "Connected pill only."
+      }
+    ],
     "motion": [
-      { "name": "tape-scroll", "value": "translateX(0) to translateX(-50%), 32s linear infinite", "purpose": "The ticker tape's continuous marquee loop; duplicated content makes the loop seamless." },
-      { "name": "price-flash", "value": "500ms cubic-bezier(0.23, 1, 0.32, 1) background-color pulse + arrow fade", "purpose": "Fires on every Price Cell value change — the system's primary 'something just happened' signal. Kept brief and non-repeating." },
-      { "name": "tape-held-pause", "value": "animation-play-state: paused, opacity 0.32, saturate(0.3)", "purpose": "Freezes and desaturates the ticker tape when the connection is stale, with a fading 'TAPE HELD' overlay label." }
+      {
+        "name": "ease-tckr",
+        "value": "cubic-bezier(0.23, 1, 0.32, 1)",
+        "purpose": "Shared ease-out for reveals, flashes and the split-pane transition."
+      },
+      {
+        "name": "price-flash",
+        "value": "500ms var(--tckr-ease-out)",
+        "purpose": "Price Cell tint + arrow on every value change."
+      },
+      {
+        "name": "banner-in",
+        "value": "220ms var(--tckr-ease-out), from translateY(-6px)",
+        "purpose": "Connection and market banners entering."
+      },
+      {
+        "name": "detail-reveal",
+        "value": "220ms var(--tckr-ease-out), from translateY(4px); stats +40ms",
+        "purpose": "Detail panel and stat tiles entering."
+      },
+      {
+        "name": "press",
+        "value": "scale(0.96) over 120ms ease-out (0.92 on the theme toggle)",
+        "purpose": "Pressable controls."
+      },
+      {
+        "name": "hover-lift",
+        "value": "translateY(-2px) over 160ms ease-out, fine pointers only",
+        "purpose": "Hero cards."
+      },
+      {
+        "name": "split-pane",
+        "value": "view transition: list group 420ms var(--tckr-ease-out), clipped; hero fade-out 200ms; detail slide-in 16px + fade 420ms",
+        "purpose": "Opening/closing a symbol. Composited snapshots; no layout-property animation. Instant under reduced motion."
+      },
+      {
+        "name": "board-rerank",
+        "value": "FLIP translateY 420ms cubic-bezier(0.23,1,0.32,1); moving-row surface held to 70% then released; entering rows fade 200ms",
+        "purpose": "Row order changes (sort, 30s re-rank, search). Off under reduced motion."
+      },
+      {
+        "name": "stream-change",
+        "value": "900ms var(--tckr-ease-out): scale 0.92→1, currentColor ring 0→10px",
+        "purpose": "StreamBadge on a mid-session entitlement flip only."
+      },
+      {
+        "name": "theme-switch",
+        "value": "view-transition cross-fade 280ms ease; per-element transitions suppressed",
+        "purpose": "User-initiated theme toggle."
+      },
+      {
+        "name": "status-crossfade",
+        "value": "background/border/color/box-shadow 250ms ease-out",
+        "purpose": "Connection pill state changes."
+      }
     ],
     "breakpoints": [
-      { "name": "narrow", "value": "640px" },
-      { "name": "compact-chart", "value": "400px" },
-      { "name": "stats-wide", "value": "480px" }
+      {
+        "name": "stack",
+        "value": "800px"
+      },
+      {
+        "name": "compact",
+        "value": "640px"
+      }
     ]
   },
   "components": [
     {
-      "name": "Primary Action Button",
+      "name": "Filter Pill (active / inactive)",
       "kind": "button",
-      "refersTo": "button-primary",
-      "description": "Inverted-color call-to-action: active filter pill, active timeframe tab, banner/empty-state CTAs (Retry now, Reconnect, Clear search).",
-      "html": "<button class=\"ds-btn-primary\">Retry now</button>",
-      "css": ".ds-btn-primary { font: inherit; font-weight: 600; font-size: 0.75rem; padding: 7px 13px; border-radius: 6px; border: none; background: var(--tckr-color-text, #f2f1ee); color: var(--tckr-color-surface, #0c0d0e); cursor: pointer; transition: opacity 0.15s ease-out; } .ds-btn-primary:hover { opacity: 0.85; } .ds-btn-primary:focus-visible { outline: 2px solid var(--tckr-color-accent, #3fd79c); outline-offset: 2px; }"
+      "refersTo": "pill-active",
+      "description": "List filter presets. Active is the Ink-on-Paper inversion; inactive is a hairline ghost.",
+      "html": "<div class=\"ds-pills\"><button class=\"ds-pill ds-pill--active\">Most active</button><button class=\"ds-pill\">Gainers</button><button class=\"ds-pill\">Losers</button><button class=\"ds-pill\">A–Z</button></div>",
+      "css": ".ds-pills { display: flex; gap: 6px; flex-wrap: wrap; } .ds-pill { font-family: var(--tckr-font-sans); font-size: 0.75rem; font-weight: 500; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--tckr-color-border); background: transparent; color: var(--tckr-color-text-muted); cursor: pointer; transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, transform 120ms ease-out; } .ds-pill:active { transform: scale(0.96); } .ds-pill:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; } .ds-pill--active { background: var(--tckr-color-text); color: var(--tckr-color-surface); border-color: var(--tckr-color-text); font-weight: 600; }"
     },
     {
-      "name": "Ghost Pill",
+      "name": "Action Button",
       "kind": "button",
-      "refersTo": "button-ghost",
-      "description": "Inactive filter/preset pill — becomes the Primary Action Button's color pair on selection, never on hover.",
-      "html": "<button class=\"ds-pill\">Gainers</button>",
-      "css": ".ds-pill { font: inherit; font-size: 0.72rem; font-weight: 500; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--tckr-color-border, rgba(255,255,255,0.1)); background: transparent; color: var(--tckr-color-text-muted, #9296a0); cursor: pointer; } .ds-pill:focus-visible { outline: 2px solid var(--tckr-color-accent, #3fd79c); outline-offset: 2px; } .ds-pill--active { background: var(--tckr-color-text, #f2f1ee); color: var(--tckr-color-surface, #0c0d0e); border-color: var(--tckr-color-text, #f2f1ee); font-weight: 600; }"
+      "refersTo": "button-action",
+      "description": "Empty-state and banner call to action: solid Ink, 7px corners, press scale.",
+      "html": "<button class=\"ds-action\">Clear search</button>",
+      "css": ".ds-action { font-family: var(--tckr-font-sans); font-size: 0.75rem; font-weight: 600; padding: 9px 14px; border-radius: 7px; border: 0; background: var(--tckr-color-text); color: var(--tckr-color-surface); cursor: pointer; transition: transform 120ms ease-out, opacity 150ms ease; } .ds-action:hover { opacity: 0.88; } .ds-action:active { transform: scale(0.96); } .ds-action:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; }"
     },
     {
-      "name": "Live Badge",
+      "name": "Range Pills",
+      "kind": "button",
+      "refersTo": "range-pill-active",
+      "description": "Chart range selector on the detail panel: mono labels, Ink active state.",
+      "html": "<div class=\"ds-range\"><button class=\"ds-range__pill ds-range__pill--active\">60S</button><button class=\"ds-range__pill\">5M</button><button class=\"ds-range__pill\">SESSION</button></div>",
+      "css": ".ds-range { display: flex; gap: 6px; } .ds-range__pill { font-family: var(--tckr-font-mono); font-size: 0.75rem; font-weight: 600; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--tckr-color-border); background: var(--tckr-color-surface-raised); color: var(--tckr-color-text-muted); cursor: pointer; } .ds-range__pill:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; } .ds-range__pill--active { background: var(--tckr-color-text); color: var(--tckr-color-surface); border-color: var(--tckr-color-text); }"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "search-field",
+      "description": "Glass pill wrapping an unstyled input with a ⌘K hint; focus-within outlines the whole pill.",
+      "html": "<label class=\"ds-search\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><circle cx=\"7\" cy=\"7\" r=\"5\"/><path d=\"M11 11l3.5 3.5\"/></svg><input placeholder=\"Search symbol or name\"><kbd class=\"ds-search__kbd\">⌘K</kbd></label>",
+      "css": ".ds-search { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border: 1px solid var(--tckr-glass-border); border-radius: 999px; background: var(--tckr-glass-bg); backdrop-filter: blur(var(--tckr-blur)) saturate(1.5); -webkit-backdrop-filter: blur(var(--tckr-blur)) saturate(1.5); color: var(--tckr-color-text-muted); transition: border-color 150ms ease; } .ds-search:focus-within { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; } .ds-search input { flex: 1; min-width: 0; appearance: none; border: 0; background: transparent; outline: none; font-family: var(--tckr-font-sans); font-size: 0.875rem; color: var(--tckr-color-text); } .ds-search input::placeholder { color: var(--tckr-color-text-muted); } .ds-search__kbd { font-family: var(--tckr-font-mono); font-size: 0.6875rem; border: 1px solid var(--tckr-color-border); border-radius: 4px; padding: 3px 6px; } @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) { .ds-search { background: var(--tckr-color-surface); backdrop-filter: none; -webkit-backdrop-filter: none; } }"
+    },
+    {
+      "name": "Stream Badge",
       "kind": "chip",
-      "refersTo": "badge-live",
-      "description": "The system's assertion that a stream is LIVE — sourced only from server entitlement, never a client default.",
-      "html": "<span class=\"ds-badge ds-badge--live\"><span class=\"ds-badge__dot\"></span>LIVE</span>",
-      "css": ".ds-badge { display: inline-flex; align-items: center; gap: 6px; font-family: 'Roboto Mono', ui-monospace, monospace; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.09em; padding: 5px 9px; border-radius: 5px; border: 1px solid; white-space: nowrap; } .ds-badge--live { color: var(--tckr-color-up, #3fd79c); background: color-mix(in oklab, var(--tckr-color-up, #3fd79c) 14%, transparent); border-color: color-mix(in oklab, var(--tckr-color-up, #3fd79c) 30%, transparent); } .ds-badge__dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }"
+      "refersTo": "connection-pill-connected",
+      "description": "Header entitlement pill from the server's identity(): LIVE (green dot) or DELAYED with a drawn clock and the honest offset.",
+      "html": "<div class=\"ds-stream-row\"><span class=\"ds-stream ds-stream--live\"><span class=\"ds-stream__dot\"></span>LIVE</span><span class=\"ds-stream ds-stream--delayed\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" aria-hidden=\"true\"><circle cx=\"8\" cy=\"8\" r=\"6.2\"/><path d=\"M8 4.6V8l2.3 1.5\"/></svg>DELAYED · 15s</span></div>",
+      "css": ".ds-stream-row { display: flex; gap: 10px; } .ds-stream { --c: var(--tckr-color-up); display: inline-flex; align-items: center; gap: 6px; font-family: var(--tckr-font-mono); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.08em; padding: 7px 11px; border-radius: 999px; white-space: nowrap; color: var(--c); background: color-mix(in oklab, var(--c) 16%, var(--tckr-glass-bg)); border: 1px solid color-mix(in oklab, var(--c) 32%, transparent); } .ds-stream__dot { width: 6px; height: 6px; border-radius: 999px; background: var(--c); } .ds-stream--delayed { --c: var(--tckr-color-warning); }"
     },
     {
-      "name": "Delayed Badge",
+      "name": "Connection Pill",
       "kind": "chip",
-      "refersTo": "badge-delayed",
-      "description": "Marks a DELAYED stream with its simulated offset — always labelled as a simulation artifact, never presented as the real 15-minute delay.",
-      "html": "<span class=\"ds-badge ds-badge--delayed\">◷ DELAYED — 15s simulated delay</span>",
-      "css": ".ds-badge { display: inline-flex; align-items: center; gap: 6px; font-family: 'Roboto Mono', ui-monospace, monospace; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.09em; padding: 5px 9px; border-radius: 5px; border: 1px solid; white-space: nowrap; } .ds-badge--delayed { color: var(--tckr-color-warning, #d9a441); background: color-mix(in oklab, var(--tckr-color-warning, #d9a441) 13%, transparent); border-color: color-mix(in oklab, var(--tckr-color-warning, #d9a441) 30%, transparent); }"
+      "refersTo": "connection-pill-connected",
+      "description": "Header transport pill: tinted per state; green with glow only while EGX is trading, neutral glass when connected but the market is closed.",
+      "html": "<div class=\"ds-conn-row\"><span class=\"ds-conn ds-conn--up\"><span class=\"ds-conn__dot\"></span>Connected · 2s</span><span class=\"ds-conn ds-conn--idle\"><span class=\"ds-conn__dot\"></span>Connected · 8s</span><span class=\"ds-conn ds-conn--warn\"><span class=\"ds-conn__dot\"></span>Reconnecting · 3s</span><span class=\"ds-conn ds-conn--down\"><span class=\"ds-conn__dot\"></span>Disconnected</span></div>",
+      "css": ".ds-conn-row { display: flex; gap: 10px; flex-wrap: wrap; } .ds-conn { --c: var(--tckr-color-up); display: inline-flex; align-items: center; gap: 8px; font-family: var(--tckr-font-mono); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.08em; padding: 7px 13px; border-radius: 999px; white-space: nowrap; color: var(--c); background: color-mix(in oklab, var(--c) 16%, var(--tckr-glass-bg)); border: 1px solid color-mix(in oklab, var(--c) 32%, transparent); } .ds-conn__dot { width: 6px; height: 6px; border-radius: 999px; background: var(--c); } .ds-conn--up { box-shadow: 0 4px 14px color-mix(in oklab, var(--tckr-color-up) 30%, transparent); } .ds-conn--warn { --c: var(--tckr-color-warning); } .ds-conn--down { --c: var(--tckr-color-down); } .ds-conn--idle { color: var(--tckr-color-text-muted); background: var(--tckr-glass-bg); border-color: var(--tckr-glass-border); box-shadow: none; } .ds-conn--idle .ds-conn__dot { background: var(--tckr-color-up); }"
     },
     {
-      "name": "Price Cell",
-      "kind": "custom",
-      "refersTo": "price-cell",
-      "description": "The one component every price/signed decimal renders through. Flashes a 900ms directional pulse on value change; shows a de-emphasized italic state before the first tick.",
-      "html": "<span class=\"ds-price-cell\"><span class=\"ds-price-cell__flash ds-price-cell__flash--up\">84.20</span></span>",
-      "css": ".ds-price-cell { font-variant-numeric: tabular-nums; font-family: 'Roboto Mono', ui-monospace, monospace; } .ds-price-cell--muted { color: var(--tckr-color-text-muted, #9296a0); font-style: italic; } .ds-price-cell__flash { display: inline-block; border-radius: 3px; padding: 0 2px; margin: 0 -2px; } .ds-price-cell__flash--up { animation: ds-flash-up 900ms ease-out; } .ds-price-cell__flash--down { animation: ds-flash-down 900ms ease-out; } @keyframes ds-flash-up { from { background-color: color-mix(in oklab, var(--tckr-color-up, #3fd79c) 28%, transparent); } to { background-color: transparent; } } @keyframes ds-flash-down { from { background-color: color-mix(in oklab, var(--tckr-color-down, #f2705f) 28%, transparent); } to { background-color: transparent; } }"
-    },
-    {
-      "name": "Stat Card",
+      "name": "Hero Card",
       "kind": "card",
-      "refersTo": "stat-card",
-      "description": "One cell in the detail page's OHLC/volume/lot/tick grid — hairline-separated, tonal, no shadow.",
-      "html": "<div class=\"ds-stat\"><span class=\"ds-stat__label\">Open</span><span class=\"ds-stat__value\">84.20</span></div>",
-      "css": ".ds-stat { background: var(--tckr-color-surface-raised, #17181a); padding: 12px; } .ds-stat__label { display: block; font-family: 'Roboto Mono', ui-monospace, monospace; font-size: 0.6rem; letter-spacing: 0.1em; color: var(--tckr-color-text-muted, #9296a0); text-transform: uppercase; } .ds-stat__value { display: block; margin-top: 6px; font-family: 'Roboto Mono', ui-monospace, monospace; font-size: 0.9rem; font-variant-numeric: tabular-nums; color: var(--tckr-color-text, #f2f1ee); }"
+      "refersTo": "hero-card",
+      "description": "Top Gainer / Top Loser / Most Active: glass card with tracked mono kicker, signed badge, mono price and sparkline; lifts 2px on hover.",
+      "html": "<button class=\"ds-hero\"><span class=\"ds-hero__top\"><span class=\"ds-hero__kicker\">TOP GAINER</span><span class=\"ds-hero__badge\">+1.4%</span></span><span class=\"ds-hero__id\"><b>ORWE</b><span>Oriental Weavers Carpets</span></span><span class=\"ds-hero__row\"><span class=\"ds-hero__price\">15.60</span><svg viewBox=\"0 0 100 34\" preserveAspectRatio=\"none\" width=\"96\" height=\"30\" aria-hidden=\"true\"><polyline points=\"0,26 12,24 24,27 36,20 48,22 60,15 72,17 84,10 100,8\" fill=\"none\" stroke=\"var(--tckr-color-up)\" stroke-width=\"1.6\"/></svg></span></button>",
+      "css": ".ds-hero { all: unset; box-sizing: border-box; display: block; width: 280px; cursor: pointer; padding: 16px 18px 15px; border-radius: 20px; background: var(--tckr-glass-bg); border: 1px solid var(--tckr-glass-border); box-shadow: 0 18px 40px -28px rgba(0,0,0,0.4); backdrop-filter: blur(var(--tckr-blur)) saturate(1.6); -webkit-backdrop-filter: blur(var(--tckr-blur)) saturate(1.6); color: var(--tckr-color-text); font-family: var(--tckr-font-sans); transition: transform 160ms ease-out, border-color 160ms ease; } @media (hover: hover) and (pointer: fine) { .ds-hero:hover { transform: translateY(-2px); } } .ds-hero:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; } .ds-hero__top { display: flex; justify-content: space-between; align-items: center; } .ds-hero__kicker { font-family: var(--tckr-font-mono); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.14em; color: var(--tckr-color-text-muted); } .ds-hero__badge { font-family: var(--tckr-font-mono); font-size: 0.6875rem; font-weight: 600; padding: 3px 10px; border-radius: 999px; color: var(--tckr-chip-text-up); background: color-mix(in oklab, var(--tckr-color-up) 20%, transparent); } .ds-hero__id { display: flex; align-items: baseline; gap: 8px; margin-top: 12px; } .ds-hero__id b { font-family: var(--tckr-font-mono); font-size: 1.25rem; font-weight: 600; } .ds-hero__id span { font-size: 0.75rem; color: var(--tckr-color-text-muted); } .ds-hero__row { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 10px; } .ds-hero__price { font-family: var(--tckr-font-mono); font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; } @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) { .ds-hero { background: var(--tckr-color-surface); backdrop-filter: none; -webkit-backdrop-filter: none; } }"
     },
     {
-      "name": "Connection Banner",
+      "name": "Change Chip",
+      "kind": "chip",
+      "refersTo": "change-chip-up",
+      "description": "Change % in the table: 5px chip, 20% signal tint, AA-darkened text, explicit sign.",
+      "html": "<div class=\"ds-chips\"><span class=\"ds-chip ds-chip--up\">+0.6%</span><span class=\"ds-chip ds-chip--down\">-0.2%</span></div>",
+      "css": ".ds-chips { display: flex; gap: 10px; } .ds-chip { display: inline-block; font-family: var(--tckr-font-mono); font-variant-numeric: tabular-nums; padding: 4px 8px; border-radius: 5px; transition: background-color 200ms ease; } .ds-chip--up { color: var(--tckr-chip-text-up); background: color-mix(in oklab, var(--tckr-color-up) 20%, transparent); } .ds-chip--down { color: var(--tckr-chip-text-down); background: color-mix(in oklab, var(--tckr-color-down) 20%, transparent); }"
+    },
+    {
+      "name": "Stat Tile",
+      "kind": "card",
+      "refersTo": "stat-tile",
+      "description": "Detail OHLC / volume / lot / tick tiles: calmer, more opaque glass with a near-white edge.",
+      "html": "<div class=\"ds-stats\"><div class=\"ds-stat\"><span class=\"ds-stat__label\">Open</span><span class=\"ds-stat__value\">85.10</span></div><div class=\"ds-stat\"><span class=\"ds-stat__label\">High</span><span class=\"ds-stat__value\">85.85</span></div><div class=\"ds-stat\"><span class=\"ds-stat__label\">Volume</span><span class=\"ds-stat__value\">293,900</span></div></div>",
+      "css": ".ds-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; } .ds-stat { padding: 13px 15px; border-radius: 16px; background: var(--tckr-glass-bg-stat); border: 1px solid var(--tckr-glass-border-stat); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); } .ds-stat__label { display: block; font-family: var(--tckr-font-mono); font-size: 0.6875rem; letter-spacing: 0.14em; color: var(--tckr-color-text-muted); } .ds-stat__value { display: block; margin-top: 5px; font-family: var(--tckr-font-mono); font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--tckr-color-text); } @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) { .ds-stat { background: var(--tckr-color-surface); backdrop-filter: none; -webkit-backdrop-filter: none; } }"
+    },
+    {
+      "name": "Selected Table Row",
       "kind": "custom",
-      "refersTo": "conn-banner",
-      "description": "Tinted, bordered alert for a reconnecting/closed data stream, with an inverted-color retry action.",
-      "html": "<div class=\"ds-conn-banner ds-conn-banner--warning\"><span class=\"ds-conn-banner__icon\">◴</span><div><div class=\"ds-conn-banner__title\">The stream dropped — retrying in 4s</div><div class=\"ds-conn-banner__detail\">Attempt 1. Prices below are the last values received.</div></div><button class=\"ds-btn-primary\">Retry now</button></div>",
-      "css": ".ds-conn-banner { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 9px; } .ds-conn-banner--warning { background: color-mix(in oklab, var(--tckr-color-warning, #d9a441) 9%, transparent); border: 1px solid color-mix(in oklab, var(--tckr-color-warning, #d9a441) 26%, transparent); } .ds-conn-banner__icon { font-size: 15px; color: var(--tckr-color-warning, #d9a441); } .ds-conn-banner__title { font-weight: 600; font-size: 0.85rem; color: var(--tckr-color-text, #f2f1ee); } .ds-conn-banner__detail { margin-top: 3px; font-size: 0.78rem; color: var(--tckr-color-text-muted, #9296a0); } .ds-btn-primary { font: inherit; font-weight: 600; font-size: 0.75rem; padding: 7px 13px; border-radius: 6px; border: none; background: var(--tckr-color-text, #f2f1ee); color: var(--tckr-color-surface, #0c0d0e); cursor: pointer; }"
+      "refersTo": "table-card",
+      "description": "Instrument table inside the glass table card; the open symbol gets a 12% green tint and a 3px inset bar.",
+      "html": "<div class=\"ds-table\"><div class=\"ds-row ds-row--selected\"><b>COMI</b><span>85.60</span><span class=\"ds-up\">▲ +0.50</span></div><div class=\"ds-row\"><b>CIB</b><span>62.65</span><span class=\"ds-down\">▼ -0.10</span></div></div>",
+      "css": ".ds-table { width: 360px; border: 1px solid var(--tckr-glass-border); border-radius: 18px; overflow: hidden; background: var(--tckr-glass-bg); backdrop-filter: blur(var(--tckr-blur)) saturate(1.6); -webkit-backdrop-filter: blur(var(--tckr-blur)) saturate(1.6); box-shadow: 0 18px 40px -30px rgba(0,0,0,0.4); } .ds-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 12px; border-bottom: 1px solid var(--tckr-glass-border); font-family: var(--tckr-font-mono); font-variant-numeric: tabular-nums; color: var(--tckr-color-text); cursor: pointer; transition: background-color 120ms ease, box-shadow 120ms ease; } .ds-row:last-child { border-bottom: 0; } @media (hover: hover) and (pointer: fine) { .ds-row:hover { background: color-mix(in oklab, var(--tckr-color-text) 6%, transparent); } } .ds-row--selected { background: color-mix(in oklab, var(--tckr-color-up) 12%, transparent); box-shadow: inset 3px 0 0 var(--tckr-color-up); } .ds-up { color: var(--tckr-color-up); text-align: right; } .ds-down { color: var(--tckr-color-down); text-align: right; } @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) { .ds-table { background: var(--tckr-color-surface); backdrop-filter: none; -webkit-backdrop-filter: none; } }"
     }
   ],
   "narrative": {
-    "northStar": "The Night Terminal",
-    "overview": "Tckr Market Watch reads like a professional trading terminal built for a dim room, not a consumer finance app. The page opens dark by construction — data-theme=\"dark\" is hard-coded on <html>, so this is the software's resting state, not a toggle a user finds later. Every surface is near-black and bordered rather than shadowed; every number is set in a monospace face with tabular figures so a column of prices lines up like a ledger; a scrolling ticker tape and per-row sparklines give the page a pulse without ever becoming its subject. The two signal colors that matter — Terminal Mint for \"up\" and \"live,\" Alert Coral for \"down\" — never appear as decoration; they only ever mark a real state change, and they never appear alone: a ▲/▼ glyph rides with every colored delta so the meaning survives for a colorblind viewer. Nothing in this system uses a shadow, a gradient (beyond the tape's edge-fade mask), or a solid saturated fill outside of a badge/pill — depth comes from tone (surface vs. surface-raised) and hairline borders, never elevation. The system is quietly technical and unhurried: motion exists (the tape's 32-second loop, a 900ms price-flash pulse) but is calm and rhythmic, never urgent or flashy — it earns trust by looking like an instrument, not a toy.",
+    "northStar": "The Frosted Trading Floor",
+    "overview": "Tckr Market Watch is a live EGX board seen through frosted glass. The page rests on a pale mineral gradient, the Frost field. Three large, heavily blurred colour glows sit behind it: mint top-right, coral centre, periwinkle bottom-left. Every working surface floats on that field as a translucent pane: the header, the connection pill, the banners, the search field, the hero cards, the instrument table, the detail panel and its stat tiles. The glass is soft but the content is not. Prices, symbols, volumes and timestamps are set crisp and tabular in IBM Plex Mono and sit in front of the blur. The light behind the panes suggests warmth and motion; the numbers stay still, sharp and exact. \n\nThe system is light-first. Light is the resting state (`index.html` resolves a stored choice, then the OS preference, then light). Dark is a full counterpart rather than an afterthought: the same panes become smoked glass over a near-black field, and the glows drop to about half strength. Colour is disciplined. Exchange Green means up, live, connected or selected. Brick Red means down or disconnected. Session Amber means waiting, reconnecting or delayed. None of the three is ever decoration, and each always comes with a non-colour signal. Motion is brief and physical: short ease-out reveals, a 500ms flash when a price changes, a gentle lift on hover, and a press that scales to 96%. \n\nThis system rejects the old \"Night Terminal\" look: no dark-only default, no shadowless hairline cards, no marquee ticker tape.",
     "keyCharacteristics": [
-      "Dark-by-default, not dark-as-option — the light theme is a plain daytime fallback for an explicit override, not the primary experience.",
-      "Every number is monospace with tabular figures; every UI label/heading is Archivo. The two faces never swap roles.",
-      "Color never carries meaning alone — every up/down signal pairs a color with a ▲/▼ glyph.",
-      "Flat by construction: zero box-shadow anywhere in the codebase. Depth is tonal layering plus 1px hairline borders.",
-      "Status surfaces (LIVE, DELAYED, warnings, errors) are always a translucent tint over the base surface (color-mix, 9–14% strength), never a solid fill."
+      "Light-first frosted glass. Translucent panes (58–78% white, 20–26px backdrop blur, 1.5–1.6× saturation) float over a gradient field lit by three blurred colour glows.",
+      "Two voices. IBM Plex Mono carries every number, symbol, label and badge; Instrument Sans carries names, sentences and control text.",
+      "Soft, generous corners that scale with a surface's importance (5px chips → 16px stat tiles → 18–22px cards), and fully round pills for every control and status.",
+      "Every glass surface has an opaque, blur-free fallback for reduced transparency and increased contrast.",
+      "Up/down is never colour alone: an arrow glyph or an explicit +/− sign always rides along."
     ],
     "rules": [
-      { "name": "The Color-Plus-Glyph Rule", "body": "No price direction is ever shown by color alone. Every .tckr-delta--up/.tckr-delta--down pairs its color with a leading ▲/▼ glyph, so the ~1-in-12 colorblind viewer still reads the direction. This is a hard product requirement, not a style preference.", "section": "colors" },
-      { "name": "The Tinted-Never-Solid Rule", "body": "A status surface (LIVE/DELAYED badges, the simulated banner, connection warning/danger banners) is always its accent color mixed into the base surface at 9–14% strength, bordered at roughly double that strength. A solid accent fill is reserved for the inverted primary-button/active-pill pattern only.", "section": "colors" },
-      { "name": "The Mono-Is-For-Machines Rule", "body": "Anything a machine produced or a user would compare digit-by-digit is set in Roboto Mono with tabular-nums. Anything a human wrote is Archivo. The two never trade places.", "section": "typography" },
-      { "name": "The No-Shadow Rule", "body": "This system conveys \"this is a distinct surface\" with a border and/or a tone shift, never a shadow. A future component that reaches for box-shadow has left the system.", "section": "elevation" }
+      {
+        "name": "The Always-Visible Stream Rule",
+        "body": "Which stream the user is on (LIVE or DELAYED) is shown in the header on every screen, from the server's `identity()` only. A status that matters this much is never a caption on one view.",
+        "section": "colors"
+      },
+      {
+        "name": "The Color-Plus-Signal Rule",
+        "body": "No price direction is shown by colour alone. Change cells lead with ▲/▼. Change-percent chips and delta pills always print an explicit + or − sign. The price flash fades in an arrow beside the tint. This is a product requirement, not a style preference.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tinted Status Rule",
+        "body": "A status surface mixes its signal colour into the glass, never into a solid fill: 16% into `--tckr-glass-bg` for connection pills and banners, with the border at 32%. The delayed note uses 9% with a 24% border. A solid fill is reserved for the inverted Ink selection pattern.",
+        "section": "colors"
+      },
+      {
+        "name": "The Always-Green Candle Rule",
+        "body": "The logo's candle is Exchange Green (mint on dark), whatever the market is doing.",
+        "section": "colors"
+      },
+      {
+        "name": "The Mono-Is-For-Machines Rule",
+        "body": "Anything a machine produced or a user compares digit by digit is IBM Plex Mono with `tabular-nums`: prices, symbols, volumes, percentages, timestamps, tick and lot sizes. Anything a person wrote is Instrument Sans. The two never trade places.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tracked-Label Rule",
+        "body": "Small mono labels are always tracked wide (0.08–0.14em) and set in Slate; they name a value and never compete with it.",
+        "section": "typography"
+      },
+      {
+        "name": "The Real-Weights Rule",
+        "body": "Emphasis tops out at semibold (600), the heaviest cut loaded. `font-bold` and `italic` would render as browser-synthesized fakes, so neither is used.",
+        "section": "typography"
+      },
+      {
+        "name": "The Glass-Needs-A-Field Rule",
+        "body": "Glass only works over something. Panes sit on the Frost gradient and its glows. Never put a glass pane over a flat, opaque surface, where it reads as a grey smear.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Opaque Fallback Rule",
+        "body": "Every glass surface declares `reduced-transparency:` and `contrast-more:` fallbacks that swap to opaque Paper and drop the blur and saturation. A new glass component without both fallbacks is incomplete.",
+        "section": "elevation"
+      }
     ],
     "dos": [
-      "Do pair every colored delta with its ▲/▼ glyph — never color alone.",
-      "Do render every status surface as a color-mix tint at 9–14% strength, bordered at roughly double that strength — never a solid accent fill.",
-      "Do route every displayed price or signed decimal through Price Cell.",
-      "Do keep Roboto Mono for anything numeric or machine-read and Archivo for anything a human wrote.",
-      "Do separate surfaces with a 1px Border hairline or a tone shift — never a shadow."
+      "**Do** pair every coloured direction with ▲/▼ or an explicit +/− sign (The Color-Plus-Signal Rule).",
+      "**Do** mix status colours into the glass (16% fill / 32% border) instead of filling solid (The Tinted Status Rule).",
+      "**Do** give every new glass surface `reduced-transparency:` and `contrast-more:` opaque fallbacks (The Opaque Fallback Rule).",
+      "**Do** set every figure in IBM Plex Mono with `tabular-nums` and every sentence in Instrument Sans (The Mono-Is-For-Machines Rule).",
+      "**Do** use the Ink-on-Paper inversion for every selected or active control.",
+      "**Do** gate hover effects behind `fine-hover` and give pressable controls the 0.96 press scale, with `motion-reduce` fallbacks on every reveal and transition.",
+      "**Do** route every displayed price through Price Cell.",
+      "**Do** keep the Stream Badge on every screen. The live/delayed distinction is never implied by colour alone or left to one view (The Always-Visible Stream Rule).",
+      "**Do** draw icons from `icons.tsx`; never borrow a Unicode glyph as an icon.",
+      "**Do** animate layout changes with a view transition (`useViewTransitionNavigate`) or transform and opacity. Never transition `width`, `height`, `max-height` or margins."
     ],
     "donts": [
-      "Don't introduce a box-shadow anywhere — this system has none, by construction.",
-      "Don't give a status badge or banner a solid, fully-opaque accent background.",
-      "Don't let a decorative element (the ticker tape, a sparkline) become a second source of truth for a price.",
-      "Don't shorten the 900ms price-flash duration or swap its ease-out timing without checking it still reads as \"quietly technical, unhurried.\"",
-      "Don't use a 0px (sharp) corner anywhere — the system's radius floor is 2px.",
-      "Don't treat the dark theme as optional chrome — it is the shipped default, not the design's secondary expression."
+      "**Don't** put glass over a flat opaque surface or strip the Frost field and glows from a desktop page (The Glass-Needs-A-Field Rule).",
+      "**Don't** stack shadows or use them to express state. Card float and Table float are the only elevation shadows.",
+      "**Don't** use a sharp (0px) corner or a border thicker than 1px.",
+      "**Don't** colour the logo candle red or coral, or add \"Market Watch\" text to the lockup (The Always-Green Candle Rule).",
+      "**Don't** recolour the price chart's line by direction. It is always the accent.",
+      "**Don't** reintroduce the retired Night Terminal patterns: dark-only default, Roboto Mono/Archivo, the marquee ticker tape, or the permanent simulated-data banner."
     ]
   }
 }

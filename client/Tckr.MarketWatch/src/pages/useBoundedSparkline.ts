@@ -16,7 +16,7 @@
  * double-invoked effect still only pushes once per distinct value, since the guard
  * compares against the ref's own last entry, not a render-scoped variable).
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 /** Returns a bounded (`maxPoints`-capped) history of `currentValue`, appending a new
  * point only when `currentValue` actually changes. The returned array always ends
@@ -40,4 +40,37 @@ export function useBoundedSparkline(currentValue: number, maxPoints: number): re
  * `StockListRow`). `undefined` (no snapshot yet) and exactly `0` both read as `flat`. */
 export function sparklineDirection(changePercent: number | undefined): 'up' | 'down' | 'flat' {
   return changePercent === undefined || changePercent === 0 ? 'flat' : changePercent > 0 ? 'up' : 'down';
+}
+
+/**
+ * Reduces a session's full price history to `maxPoints` evenly spaced samples — first
+ * and last always kept — so a row's sparkline can show the whole session's shape from
+ * first paint instead of starting flat and filling in one repaint (30s) at a time.
+ * Decorative only, like every sparkline value: never rendered as text.
+ */
+export function downsampleSeries(values: readonly number[], maxPoints: number): number[] {
+  if (values.length <= maxPoints) {
+    return [...values];
+  }
+  const step = (values.length - 1) / (maxPoints - 1);
+  return Array.from({ length: maxPoints }, (_, i) => values[Math.round(i * step)]!);
+}
+
+/**
+ * The sparkline a row or hero card draws: once `sessionSeries` (the symbol's full
+ * session history, fetched once by `StockList`) has loaded, its downsampled shape with
+ * the live price as the last point — the whole session from first paint. Until then,
+ * the bounded live history (`useBoundedSparkline`) stands in.
+ */
+export function useSessionSparkline(
+  currentValue: number,
+  maxPoints: number,
+  sessionSeries: readonly number[] | undefined,
+): readonly number[] {
+  const live = useBoundedSparkline(currentValue, maxPoints);
+  const seeded = useMemo(
+    () => (sessionSeries && sessionSeries.length > 1 ? downsampleSeries(sessionSeries, maxPoints).slice(0, -1) : null),
+    [sessionSeries, maxPoints],
+  );
+  return seeded ? [...seeded, currentValue] : live;
 }

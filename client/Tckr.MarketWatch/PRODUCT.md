@@ -40,13 +40,20 @@ design surface rather than edge cases.
 This client (`client/Tckr.MarketWatch`) is Phase 3 of a multi-phase build; the upstream
 gateway (`ws://.../ws/market-data` + REST) that will eventually serve it is Phase 11 and
 does not exist yet. Until then, `SimulatedSource` (a seeded in-browser random walk over a
-34-instrument fictional universe) stands in for the real feed, and every screen carries a
-permanent, undismissable banner disclosing that the data is simulated — this banner is a
-product requirement, not a placeholder to remove later. The two data sources
+34-instrument fictional universe, `public/symbols.json`) stands in for the real feed. A
+permanent, undismissable "simulated data" banner is no longer a product requirement; it was
+deliberately removed in the frosted-glass revamp. The two data sources
 (`SimulatedSource`, `TckrGatewaySource`) implement one `MarketDataSource` interface so the
 swap to a real gateway is a single environment-variable change with no component changes;
 this interface boundary is a durable architectural constraint that future UI work must not
 cross (no page/component may import a concrete source directly).
+
+The target market is the Egyptian Exchange (EGX). The client follows EGX's real trading
+calendar (Sunday–Thursday, ~10:00–14:30 `Africa/Cairo`, including Egypt's DST rule, with a
+09:30–10:00 pre-open auction), and market-open/closed state is part of what a user sees.
+The instrument universe is fictional but modelled on an EGX board (ticker shapes, names,
+price magnitudes, tick sizes, lot sizes), so future work should assume EGX conventions
+rather than a generic or US-market default.
 
 ## Capabilities and Constraints
 
@@ -69,6 +76,20 @@ cross (no page/component may import a concrete source directly).
 - Order-book depth, alerts, news, watchlist persistence, and portfolios are out of scope
   for this client.
 
+## Brand Commitments
+
+- Name: **Tckr**. The logo is a candlestick "T" mark followed by a "ckr" wordmark in IBM
+  Plex Mono 600 (letter-spacing −0.02em). The lockup has no "Market Watch" text.
+- The candle is always green (#0F7A4D on light surfaces, #3FD79C mint on dark). There is
+  no red or coral variant, whatever the price direction.
+- Crossbar and wordmark are ink #14181F on light surfaces and white #FFFFFF on dark.
+- Lockup proportions: mark height = 1.15 × wordmark size, mark width = 0.8 × mark height,
+  gap ≈ 0.06 × wordmark size, bottoms aligned. Minimums: wordmark 14px, mark alone 16px
+  tall. Clear space: one mark width on every side.
+- The favicon is the light frosted app icon (`public/logo/tckr-icon-light.svg`). In the app
+  the lockup is `src/components/TckrLogo.tsx`, themed via `--tckr-logo-ink` /
+  `--tckr-logo-candle`.
+
 ## Evidence on Hand
 
 - `docs/phase-3-web-client/client-contract.md` — the frozen v1 wire contract (REST +
@@ -78,6 +99,8 @@ cross (no page/component may import a concrete source directly).
   settled.
 - `docs/MASTER CONTEXT.md` / `docs/requirements.md` — the overall platform's problem
   statement, non-functional requirements, and explicit non-goals.
+- Logo source of truth: the "Tckr Logo Final.dc.html" page and its `logo/README.md` in
+  the claude.ai/design project (id `87645981-9ff7-46fb-a836-7fe76143a924`).
 - No real market data, customers, testimonials, or pricing exist; all instruments, names,
   and price moves in the running app are fictional and must not be presented as real.
 
@@ -91,8 +114,6 @@ cross (no page/component may import a concrete source directly).
   displayed, compared, or transmitted.
 - The data-source seam (`MarketDataSource`) is sacred — no page or component may depend on
   which concrete source is behind it.
-- Simulated data is always disclosed, permanently and undismissably, for as long as no
-  real gateway exists.
 
 ## Accessibility & Inclusion
 

@@ -16,6 +16,7 @@ import {
   formatNextOpen,
   getCairoParts,
   getMarketStatus,
+  isPreOpenAuction,
   isTradingDay,
   nextTradingDateKey,
   previousTradingDateKey,
@@ -178,5 +179,21 @@ describe('formatNextOpen', () => {
     if (status.state === 'closed') {
       expect(formatNextOpen(status)).toBe('Sun 10:00');
     }
+  });
+});
+
+describe('isPreOpenAuction', () => {
+  // 2026-01-15 is a Thursday (a trading day); Cairo is UTC+2 in January.
+  const at = (hour: number, minute: number) => cairoEpochFor('2026-01-15', hour, minute);
+
+  it('is true from 09:30 up to (not including) the 10:00 open', () => {
+    expect(isPreOpenAuction(getMarketStatus(at(9, 30)), at(9, 30))).toBe(true);
+    expect(isPreOpenAuction(getMarketStatus(at(9, 59)), at(9, 59))).toBe(true);
+  });
+
+  it('is false before 09:30, during continuous trading, and after the close', () => {
+    expect(isPreOpenAuction(getMarketStatus(at(9, 29)), at(9, 29))).toBe(false);
+    expect(isPreOpenAuction(getMarketStatus(at(10, 0)), at(10, 0))).toBe(false);
+    expect(isPreOpenAuction(getMarketStatus(at(15, 0)), at(15, 0))).toBe(false);
   });
 });
