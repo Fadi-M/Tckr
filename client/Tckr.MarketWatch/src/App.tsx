@@ -67,12 +67,14 @@ export interface AppHeaderProps {
 
 function AppHeader({ statusSlot, badgeSlot }: AppHeaderProps) {
   return (
-    <header className="tckr-header">
-      <div className="tckr-header__brand">
-        <span className="tckr-header__brand-mark" aria-hidden="true" />
+    <header
+      className="sticky top-0 z-[5] flex items-center justify-between gap-3 w-full px-5 py-3.5 bg-glass backdrop-blur-tckr backdrop-saturate-[160%] border-b border-glass-border reduced-transparency:bg-surface contrast-more:bg-surface reduced-transparency:backdrop-blur-none contrast-more:backdrop-blur-none max-[640px]:flex-col max-[640px]:items-stretch"
+    >
+      <div className="flex items-center gap-2.5 font-extrabold text-[1.05rem] tracking-[-0.02em] whitespace-nowrap">
+        <span className="w-[9px] h-[9px] rounded-[2px] bg-up flex-none" aria-hidden="true" />
         <span>Tckr</span>
       </div>
-      <div className="tckr-header__slots">
+      <div className="flex items-center gap-3.5 flex-wrap justify-end font-mono max-[640px]:justify-start">
         {statusSlot}
         {badgeSlot}
         <ThemeToggle />
@@ -84,7 +86,7 @@ function AppHeader({ statusSlot, badgeSlot }: AppHeaderProps) {
 function StockDetailRoute() {
   const { symbol } = useParams<{ symbol: string }>();
   return (
-    <Suspense fallback={<p className="tckr-detail__loading">Loading…</p>}>
+    <Suspense fallback={<p className="text-text-muted">Loading…</p>}>
       <StockDetail symbol={symbol ?? ''} />
     </Suspense>
   );
@@ -99,12 +101,21 @@ export interface AppProps {
 
 export function App({ statusSlot, badgeSlot }: AppProps) {
   return (
-    <div className="tckr-shell">
-      <span className="tckr-blob tckr-blob--a" aria-hidden="true" />
-      <span className="tckr-blob tckr-blob--b" aria-hidden="true" />
-      <span className="tckr-blob tckr-blob--c" aria-hidden="true" />
+    <div className="relative flex flex-col min-h-full w-full max-w-[100vw] overflow-x-hidden">
+      <span
+        className="fixed -z-1 rounded-full blur-[70px] pointer-events-none max-[640px]:hidden top-[-180px] right-[-80px] w-[720px] h-[560px] bg-[radial-gradient(circle_at_60%_40%,var(--tckr-blob-a),transparent_68%)]"
+        aria-hidden="true"
+      />
+      <span
+        className="fixed -z-1 rounded-full blur-[70px] pointer-events-none max-[640px]:hidden top-[90px] right-[280px] w-[480px] h-[440px] bg-[radial-gradient(circle_at_50%_50%,var(--tckr-blob-b),transparent_70%)]"
+        aria-hidden="true"
+      />
+      <span
+        className="fixed -z-1 rounded-full blur-[70px] pointer-events-none max-[640px]:hidden bottom-[-220px] left-[-140px] w-[720px] h-[600px] bg-[radial-gradient(circle_at_40%_60%,var(--tckr-blob-c),transparent_70%)]"
+        aria-hidden="true"
+      />
       <AppHeader statusSlot={statusSlot} badgeSlot={badgeSlot} />
-      <main className="tckr-page">
+      <main className="flex-1 w-full p-4 max-[640px]:p-3">
         <Routes>
           <Route path="/" element={<StockList />}>
             <Route path="symbols/:symbol" element={<StockDetailRoute />} />

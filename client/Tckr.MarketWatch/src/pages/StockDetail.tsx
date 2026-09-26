@@ -71,136 +71,25 @@ import { PriceCell } from '../components/PriceCell.tsx';
 import { PriceChart, type ChartHistoryPoint } from '../chart/PriceChart.tsx';
 import { createThrottle, DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
 
-/* Values below are taken directly from the design import
+/* Card/stat glass values below are taken directly from the design import
    ("Tckr.MarketWatch Frosted Glass Revamp/Tckr Market Watch.dc.html") rather than
    reusing this app's general-purpose glass tokens, so this card matches it exactly
    (the mock's own blur/opacity/radius numbers differ slightly, element by element,
    from the shared --tckr-glass-* tokens used elsewhere). They are not hardcoded
-   literals, though: `.tckr-detail__card`/`.tckr-detail__stat` reference their own
-   dedicated tokens (--tckr-glass-bg-card/-border-card, --tckr-glass-bg-stat/-border-stat
-   in tokens.css) for exactly this pixel-matching reason, rather than the
-   general-purpose --tckr-glass-bg/--tckr-glass-bg-strong tokens used elsewhere, which
-   carry different values. */
-const DETAIL_STYLES = `
-.tckr-detail { display: flex; flex-direction: column; gap: 12px; }
-.tckr-detail__loading { color: var(--tckr-color-text-muted); }
-.tckr-detail--not-found { color: var(--tckr-color-text); }
-
-.tckr-detail__card {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 22px 24px;
-  border-radius: 22px;
-  background: var(--tckr-glass-bg-card);
-  border: 1px solid var(--tckr-glass-border-card);
-  backdrop-filter: blur(26px) saturate(160%);
-  -webkit-backdrop-filter: blur(26px) saturate(160%);
-  box-shadow: 0 18px 40px -28px rgba(20, 24, 31, 0.4);
-  animation: tckr-detail-reveal 220ms var(--tckr-ease-out);
-}
-:root[data-theme="dark"] .tckr-detail__card { background: var(--tckr-glass-bg-card); border-color: var(--tckr-glass-border-card); }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .tckr-detail__card { background: var(--tckr-glass-bg-card); border-color: var(--tckr-glass-border-card); }
-}
-@keyframes tckr-detail-reveal {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .tckr-detail__card, .tckr-detail__stats { animation: none; }
-}
-/* Accessible fallback for the card/stat tiles' frosted-glass effect, mirroring
-   .tckr-header's own fallback in global.css: a viewer who has asked the OS for
-   reduced transparency or more contrast gets a fully opaque surface with no blur
-   instead — --tckr-color-surface is the same opaque token the rest of the app
-   already uses for non-glass surfaces, so this doesn't invent a new colour. */
-@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
-  .tckr-detail__card, .tckr-detail__stat {
-    background: var(--tckr-color-surface);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-}
-.tckr-detail__card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
-.tckr-detail__identity { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-.tckr-detail__symbol { font-family: var(--tckr-font-mono); font-weight: 600; font-size: 1.875rem; letter-spacing: 0.01em; }
-.tckr-detail__name { font-size: 0.9375rem; color: var(--tckr-color-text-muted); }
-.tckr-detail__price-row { display: flex; align-items: baseline; gap: 14px; margin-top: 10px; flex-wrap: wrap; }
-.tckr-detail__price { font-family: var(--tckr-font-mono); font-weight: 600; font-size: 3.25rem; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-.tckr-detail__delta-pill {
-  display: inline-flex;
-  align-items: center;
-  font-family: var(--tckr-font-mono);
-  font-size: 0.9375rem;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: var(--tckr-color-surface-raised);
-  border: 1px solid var(--tckr-color-border);
-  font-variant-numeric: tabular-nums;
-}
-.tckr-detail__delta-pill.tckr-delta--up {
-  color: var(--tckr-color-up);
-  background: color-mix(in oklab, var(--tckr-color-up) 20%, transparent);
-  border-color: color-mix(in oklab, var(--tckr-color-up) 35%, transparent);
-}
-.tckr-detail__delta-pill.tckr-delta--down {
-  color: var(--tckr-color-down);
-  background: color-mix(in oklab, var(--tckr-color-down) 20%, transparent);
-  border-color: color-mix(in oklab, var(--tckr-color-down) 35%, transparent);
-}
-.tckr-detail__asof { margin-top: 8px; font-family: var(--tckr-font-mono); font-size: 0.78125rem; color: var(--tckr-color-text-muted); }
-.tckr-detail__delayed-note {
-  margin-top: 4px;
-  display: flex;
-  gap: 10px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: color-mix(in oklab, var(--tckr-color-warning) 9%, transparent);
-  border: 1px solid color-mix(in oklab, var(--tckr-color-warning) 24%, transparent);
-}
-.tckr-detail__delayed-note-icon { flex: none; color: var(--tckr-color-warning); font-size: 14px; }
-.tckr-detail__delayed-note-title { font-weight: 600; font-size: 0.82rem; }
-.tckr-detail__delayed-note-detail { margin-top: 3px; font-size: 0.78rem; color: var(--tckr-color-text-muted); line-height: 1.5; }
-
-.tckr-detail__ranges { display: flex; gap: 6px; flex: none; }
-.tckr-detail__range-pill {
-  all: unset;
-  cursor: pointer;
-  font-family: var(--tckr-font-mono);
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 7px 14px;
-  border-radius: 999px;
-  background: var(--tckr-color-surface-raised);
-  border: 1px solid var(--tckr-color-border);
-  color: var(--tckr-color-text-muted);
-}
-.tckr-detail__range-pill--active { background: var(--tckr-color-text); color: var(--tckr-color-surface); border-color: var(--tckr-color-text); }
-.tckr-detail__range-pill:focus-visible { outline: 2px solid var(--tckr-color-accent); outline-offset: 2px; }
-
-.tckr-detail__stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 10px;
-  animation: tckr-detail-reveal 220ms var(--tckr-ease-out) 40ms backwards;
-}
-.tckr-detail__stat {
-  background: var(--tckr-glass-bg-stat);
-  border: 1px solid var(--tckr-glass-border-stat);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-radius: 16px;
-  padding: 13px 15px;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .tckr-detail__stat { background: var(--tckr-glass-bg-stat); border-color: var(--tckr-glass-border-stat); }
-}
-:root[data-theme="dark"] .tckr-detail__stat { background: var(--tckr-glass-bg-stat); border-color: var(--tckr-glass-border-stat); }
-.tckr-detail__stat-label { display: block; font-family: var(--tckr-font-mono); font-size: 0.65625rem; letter-spacing: 0.14em; color: var(--tckr-color-text-muted); }
-.tckr-detail__stat-value { display: block; margin-top: 5px; font-family: var(--tckr-font-mono); font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-`;
+   literals, though: the card/stat elements below use the `bg-glass-card`/
+   `border-glass-border-card` and `bg-glass-stat`/`border-glass-border-stat` Tailwind
+   utilities, which reference their own dedicated tokens (--tckr-glass-bg-card/
+   -border-card, --tckr-glass-bg-stat/-border-stat in tokens.css) for exactly this
+   pixel-matching reason, rather than the general-purpose --tckr-glass-bg/
+   --tckr-glass-bg-strong tokens used elsewhere, which carry different values.
+   Because those custom properties already change value for dark mode inside
+   tokens.css, no separate dark-mode override is needed here — the base utility
+   picks up the right value in both themes automatically. The blur radii (26px card
+   / 20px stat) and border radii (22px card / 16px stat) are likewise mock-specific
+   and mostly don't land on Tailwind's default scale (16px stat radius is the
+   exception — `rounded-2xl`), so most of these are arbitrary values rather than
+   theme steps — same reasoning applies to several unusual font sizes below (e.g.
+   1.875rem, 0.65625rem). */
 
 // ---------------------------------------------------------------------------------
 // Presentational helpers
@@ -247,9 +136,31 @@ function deltaDirection(change: DecimalString): 'up' | 'down' | null {
   return null;
 }
 
-function deltaClassName(change: DecimalString): string | undefined {
+// Base layout/type classes shared by every state of the Change/Change% pill, kept
+// separate from the colour variant below so the two never fight over the same
+// property (a neutral-state `bg-surface-raised` and an up/down `bg-[color-mix(...)]`
+// both present on one element would leave Tailwind's generated-CSS source order,
+// not the className string's order, deciding which background wins).
+const DELTA_PILL_BASE_CLASSES =
+  'inline-flex items-center font-mono text-[0.9375rem] font-semibold py-1.5 px-3 rounded-full border tabular-nums';
+
+// Same "Delta" convention used app-wide (up = text-up, down = text-down), but this
+// pill's color-mix percentages (20%/35%) are specific to this design import rather
+// than the more common ones used elsewhere.
+const DELTA_PILL_VARIANT_CLASSES: Record<'up' | 'down' | 'neutral', string> = {
+  neutral: 'bg-surface-raised border-border',
+  up: 'text-up bg-[color-mix(in_oklab,var(--tckr-color-up)_20%,transparent)] border-[color-mix(in_oklab,var(--tckr-color-up)_35%,transparent)]',
+  down: 'text-down bg-[color-mix(in_oklab,var(--tckr-color-down)_20%,transparent)] border-[color-mix(in_oklab,var(--tckr-color-down)_35%,transparent)]',
+};
+
+/** Full className for the Change/Change% pill — base layout classes plus whichever
+ * colour variant `deltaDirection` selects (falling back to the neutral/zero-change
+ * variant). Replaces the old `tckr-delta--up`/`tckr-delta--down` modifier classes
+ * that `.tckr-detail__delta-pill.tckr-delta--up`/`--down` keyed off of in the
+ * pre-Tailwind CSS. */
+function deltaClassName(change: DecimalString): string {
   const direction = deltaDirection(change);
-  return direction ? `tckr-delta--${direction}` : undefined;
+  return `${DELTA_PILL_BASE_CLASSES} ${DELTA_PILL_VARIANT_CLASSES[direction ?? 'neutral']}`;
 }
 
 // ---------------------------------------------------------------------------------
@@ -280,6 +191,24 @@ const RANGE_LABELS: Record<RangeKey, string> = {
   '5M': 'Last 5m',
   SESSION: 'Session',
 };
+
+// Base layout/type classes shared by every range pill, plus an active/inactive
+// colour variant computed separately — same "don't let two same-property utility
+// classes both land on one element" reasoning as `deltaClassName` below. Replaces
+// `.tckr-detail__range-pill`'s `all: unset` reset: Tailwind has no unset-all
+// utility, so every visual property that rule used to reset-then-redeclare is
+// re-declared explicitly here instead (mirrors `ThemeToggle`'s own `all: unset`
+// conversion elsewhere in this migration).
+const RANGE_PILL_BASE_CLASSES =
+  'appearance-none cursor-pointer font-mono text-xs font-semibold py-[7px] px-3.5 rounded-full border outline-none focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2';
+const RANGE_PILL_VARIANT_CLASSES = {
+  active: 'bg-text text-surface border-text',
+  inactive: 'bg-surface-raised text-text-muted border-border',
+} as const;
+
+function rangePillClassName(active: boolean): string {
+  return `${RANGE_PILL_BASE_CLASSES} ${active ? RANGE_PILL_VARIANT_CLASSES.active : RANGE_PILL_VARIANT_CLASSES.inactive}`;
+}
 
 // ---------------------------------------------------------------------------------
 // Data shape this page renders from — built from `Snapshot`/`Tick` directly, never
@@ -648,7 +577,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
 
   if (phase === 'not-found') {
     return (
-      <div className="tckr-detail tckr-detail--not-found" data-testid="stock-detail-not-found">
+      <div className="flex flex-col gap-3 text-text" data-testid="stock-detail-not-found">
         <p>&ldquo;{symbol}&rdquo; is not a symbol in the tradeable universe.</p>
         <p>
           <Link to="/">← back to the list</Link>
@@ -661,41 +590,41 @@ export function StockDetail({ symbol }: { symbol: string }) {
   const tickSize = universeDef?.tickSize ?? FALLBACK_TICK_SIZE;
 
   return (
-    <div className="tckr-detail">
-      <style>{DETAIL_STYLES}</style>
-
-      <div className="tckr-detail__card">
-        <div className="tckr-detail__card-head">
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-4 py-[22px] px-6 rounded-[22px] bg-glass-card border border-glass-border-card backdrop-blur-[26px] backdrop-saturate-[160%] shadow-[0_18px_40px_-28px_rgba(20,24,31,0.4)] animate-detail-reveal motion-reduce:animate-none reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
+        <div className="flex items-start justify-between gap-5 flex-wrap">
           <div>
-            <div className="tckr-detail__identity">
-              <h1 className="tckr-detail__symbol">{symbol}</h1>
-              <span className="tckr-detail__name">{universeDef?.name ?? ''}</span>
+            <div className="flex items-baseline gap-3 flex-wrap">
+              <h1
+                className="font-mono font-semibold text-[1.875rem] tracking-[0.01em]"
+                data-testid="stock-detail-symbol"
+              >
+                {symbol}
+              </h1>
+              <span className="text-[0.9375rem] text-text-muted">{universeDef?.name ?? ''}</span>
             </div>
 
             {phase === 'loading' || !quote ? (
-              <p className="tckr-detail__loading" data-testid="stock-detail-loading">
+              <p className="text-text-muted" data-testid="stock-detail-loading">
                 Loading…
               </p>
             ) : (
               <>
-                <div className="tckr-detail__price-row">
-                  <span className="tckr-detail__price" data-testid="stock-detail-price">
+                <div className="flex items-baseline gap-3.5 mt-2.5 flex-wrap">
+                  <span
+                    className="font-mono font-semibold text-[3.25rem] tracking-[-0.02em] tabular-nums"
+                    data-testid="stock-detail-price"
+                  >
                     <PriceCell value={quote.price} flashDirectionOverride={deltaDirection(quote.change)} />
                   </span>
-                  <span
-                    className={`tckr-detail__delta-pill ${deltaClassName(quote.change) ?? ''}`}
-                    data-testid="stock-detail-change"
-                  >
+                  <span className={deltaClassName(quote.change)} data-testid="stock-detail-change">
                     <PriceCell value={quote.change} sign />
                   </span>
-                  <span
-                    className={`tckr-detail__delta-pill ${deltaClassName(quote.change) ?? ''}`}
-                    data-testid="stock-detail-change-percent"
-                  >
+                  <span className={deltaClassName(quote.change)} data-testid="stock-detail-change-percent">
                     {quote.changePercentText}%
                   </span>
                 </div>
-                <p className="tckr-detail__asof" data-testid="stock-detail-asof">
+                <p className="mt-2 font-mono text-[0.78125rem] text-text-muted" data-testid="stock-detail-asof">
                   as of {formatExchangeTime(quote.exchangeTimestamp)} Cairo
                   {quote.stream === 'DELAYED' ? (
                     <>
@@ -709,12 +638,12 @@ export function StockDetail({ symbol }: { symbol: string }) {
             )}
           </div>
 
-          <div className="tckr-detail__ranges">
+          <div className="flex gap-1.5 flex-none">
             {RANGE_KEYS.map((key) => (
               <button
                 key={key}
                 type="button"
-                className={`tckr-detail__range-pill${range === key ? ' tckr-detail__range-pill--active' : ''}`}
+                className={rangePillClassName(range === key)}
                 aria-pressed={range === key}
                 onClick={() => setRange(key)}
               >
@@ -725,13 +654,13 @@ export function StockDetail({ symbol }: { symbol: string }) {
         </div>
 
         {quote?.stream === 'DELAYED' ? (
-          <div className="tckr-detail__delayed-note">
-            <span className="tckr-detail__delayed-note-icon" aria-hidden="true">
+          <div className="mt-1 flex gap-2.5 py-3 px-3.5 rounded-[14px] bg-[color-mix(in_oklab,var(--tckr-color-warning)_9%,transparent)] border border-[color-mix(in_oklab,var(--tckr-color-warning)_24%,transparent)]">
+            <span className="flex-none text-warning text-sm" aria-hidden="true">
               ◷
             </span>
             <div>
-              <div className="tckr-detail__delayed-note-title">You are on the delayed stream</div>
-              <div className="tckr-detail__delayed-note-detail">
+              <div className="font-semibold text-[0.82rem]">You are on the delayed stream</div>
+              <div className="mt-[3px] text-[0.78rem] text-text-muted leading-normal">
                 Your entitlement gives you prices behind the live tape. In this simulation the gap is faked at{' '}
                 {formatOffset(delayedOffsetMs)}; on a real exchange feed it would be 15 minutes.
               </div>
@@ -740,7 +669,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
         ) : null}
 
         {rangedHistory === undefined ? (
-          <p className="tckr-detail__loading" data-testid="stock-detail-chart-loading">
+          <p className="text-text-muted" data-testid="stock-detail-chart-loading">
             Loading chart…
           </p>
         ) : (
@@ -756,36 +685,43 @@ export function StockDetail({ symbol }: { symbol: string }) {
       </div>
 
       {quote ? (
-        <div className="tckr-detail__stats" data-testid="stock-detail-footer">
-          <div className="tckr-detail__stat">
-            <span className="tckr-detail__stat-label">Open</span>
-            <span className="tckr-detail__stat-value">
+        <div
+          className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2.5 animate-[tckr-detail-reveal_220ms_var(--tckr-ease-out)_40ms_backwards] motion-reduce:animate-none"
+          data-testid="stock-detail-footer"
+        >
+          <div className="bg-glass-stat border border-glass-border-stat backdrop-blur-[20px] rounded-2xl py-[13px] px-[15px] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
+            <span className="block font-mono text-[0.65625rem] tracking-[0.14em] text-text-muted">Open</span>
+            <span className="block mt-[5px] font-mono text-xl font-semibold tabular-nums">
               <PriceCell value={extras?.open ?? quote.price} />
             </span>
           </div>
-          <div className="tckr-detail__stat">
-            <span className="tckr-detail__stat-label">High</span>
-            <span className="tckr-detail__stat-value">
+          <div className="bg-glass-stat border border-glass-border-stat backdrop-blur-[20px] rounded-2xl py-[13px] px-[15px] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
+            <span className="block font-mono text-[0.65625rem] tracking-[0.14em] text-text-muted">High</span>
+            <span className="block mt-[5px] font-mono text-xl font-semibold tabular-nums">
               <PriceCell value={extras?.high ?? quote.price} />
             </span>
           </div>
-          <div className="tckr-detail__stat">
-            <span className="tckr-detail__stat-label">Low</span>
-            <span className="tckr-detail__stat-value">
+          <div className="bg-glass-stat border border-glass-border-stat backdrop-blur-[20px] rounded-2xl py-[13px] px-[15px] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
+            <span className="block font-mono text-[0.65625rem] tracking-[0.14em] text-text-muted">Low</span>
+            <span className="block mt-[5px] font-mono text-xl font-semibold tabular-nums">
               <PriceCell value={extras?.low ?? quote.price} />
             </span>
           </div>
-          <div className="tckr-detail__stat">
-            <span className="tckr-detail__stat-label">Volume</span>
-            <span className="tckr-detail__stat-value">{new Intl.NumberFormat('en-US').format(quote.volume)}</span>
+          <div className="bg-glass-stat border border-glass-border-stat backdrop-blur-[20px] rounded-2xl py-[13px] px-[15px] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
+            <span className="block font-mono text-[0.65625rem] tracking-[0.14em] text-text-muted">Volume</span>
+            <span className="block mt-[5px] font-mono text-xl font-semibold tabular-nums">
+              {new Intl.NumberFormat('en-US').format(quote.volume)}
+            </span>
           </div>
-          <div className="tckr-detail__stat">
-            <span className="tckr-detail__stat-label">Lot</span>
-            <span className="tckr-detail__stat-value">{universeDef?.lotSize ?? '—'}</span>
+          <div className="bg-glass-stat border border-glass-border-stat backdrop-blur-[20px] rounded-2xl py-[13px] px-[15px] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
+            <span className="block font-mono text-[0.65625rem] tracking-[0.14em] text-text-muted">Lot</span>
+            <span className="block mt-[5px] font-mono text-xl font-semibold tabular-nums">
+              {universeDef?.lotSize ?? '—'}
+            </span>
           </div>
-          <div className="tckr-detail__stat">
-            <span className="tckr-detail__stat-label">Tick</span>
-            <span className="tckr-detail__stat-value">
+          <div className="bg-glass-stat border border-glass-border-stat backdrop-blur-[20px] rounded-2xl py-[13px] px-[15px] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
+            <span className="block font-mono text-[0.65625rem] tracking-[0.14em] text-text-muted">Tick</span>
+            <span className="block mt-[5px] font-mono text-xl font-semibold tabular-nums">
               {universeDef ? <PriceCell value={universeDef.tickSize} /> : '—'}
             </span>
           </div>

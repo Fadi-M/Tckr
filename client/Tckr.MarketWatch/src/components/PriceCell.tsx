@@ -18,9 +18,10 @@
  *    value via React `key` so it restarts on every change — this component schedules no
  *    render of its own to start or stop it (README.md design decision #4 applies to the
  *    render *path*; this is the render *cost* of a value change staying at zero).
- *  - `indicateSign`: persistent colour + arrow using task 03's `.tckr-delta--up` /
- *    `.tckr-delta--down` convention (global.css), based on the sign of `value` itself —
- *    for fields that are inherently signed (Change), never for a raw trade price.
+ *  - `indicateSign`: persistent colour + arrow using the shared "delta" convention
+ *    (up = `text-up before:content-['▲_']`, down = `text-down before:content-['▼_']`),
+ *    based on the sign of `value` itself — for fields that are inherently signed
+ *    (Change), never for a raw trade price.
  *
  * `flashDirectionOverride` ("Tckr First Run" design pass follow-up — a real user-
  * reported bug, not a stylistic choice): a raw trade price's own tick-to-tick delta and
@@ -40,58 +41,6 @@ import { compare, format, toDecimal, type DecimalString } from '../contracts/dec
 
 const ZERO: DecimalString = toDecimal('0');
 
-const STYLE_ELEMENT_ID = 'tckr-price-cell-styles';
-
-// A single injected stylesheet, shared by every `PriceCell` instance. `PriceCell.tsx`
-// is the only file this task owns besides `StockList.tsx` and its tests, so a
-// component-scoped stylesheet is injected here rather than added to task 03's
-// `src/styles/global.css` (out of scope — see "Notes for other tasks").
-function ensureStylesInjected(): void {
-  if (typeof document === 'undefined' || document.getElementById(STYLE_ELEMENT_ID)) {
-    return;
-  }
-  const style = document.createElement('style');
-  style.id = STYLE_ELEMENT_ID;
-  style.textContent = `
-.tckr-price-cell { font-variant-numeric: tabular-nums; font-family: var(--tckr-font-mono); }
-.tckr-price-cell--muted { color: var(--tckr-color-text-muted); font-style: italic; }
-.tckr-price-cell__flash {
-  display: inline-block;
-  border-radius: 3px;
-  padding: 0 2px;
-  margin: 0 -2px;
-}
-.tckr-price-cell__flash--up { animation: tckr-price-flash-up-bg 500ms var(--tckr-ease-out); }
-.tckr-price-cell__flash--down { animation: tckr-price-flash-down-bg 500ms var(--tckr-ease-out); }
-.tckr-price-cell__flash-arrow--up::before {
-  content: '\\25B2 ';
-  color: var(--tckr-color-up);
-  animation: tckr-price-flash-arrow 500ms var(--tckr-ease-out);
-}
-.tckr-price-cell__flash-arrow--down::before {
-  content: '\\25BC ';
-  color: var(--tckr-color-down);
-  animation: tckr-price-flash-arrow 500ms var(--tckr-ease-out);
-}
-@keyframes tckr-price-flash-up-bg {
-  from { background-color: color-mix(in oklab, var(--tckr-color-up) 28%, transparent); }
-  to { background-color: transparent; }
-}
-@keyframes tckr-price-flash-down-bg {
-  from { background-color: color-mix(in oklab, var(--tckr-color-down) 28%, transparent); }
-  to { background-color: transparent; }
-}
-@keyframes tckr-price-flash-arrow {
-  from { opacity: 1; }
-  60% { opacity: 1; }
-  to { opacity: 0; }
-}
-`;
-  document.head.appendChild(style);
-}
-
-ensureStylesInjected();
-
 export interface PriceCellProps {
   /** The decimal value to render — a price, or any signed decimal quantity such as
    * Change. Never a JS `number`. */
@@ -102,8 +51,8 @@ export interface PriceCellProps {
   readonly sign?: boolean;
   /** Pre-tick / no-data display: de-emphasised text that never flashes. */
   readonly muted?: boolean;
-  /** Persistent colour + arrow (task 03's `.tckr-delta--up`/`--down`) based on the sign
-   * of `value` itself. Use for signed fields (Change); never for the raw trade price. */
+  /** Persistent colour + arrow (the shared delta convention) based on the sign of
+   * `value` itself. Use for signed fields (Change); never for the raw trade price. */
   readonly indicateSign?: boolean;
   /** Recolours the transient flash to this direction instead of computing it from
    * `value`'s own tick-to-tick delta — see the module doc. Pass the sign of whatever
@@ -151,32 +100,46 @@ export function PriceCell({
   }
   const formatted = format(value, formatOpts);
 
+  // The shared "delta" convention: up = `text-up before:content-['▲_']`, down =
+  // `text-down before:content-['▼_']`.
   const signClass =
     indicateSign && !muted
       ? compare(value, ZERO) === 1
-        ? 'tckr-delta--up'
+        ? "text-up before:content-['▲_']"
         : compare(value, ZERO) === -1
-          ? 'tckr-delta--down'
+          ? "text-down before:content-['▼_']"
           : ''
       : '';
 
-  const wrapperClassName = ['tckr-price-cell', muted ? 'tckr-price-cell--muted' : '', signClass]
+  const wrapperClassName = [
+    'font-mono tabular-nums',
+    muted ? 'text-text-muted italic' : '',
+    signClass,
+  ]
     .filter(Boolean)
     .join(' ');
 
   // When `indicateSign` already carries a permanent arrow via `signClass`, the flash
-  // itself stays background-only so the two arrows never overlap.
+  // itself stays background-only so the two arrows never overlap. The arrow variant
+  // applies the delta convention's colour to the `::before` content only (via
+  // `before:text-*`), not to the whole flash span — matching the original
+  // `::before { color: ... }` rule.
   const flashClassName = flashDirection
     ? [
-        `tckr-price-cell__flash tckr-price-cell__flash--${flashDirection}`,
-        indicateSign ? '' : `tckr-price-cell__flash-arrow--${flashDirection}`,
+        'inline-block rounded-[3px] px-0.5 -mx-0.5',
+        flashDirection === 'up' ? 'animate-price-flash-up' : 'animate-price-flash-down',
+        indicateSign
+          ? ''
+          : flashDirection === 'up'
+            ? "before:content-['▲_'] before:text-up before:animate-price-flash-arrow"
+            : "before:content-['▼_'] before:text-down before:animate-price-flash-arrow",
       ]
         .filter(Boolean)
         .join(' ')
     : undefined;
 
   return (
-    <span className={wrapperClassName} aria-label={ariaLabel}>
+    <span className={wrapperClassName} aria-label={ariaLabel} data-muted={muted}>
       <span key={value} className={flashClassName}>
         {formatted}
       </span>

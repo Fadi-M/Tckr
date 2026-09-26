@@ -32,7 +32,7 @@ describe('header slots', () => {
       </MemoryRouter>,
     );
 
-    const header = document.querySelector('header.tckr-header');
+    const header = document.querySelector('header');
     expect(header).not.toBeNull();
 
     const statusNode = screen.getByTestId('status-slot-content');
@@ -47,6 +47,6 @@ describe('header slots', () => {
         <App />
       </MemoryRouter>,
     );
-    expect(document.querySelector('header.tckr-header')).not.toBeNull();
+    expect(document.querySelector('header')).not.toBeNull();
   });
 });

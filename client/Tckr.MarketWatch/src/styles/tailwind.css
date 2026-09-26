@@ -1,0 +1,136 @@
+/**
+ * Tailwind entry point — ui-revamp Tailwind migration.
+ *
+ * `tokens.css` stays exactly as-is (its raw text is asserted against by
+ * `theme.tokens.test.ts`) and is imported first so its `--tckr-*` custom properties
+ * exist before `@theme inline` below re-exposes the relevant ones as real Tailwind
+ * theme variables (`bg-surface`, `text-text-muted`, `ease-tckr`, …). Because
+ * `@theme inline` variables just resolve to `var(--tckr-*)` at use time, every
+ * generated utility automatically tracks tokens.css's own light/dark/explicit-toggle
+ * cascade — no `dark:` variant is needed anywhere in the app for a themed color.
+ *
+ * Custom variants and keyframes are centralized here (not per-component) so no two
+ * component conversions ever need to touch this same file.
+ */
+@import 'tailwindcss';
+@import './tokens.css';
+
+/* `prefers-reduced-transparency` has no built-in Tailwind variant. Used alongside
+   the built-in `contrast-more:` wherever a frosted-glass surface needs an opaque,
+   blur-free fallback (global.css's original convention, applied at every glass
+   surface: header, connection pill, banners, search field, table, hero cards, detail
+   card/stats). */
+@custom-variant reduced-transparency (@media (prefers-reduced-transparency: reduce));
+
+/* Every hover-only affordance in the original CSS was deliberately gated on
+   `(hover: hover) and (pointer: fine)` so a touch device never gets a stuck `:hover`
+   state. One variant bundles both the media feature and the pseudo-class. */
+@custom-variant fine-hover {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @slot;
+    }
+  }
+}
+
+@theme inline {
+  --color-surface: var(--tckr-color-surface);
+  --color-surface-raised: var(--tckr-color-surface-raised);
+  --color-text: var(--tckr-color-text);
+  --color-text-muted: var(--tckr-color-text-muted);
+  --color-border: var(--tckr-color-border);
+  --color-accent: var(--tckr-color-accent);
+  --color-up: var(--tckr-color-up);
+  --color-down: var(--tckr-color-down);
+  --color-warning: var(--tckr-color-warning);
+
+  --color-glass: var(--tckr-glass-bg);
+  --color-glass-strong: var(--tckr-glass-bg-strong);
+  --color-glass-border: var(--tckr-glass-border);
+  --color-glass-card: var(--tckr-glass-bg-card);
+  --color-glass-border-card: var(--tckr-glass-border-card);
+  --color-glass-stat: var(--tckr-glass-bg-stat);
+  --color-glass-border-stat: var(--tckr-glass-border-stat);
+  --color-chart-body: var(--tckr-chart-body-bg);
+  --color-chart-body-border: var(--tckr-chart-body-border);
+  --color-chip-up: var(--tckr-chip-text-up);
+  --color-chip-down: var(--tckr-chip-text-down);
+
+  --font-sans: var(--tckr-font-sans);
+  --font-mono: var(--tckr-font-mono);
+
+  --ease-tckr: var(--tckr-ease-out);
+
+  --blur-tckr: var(--tckr-blur);
+}
+
+@theme {
+  /* PriceCell's transient flash — see PriceCell.tsx's original module doc: keyed by
+     React `key` so it restarts on every value change, purely presentational. */
+  --animate-price-flash-up: tckr-price-flash-up-bg 500ms var(--tckr-ease-out);
+  --animate-price-flash-down: tckr-price-flash-down-bg 500ms var(--tckr-ease-out);
+  --animate-price-flash-arrow: tckr-price-flash-arrow 500ms var(--tckr-ease-out);
+
+  /* StockList's empty-state fade and connection/market banners' entrance. */
+  --animate-fade-in: tckr-fade-in 200ms ease-out;
+  --animate-banner-in: tckr-banner-in 220ms var(--tckr-ease-out);
+
+  /* StockDetail's card/stats entrance reveal. */
+  --animate-detail-reveal: tckr-detail-reveal 220ms var(--tckr-ease-out);
+
+  @keyframes tckr-price-flash-up-bg {
+    from {
+      background-color: color-mix(in oklab, var(--tckr-color-up) 28%, transparent);
+    }
+    to {
+      background-color: transparent;
+    }
+  }
+  @keyframes tckr-price-flash-down-bg {
+    from {
+      background-color: color-mix(in oklab, var(--tckr-color-down) 28%, transparent);
+    }
+    to {
+      background-color: transparent;
+    }
+  }
+  @keyframes tckr-price-flash-arrow {
+    from {
+      opacity: 1;
+    }
+    60% {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+  @keyframes tckr-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes tckr-banner-in {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes tckr-detail-reveal {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
