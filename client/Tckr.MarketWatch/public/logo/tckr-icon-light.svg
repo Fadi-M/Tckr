@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120" fill="none">
+<defs>
+<linearGradient id="bg" x1="40" y1="0" x2="80" y2="120" gradientUnits="userSpaceOnUse"><stop stop-color="#F2F4F3"/><stop offset="1" stop-color="#E8EBEA"/></linearGradient>
+<radialGradient id="gr" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(105 15) scale(65 55)"><stop stop-color="#3FD79C" stop-opacity="0.7"/><stop offset="0.68" stop-color="#3FD79C" stop-opacity="0"/></radialGradient>
+<radialGradient id="co" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(35 120) scale(55 50)"><stop stop-color="#FF967D" stop-opacity="0.45"/><stop offset="0.7" stop-color="#FF967D" stop-opacity="0"/></radialGradient>
+<filter id="blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7"/></filter>
+<clipPath id="clip"><rect width="120" height="120" rx="30"/></clipPath>
+</defs>
+<g clip-path="url(#clip)">
+<rect width="120" height="120" fill="url(#bg)"/>
+<g filter="url(#blur)"><rect x="40" y="-40" width="130" height="110" fill="url(#gr)"/><rect x="-20" y="70" width="110" height="100" fill="url(#co)"/></g>
+</g>
+<rect x="0.5" y="0.5" width="119" height="119" rx="29.5" stroke="rgba(255,255,255,0.9)"/>
+<g transform="translate(31 24)"><rect x="2" y="4" width="54" height="11" rx="5.5" fill="#14181F"/><rect x="27" y="15" width="4" height="10" fill="#0F7A4D"/><rect x="17" y="25" width="24" height="34" rx="6" fill="#0F7A4D"/><rect x="27" y="59" width="4" height="11" rx="2" fill="#0F7A4D"/></g>
+</svg>
