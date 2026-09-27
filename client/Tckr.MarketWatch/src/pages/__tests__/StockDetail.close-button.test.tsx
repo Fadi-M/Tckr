@@ -39,10 +39,10 @@ describe('StockDetail close button', () => {
   it('is named for the symbol and returns to the list', async () => {
     vi.mocked(getSharedSource).mockReturnValue(createFakeSource().source);
     render(
-      <MemoryRouter initialEntries={['/symbols/COMI']}>
+      <MemoryRouter initialEntries={['/EGX/symbols/COMI']}>
         <Routes>
           <Route path="/" element={<div data-testid="list-route" />} />
-          <Route path="/symbols/:symbol" element={<StockDetail symbol="COMI" />} />
+          <Route path="/EGX/symbols/:symbol" element={<StockDetail symbol="COMI" />} />
         </Routes>
       </MemoryRouter>,
     );
@@ -59,9 +59,9 @@ describe('StockDetail close button', () => {
   it('range pills lead their accessible name with the visible label (WCAG 2.5.3)', async () => {
     vi.mocked(getSharedSource).mockReturnValue(createFakeSource().source);
     render(
-      <MemoryRouter initialEntries={['/symbols/COMI']}>
+      <MemoryRouter initialEntries={['/EGX/symbols/COMI']}>
         <Routes>
-          <Route path="/symbols/:symbol" element={<StockDetail symbol="COMI" />} />
+          <Route path="/EGX/symbols/:symbol" element={<StockDetail symbol="COMI" />} />
         </Routes>
       </MemoryRouter>,
     );

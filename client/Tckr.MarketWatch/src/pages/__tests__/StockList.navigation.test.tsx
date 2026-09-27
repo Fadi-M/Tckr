@@ -1,6 +1,6 @@
 /**
  * `StockList.navigation.test.tsx` — task 04. Asserts: clicking a row, and pressing
- * Enter on a focused row, both navigate to `/symbols/<symbol>`. Also covers Space
+ * Enter on a focused row, both navigate to `/EGX/symbols/<symbol>`. Also covers Space
  * activation, and the table's roving tabindex: one row is a Tab stop, the arrow keys
  * (and Home/End) move between rows, and a focused row becomes the Tab stop.
  */
@@ -22,7 +22,7 @@ function renderWithRoutes(symbols: readonly SymbolDefinition[]) {
     <MemoryRouter initialEntries={['/']}>
       <Routes>
         <Route path="/" element={<StockList />} />
-        <Route path="/symbols/:symbol" element={<div data-testid="detail-route">detail</div>} />
+        <Route path="/EGX/symbols/:symbol" element={<div data-testid="detail-route">detail</div>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -38,7 +38,7 @@ describe('StockList navigation', () => {
     cleanup();
   });
 
-  it('clicking a row navigates to /symbols/<symbol>', async () => {
+  it('clicking a row navigates to /EGX/symbols/<symbol>', async () => {
     const universeSymbols = loadUniverseFixture();
     renderWithRoutes(universeSymbols);
 
@@ -52,7 +52,7 @@ describe('StockList navigation', () => {
     expect(detail).toBeTruthy();
   });
 
-  it('pressing Enter on a focused row navigates to /symbols/<symbol>', async () => {
+  it('pressing Enter on a focused row navigates to /EGX/symbols/<symbol>', async () => {
     const universeSymbols = loadUniverseFixture();
     renderWithRoutes(universeSymbols);
 
@@ -128,10 +128,10 @@ describe('StockList split view', () => {
     const universeSymbols = loadUniverseFixture();
     mockGetSharedSource.mockReturnValue(makeFakeSource(universeSymbols).source);
     render(
-      <MemoryRouter initialEntries={['/symbols/COMI']}>
+      <MemoryRouter initialEntries={['/EGX/symbols/COMI']}>
         <Routes>
           <Route path="/" element={<StockList />}>
-            <Route path="symbols/:symbol" element={<div data-testid="detail-route">detail</div>} />
+            <Route path="EGX/symbols/:symbol" element={<div data-testid="detail-route">detail</div>} />
           </Route>
         </Routes>
       </MemoryRouter>,

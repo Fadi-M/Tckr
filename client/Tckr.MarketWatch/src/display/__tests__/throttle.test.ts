@@ -3,7 +3,7 @@
  * a hot symbol re-rendering far faster than a human can read (see `../throttle.ts`'s
  * module doc). Leading+trailing semantics: an isolated call fires immediately; a burst
  * within one window collapses to exactly one more call, at the window's end, using the
- * latest arguments.
+ * latest arguments. Windows are wall-clock slots shared by every instance.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createThrottle } from '../throttle.ts';
@@ -70,6 +70,34 @@ describe('createThrottle', () => {
     throttled('b');
     expect(fn).toHaveBeenCalledTimes(2);
     expect(fn).toHaveBeenNthCalledWith(2, 'b');
+  });
+
+  it('aligns windows to the wall clock, so two instances flush the same burst on the same beat', () => {
+    vi.setSystemTime(10_000);
+    const row = vi.fn();
+    const detail = vi.fn();
+    const throttledRow = createThrottle(row, 250);
+    const throttledDetail = createThrottle(detail, 250);
+
+    // The row leads early in the slot; the detail first hears of the symbol mid-slot.
+    throttledRow('a');
+    vi.advanceTimersByTime(100);
+    throttledDetail('b');
+    throttledRow('b');
+
+    expect(row).toHaveBeenCalledTimes(1);
+    expect(detail).toHaveBeenCalledTimes(1);
+
+    // Both trailing calls land on the next boundary (10_250), not 250ms after each
+    // instance's own leading call.
+    throttledDetail('c');
+    throttledRow('c');
+    vi.advanceTimersByTime(149);
+    expect(row).toHaveBeenCalledTimes(1);
+    expect(detail).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(1);
+    expect(row).toHaveBeenLastCalledWith('c');
+    expect(detail).toHaveBeenLastCalledWith('c');
   });
 
   it('cancel() drops a pending trailing call', () => {

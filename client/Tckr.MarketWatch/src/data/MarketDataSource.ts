@@ -42,7 +42,7 @@ export interface MarketDataSource {
    * lets a page that opens a symbol mid-session (e.g. noon, for a session that opened
    * at 9:30) render the full session line immediately instead of only the samples that
    * happen to arrive after it starts watching. See client-contract.md's `GET
-   * /symbols/{symbol}/history`. */
+   * /{market}/symbols/{symbol}/history`. */
   getHistory(symbol: string): Promise<SymbolHistoryResponse>;
   readonly on: {
     /** Every raw tick, uncoalesced — the delayed tape itself is never coalesced (NFR-3.1

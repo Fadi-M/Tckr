@@ -35,9 +35,9 @@ describe('routing', () => {
     expect(document.querySelector('.tckr-detail')).toBeNull();
   });
 
-  it('renders the real StockDetail page with symbol="COMI" at /symbols/COMI', async () => {
+  it('renders the real StockDetail page with symbol="COMI" at /EGX/symbols/COMI', async () => {
     render(
-      <MemoryRouter initialEntries={['/symbols/COMI']}>
+      <MemoryRouter initialEntries={['/EGX/symbols/COMI']}>
         <App />
       </MemoryRouter>,
     );
@@ -48,6 +48,16 @@ describe('routing', () => {
     // `useMatch`), "COMI" now legitimately also appears in a hero card and the
     // list's own (narrowed) row — so this must query the specific detail-heading
     // element rather than plain text.
+    const symbolNode = await screen.findByTestId('stock-detail-symbol');
+    expect(symbolNode.textContent).toBe('COMI');
+  });
+
+  it('redirects a pre-market-scoped /symbols/COMI link to /EGX/symbols/COMI', async () => {
+    render(
+      <MemoryRouter initialEntries={['/symbols/COMI']}>
+        <App />
+      </MemoryRouter>,
+    );
     const symbolNode = await screen.findByTestId('stock-detail-symbol');
     expect(symbolNode.textContent).toBe('COMI');
   });

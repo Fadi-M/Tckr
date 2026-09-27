@@ -163,11 +163,11 @@ decision belongs to whoever owns Phase 11's kickoff, not to this phase.
   call resolves, `connectionState()`/`identity()` report the same shape a genuine
   post-disconnect `closed` state would. This was a judgement call (see `MarketDataSource.ts`'s
   `ConnectionState` doc comment) worth ratifying explicitly rather than leaving implicit.
-- **`GET /symbols` ordering is unspecified, and the client depends on it.** The client's
+- **`GET /EGX/symbols` ordering is unspecified, and the client depends on it.** The client's
   default list order is whatever order the universe array arrives in — which, from the
   mock exchange's own `symbols.json`, is weight-descending. The contract names no field a
   client could sort by itself. **Phase 11's gateway must preserve weight-descending order
-  in `GET /symbols`**, or the default view changes silently the day a real gateway
+  in `GET /EGX/symbols`**, or the default view changes silently the day a real gateway
   replaces the simulator, with no client-side code change to explain why.
 - **`MarketDataSource` has no heartbeat surface.** There is no `on.heartbeat` handler and
   no `heartbeatIntervalMs` anywhere on `Identity` — `reconnect.ts`'s

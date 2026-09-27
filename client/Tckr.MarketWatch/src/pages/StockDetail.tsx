@@ -34,8 +34,8 @@
  * `PriceChart` does **not** read `src/data/store.ts` (or any tick stream) itself —
  * this page feeds it `livePrice`, computed below from the exact same `quote` this page
  * is itself displaying as text. This was not always true: an earlier revision had
- * `PriceChart` independently reading the shared store on its own 30-second timer,
- * completely unsynchronized with this page's own 30-second display throttle. Two
+ * `PriceChart` independently reading the shared store on its own display-cadence timer,
+ * completely unsynchronized with this page's own display throttle. Two
  * independently-timed samplers reading the same tape through two different coalescing
  * paths would, at any given instant, very often disagree — the header showing one
  * price, the chart's rightmost point showing another, for the same symbol at the same
@@ -74,6 +74,8 @@ import { CloseIcon } from '../components/icons.tsx';
 import { PriceCell } from '../components/PriceCell.tsx';
 import { streamDelay } from '../components/streamDelay.ts';
 import { useMarketStatus } from '../components/useMarketStatus.ts';
+import { isHeld, useConnectionState } from '../components/useConnectionState.ts';
+import { HeldTag } from '../components/HeldTag.tsx';
 import { useViewTransitionNavigate } from '../components/useViewTransitionNavigate.ts';
 import { PriceChart, type ChartHistoryPoint } from '../chart/PriceChart.tsx';
 import { createThrottle, DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
@@ -250,7 +252,7 @@ function quoteFromSnapshot(snapshot: Snapshot): DetailQuote {
  * `volume` is passed in fully computed (`baselineVolume + volumeSinceBaselineRef.current`
  * from the caller) rather than derived here as `prev.volume + tick.q`. Volume is a
  * cumulative-sum quantity, and this page can coalesce many raw ticks into one merge call
- * (the 30s display throttle, or the single queued tick applied once the snapshot renders)
+ * (the 10s display throttle, or the single queued tick applied once the snapshot renders)
  * — an incremental `prev.volume + tick.q` would only ever count the one tick that reached
  * this function, silently dropping every other tick's quantity. Every raw tick is instead
  * counted into the accumulator the instant it arrives (see `source.on.tick` below),
@@ -280,6 +282,10 @@ function mergeTickIntoQuote(
 
 type Phase = 'loading' | 'ready' | 'not-found';
 
+/** The price panel's edge while the stream is held — the board card's amber treatment. */
+const DETAIL_HELD_EDGE =
+  'border-[color-mix(in_oklab,var(--tckr-color-warning)_45%,transparent)]! outline outline-offset-0 outline-[color-mix(in_oklab,var(--tckr-color-warning)_20%,transparent)]';
+
 // ---------------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------------
@@ -304,6 +310,9 @@ export function StockDetail({ symbol }: { symbol: string }) {
   // is empty or flat — a "2 ticks" line that reads as a dead feed — so the chart opens
   // on the whole completed SESSION instead.
   const marketStatus = useMarketStatus();
+  // The pane sticks beside the board, often long after the page's connection banner has
+  // scrolled away, so it marks held prices itself (see `useConnectionState`).
+  const held = isHeld(useConnectionState().state);
   const closeDetail = useViewTransitionNavigate();
   const [range, setRange] = useState<RangeKey>(() => (marketStatus.state === 'open' ? '60S' : 'SESSION'));
 
@@ -343,10 +352,18 @@ export function StockDetail({ symbol }: { symbol: string }) {
   // "adjusting state when a prop changes" pattern (calling `setState` during render,
   // guarded by a comparison) so the reset lands in the very same render pass as the
   // `symbol` change, before anything ever commits or paints.
+  //
+  // The displayed quote needs the same treatment: left to the effect's reset, the old
+  // symbol's price, change and session figures render under the new symbol for one
+  // commit, and every `PriceCell` then "moves" to the new symbol's values — a flash
+  // (with ▲/▼) for a change that was never a tick.
   const [historyForSymbol, setHistoryForSymbol] = useState(symbol);
   if (historyForSymbol !== symbol) {
     setHistoryForSymbol(symbol);
     setHistoryPoints(undefined);
+    setPhase('loading');
+    setQuote(undefined);
+    setExtras(undefined);
   }
 
   // Mount sequence, and the sole effect governing subscribe/unsubscribe lifecycle:
@@ -594,7 +611,10 @@ export function StockDetail({ symbol }: { symbol: string }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="relative flex flex-col gap-4 py-[22px] px-6 rounded-[22px] bg-glass-card border border-glass-border-card backdrop-blur-[26px] backdrop-saturate-[160%] shadow-float animate-detail-reveal motion-reduce:animate-none reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
+      <div
+        className={`relative flex flex-col gap-4 py-[22px] px-6 rounded-[22px] bg-glass-card border border-glass-border-card backdrop-blur-[26px] backdrop-saturate-[160%] shadow-float animate-detail-reveal motion-reduce:animate-none reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none [transition:border-color_250ms_ease,outline-color_250ms_ease]${held ? ` ${DETAIL_HELD_EDGE}` : ''}`}
+        data-held={held || undefined}
+      >
         <div className="flex items-start justify-between gap-5 flex-wrap">
           <div className="max-[640px]:pr-11">
             <div className="flex items-baseline gap-3 flex-wrap">
@@ -618,21 +638,21 @@ export function StockDetail({ symbol }: { symbol: string }) {
               </p>
             ) : (
               <>
-                <div className="flex items-baseline gap-3.5 mt-2.5 flex-wrap">
+                <div className="flex items-center gap-3.5 mt-2.5 flex-wrap">
                   <span
                     className="font-mono font-semibold text-display tracking-[-0.02em] tabular-nums"
                     data-testid="stock-detail-price"
                   >
-                    <PriceCell value={quote.price} flashDirectionOverride={deltaDirection(quote.change)} />
+                    <PriceCell value={quote.price} flashDirectionOverride={deltaDirection(quote.change)} flashGlyph={false} />
                   </span>
                   {/* ▲/▼ leads the pair, as it does on the board's Change column: the
                       tint alone is colour-only (DESIGN.md, Color-Plus-Signal Rule). The
                       two pills wrap as one unit, so on a narrow pane the move reads as
                       one fact beneath the price instead of splitting across lines. */}
-                  <span className="inline-flex items-baseline gap-2 whitespace-nowrap">
+                  <span className="inline-flex items-center gap-2 whitespace-nowrap">
                     <span className={deltaClassName(quote.change)} data-testid="stock-detail-change">
                       {deltaGlyph(quote.change)}
-                      <PriceCell value={quote.change} sign />
+                      <PriceCell value={quote.change} sign flashGlyph={false} />
                     </span>
                     <span className={deltaClassName(quote.change)} data-testid="stock-detail-change-percent">
                       {quote.changePercentText}%
@@ -640,6 +660,11 @@ export function StockDetail({ symbol }: { symbol: string }) {
                   </span>
                 </div>
                 <p className="mt-2 font-mono text-caption text-text-muted" data-testid="stock-detail-asof">
+                  {held ? (
+                    <>
+                      <HeldTag testId="stock-detail-held" />{' '}
+                    </>
+                  ) : null}
                   {/* Outside continuous trading the last trade can be days old, so the
                       date is part of the fact; during the session the time alone is. */}
                   as of{' '}
@@ -648,6 +673,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
                     : `${formatCairoDateShort(Date.parse(quote.exchangeTimestamp))}, ${formatExchangeTime(quote.exchangeTimestamp)}`}{' '}
                   Cairo
                   {quote.stream === 'DELAYED' ? ` · DELAYED ${delay.short}${delay.simulated ? ' (simulated)' : ''}` : null}
+                  {held ? <span className="text-text"> · stream down, price not moving</span> : null}
                 </p>
               </>
             )}
@@ -713,30 +739,18 @@ export function StockDetail({ symbol }: { symbol: string }) {
           className="flex flex-col gap-2.5 animate-[tckr-detail-reveal_220ms_var(--tckr-ease-out)_40ms_backwards] motion-reduce:animate-none"
           data-testid="stock-detail-footer"
         >
-          {/* Two groups at two weights: today's session figures as tiles, the
-              instrument's fixed trading rules as a quiet line beneath them. */}
           <div className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2.5">
             <StatTile label="Open">
-              <PriceCell value={extras?.open ?? quote.price} />
+              <PriceCell value={extras?.open ?? quote.price} flashGlyph={false} />
             </StatTile>
             <StatTile label="High">
-              <PriceCell value={extras?.high ?? quote.price} />
+              <PriceCell value={extras?.high ?? quote.price} flashGlyph={false} />
             </StatTile>
             <StatTile label="Low">
-              <PriceCell value={extras?.low ?? quote.price} />
+              <PriceCell value={extras?.low ?? quote.price} flashGlyph={false} />
             </StatTile>
             <StatTile label="Volume">{new Intl.NumberFormat('en-US').format(quote.volume)}</StatTile>
           </div>
-          <dl className="flex flex-wrap gap-x-5 gap-y-1 px-1 font-mono text-caption text-text-muted">
-            <div className="flex gap-2" title="Shares per trading lot: orders are placed in multiples of this">
-              <dt className="uppercase tracking-[0.14em]">Lot size</dt>
-              <dd className="text-text tabular-nums">{universeDef?.lotSize ?? '—'}</dd>
-            </div>
-            <div className="flex gap-2" title="Smallest step the price can move by">
-              <dt className="uppercase tracking-[0.14em]">Tick size</dt>
-              <dd className="text-text tabular-nums">{universeDef ? <PriceCell value={universeDef.tickSize} /> : '—'}</dd>
-            </div>
-          </dl>
         </div>
       ) : null}
     </div>

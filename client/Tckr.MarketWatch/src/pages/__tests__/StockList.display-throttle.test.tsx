@@ -9,8 +9,8 @@
  * `DISPLAY_REFRESH_INTERVAL_MS` late, not the "within one window" the old code's own
  * comment claimed. `StockListRow` now reuses `createThrottle` (`src/display/
  * throttle.ts`, the same utility `StockDetail.tsx` already uses) directly on the store
- * subscription, whose trailing-edge `setTimeout` is scheduled relative to the leading
- * call's own timestamp — a correct "within one window" guarantee.
+ * subscription, whose trailing-edge `setTimeout` fires at the end of the leading call's
+ * own (wall-clock-aligned) window — a correct "within one window" guarantee.
  *
  * This mirrors `StockDetail.display-throttle.test.tsx`'s pattern (`vi.advanceTimersByTime`),
  * adapted to `StockListRow`'s per-row `data-render-count` test hook (see
@@ -69,14 +69,22 @@ describe('StockListRow display-refresh throttle', () => {
     const before = renderCountFor('COMI');
 
     // A burst well within one throttle window — simulating a hot symbol's tape. The
-    // leading tick paints immediately; the rest are collapsed by the throttle.
+    // leading tick paints immediately; the rest are collapsed by the throttle. The
+    // leading tick gets its own `act` so its paint commits before the rest arrive —
+    // inside one `act`, React would render once at the end, already showing the last
+    // tick, and the trailing catch-up below would have nothing new to paint.
     act(() => {
-      for (let i = 0; i < 20; i += 1) {
-        applyTick(tickFixture({ s: 'COMI', p: toDecimal((85 + i * 0.01).toFixed(2)), id: `evt-burst-${i}` }));
-      }
+      applyTick(tickFixture({ s: 'COMI', p: toDecimal('85.00'), id: 'evt-burst-0' }));
     });
     const afterLeading = renderCountFor('COMI');
     expect(afterLeading).toBe(before + 1);
+
+    act(() => {
+      for (let i = 1; i < 20; i += 1) {
+        applyTick(tickFixture({ s: 'COMI', p: toDecimal((85 + i * 0.01).toFixed(2)), id: `evt-burst-${i}` }));
+      }
+    });
+    expect(renderCountFor('COMI')).toBe(afterLeading);
 
     // Advancing exactly one window must flush the trailing catch-up now — not require a
     // second window the way the old mount-anchored-interval bug did.

@@ -11,6 +11,8 @@ export interface FakeUPlotInstance {
   readonly destroy: ReturnType<typeof vi.fn>;
   readonly setSize: ReturnType<typeof vi.fn>;
   readonly redraw: ReturnType<typeof vi.fn>;
+  /** Identity mapping (value -> px), enough for overlay-positioning code to run. */
+  readonly valToPos: ReturnType<typeof vi.fn>;
   readonly root: HTMLElement;
   readonly over: HTMLElement;
   cursor: { idx: number | null };
@@ -25,6 +27,7 @@ export class FakeUPlot implements FakeUPlotInstance {
   readonly destroy = vi.fn();
   readonly setSize = vi.fn();
   readonly redraw = vi.fn();
+  readonly valToPos = vi.fn((value: number) => value);
   readonly root: HTMLElement = document.createElement('div');
   readonly over: HTMLElement = document.createElement('div');
   cursor: { idx: number | null } = { idx: null };

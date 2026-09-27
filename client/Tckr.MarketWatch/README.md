@@ -98,7 +98,7 @@ pretends otherwise.
 ### What the gateway must serve
 
 Everything in [`client-contract.md`](../../docs/phase-3-web-client/client-contract.md) —
-`GET /symbols`, `GET /symbols/{symbol}/snapshot`, `GET /health`, and the
+`GET /EGX/symbols`, `GET /EGX/symbols/{symbol}/snapshot` and `/history`, `GET /health`, and the
 `/ws/market-data` WebSocket with its five server→client message types, five error codes,
 and four abnormal close codes. `docs/decisions/006-client-data-source-contract.md`'s
 addenda record the architecture decisions this phase settled on top of that contract
@@ -127,7 +127,7 @@ detail and source citations: `docs/decisions/006-client-data-source-contract.md`
   every client.
 - **No "never connected yet" `ConnectionState` variant** — `connectionState()` reports the
   same shape before the first connect as it would after a genuine `closed` disconnect.
-- **`GET /symbols` ordering** — the client's default list order is the universe array's
+- **`GET /EGX/symbols` ordering** — the client's default list order is the universe array's
   own order (weight-descending in the mock exchange's file). **The gateway must preserve
   weight-descending order**, or the default view changes silently.
 - **No heartbeat surface on `MarketDataSource`** — `reconnect.ts`'s

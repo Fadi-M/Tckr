@@ -294,7 +294,7 @@ was false. Full write-ups in
 [`docs/phase-3-web-client/results.md`](docs/phase-3-web-client/results.md) and
 [ADR 006](docs/decisions/006-client-data-source-contract.md).
 
-9. **`GET /symbols` ordering is unspecified and load-bearing.** The client's default list
+9. **`GET /EGX/symbols` ordering is unspecified and load-bearing.** The client's default list
    order is the universe array's own order, which is weight-descending in the mock
    exchange's file. The contract defines no field a client could sort by, so **the Phase 11
    gateway must preserve weight-descending order** or the default view silently changes

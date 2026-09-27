@@ -59,10 +59,10 @@
  *    exactly like `StockListRow` (same throttled-subscribe/bounded-sparkline shape)
  *    so its own price/percent/spark stay live between hero re-picks. Hidden while a
  *    detail pane is open (mirrors the design's `isDetail`-collapsed hero row).
- *  - Split-pane detail: `/symbols/:symbol` is now a *child* route of `/`
+ *  - Split-pane detail: `/EGX/symbols/:symbol` is now a *child* route of `/`
  *    (`App.tsx`), rendered into this component's own `<Outlet />` rather than
  *    replacing the whole page — the design's list-narrows/detail-slides-in-beside-it
- *    layout. `useMatch('/symbols/:symbol')` tells this component whether a detail
+ *    layout. `useMatch(SYMBOL_ROUTE_PATTERN)` tells this component whether a detail
  *    pane is open (and for which symbol) purely from the URL, so opening/closing a
  *    symbol never remounts `StockList` itself (search text, sort state, and every
  *    row's subscription survive) — only the `<Outlet />` content and the grid's
@@ -91,17 +91,20 @@ import type { ConnectionState } from '../data/MarketDataSource.ts';
 import type { Stream } from '../contracts/messages.ts';
 import { streamDelay } from '../components/streamDelay.ts';
 import { BOARD_ID, DETAIL_HEADING_ID } from './pageAnchors.ts';
+import { SYMBOL_ROUTE_PATTERN, symbolPath } from './routes.ts';
 import { getSymbolSnapshot, subscribeSymbol } from '../data/store.ts';
-import { formatCairoDateShort, formatCairoTimeShort, formatNextOpen, isPreOpenAuction, type MarketStatus } from '../data/marketCalendar.ts';
-import { AlertIcon, ArrowLeftIcon, CheckIcon, ClockIcon, CloseIcon, RetryIcon, SearchIcon } from '../components/icons.tsx';
+import { formatCairoClock, formatCairoDateShort, formatCairoTimeShort, formatNextOpen, isPreOpenAuction, type MarketStatus } from '../data/marketCalendar.ts';
+import { AlertIcon, ArrowLeftIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, ClockIcon, CloseIcon, RetryIcon, SearchIcon } from '../components/icons.tsx';
 import { TckrMark } from '../components/TckrLogo.tsx';
 import { PriceCell } from '../components/PriceCell.tsx';
 import { DELTA_TONE_CLASSES, deltaTone, type DeltaTone } from '../components/deltaTone.ts';
 import { isEditableTarget, modifierKeyLabel } from '../components/keyboard.ts';
 import { prefersReducedMotion } from '../components/prefersReducedMotion.ts';
 import { useMarketStatus } from '../components/useMarketStatus.ts';
+import { isHeld, useConnectionState } from '../components/useConnectionState.ts';
+import { HeldTag } from '../components/HeldTag.tsx';
 import { useViewTransitionNavigate } from '../components/useViewTransitionNavigate.ts';
-import { createThrottle, DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
+import { createThrottle, DISPLAY_REFRESH_INTERVAL_MS, RANK_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
 import { toPlotValue } from '../chart/ringBuffer.ts';
 import { sparklineDirection, useSessionSparkline } from './useBoundedSparkline.ts';
 
@@ -369,15 +372,6 @@ function useNarrowViewport(): boolean {
 // module doc.
 // ---------------------------------------------------------------------------------
 
-function seedConnectionState(): ConnectionState {
-  const source = getSharedSource();
-  const current = source.connectionState?.();
-  if (current) {
-    return current;
-  }
-  return source.identity() !== null ? { kind: 'connected', since: Date.now() } : { kind: 'connecting', attempt: 1 };
-}
-
 /** Which stream the viewer is on, from the server's `identity()` only (never a
  * client-side default: `null` until the handshake). Re-read on every status transition
  * and entitlement change, the same two signals the header's StreamBadge follows. */
@@ -408,7 +402,9 @@ function DelayedStreamBanner() {
       <ClockIcon className="text-warning" />
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-small">Delayed prices · {delay.short} behind</div>
-        <div className="mt-[3px] text-caption text-text-muted">
+        {/* On a phone the title carries it: the header badge already says DELAYED, and
+            the explanation would push the board a banner-height further down. */}
+        <div className="mt-[3px] text-caption text-text-muted max-[640px]:sr-only">
           {delay.simulated
             ? `Every price on this page is ${delay.short} behind the exchange (simulated; a real delayed entitlement is 15\u00a0min).`
             : `Every price on this page is ${delay.short} behind the exchange, per your entitlement.`}
@@ -418,18 +414,9 @@ function DelayedStreamBanner() {
   );
 }
 
-function useConnectionBanner(): { state: ConnectionState; remainingSecs: number } {
-  const [state, setState] = useState<ConnectionState>(seedConnectionState);
-  const [eventReceivedAt, setEventReceivedAt] = useState<number>(() => Date.now());
+function useConnectionBanner(): { state: ConnectionState; remainingSecs: number; heldSince: number | null } {
+  const { state, eventReceivedAt, heldSince } = useConnectionState();
   const [, forceTick] = useReducer((n: number) => n + 1, 0);
-
-  useEffect(() => {
-    const source = getSharedSource();
-    return source.on.status((next) => {
-      setEventReceivedAt(Date.now());
-      setState(next);
-    });
-  }, []);
 
   useEffect(() => {
     if (state.kind !== 'reconnecting') {
@@ -444,7 +431,7 @@ function useConnectionBanner(): { state: ConnectionState; remainingSecs: number 
       ? Math.max(0, Math.ceil((state.nextRetryMs - (Date.now() - eventReceivedAt)) / 1000))
       : 0;
 
-  return { state, remainingSecs };
+  return { state, remainingSecs, heldSince };
 }
 
 function closeDetail(code: CloseCode): string {
@@ -479,15 +466,26 @@ const CONN_BANNER_DELAYED =
   'bg-[color-mix(in_oklab,var(--tckr-color-warning)_9%,var(--tckr-glass-bg))] border border-[color-mix(in_oklab,var(--tckr-color-warning)_24%,transparent)] reduced-transparency:bg-[color-mix(in_oklab,var(--tckr-color-warning)_9%,var(--tckr-color-surface))] contrast-more:bg-[color-mix(in_oklab,var(--tckr-color-warning)_9%,var(--tckr-color-surface))]';
 const CONN_BANNER_GOOD =
   'bg-[color-mix(in_oklab,var(--tckr-color-up)_12%,var(--tckr-glass-bg))] border border-[color-mix(in_oklab,var(--tckr-color-up)_28%,transparent)] reduced-transparency:bg-[color-mix(in_oklab,var(--tckr-color-up)_12%,var(--tckr-color-surface))] contrast-more:bg-[color-mix(in_oklab,var(--tckr-color-up)_12%,var(--tckr-color-surface))]';
+// 75px = the sticky app header (59px) + a 16px gap, the same offset the detail pane uses.
+const CONN_BANNER_STICKY = 'sticky top-[75px] z-[4]';
+const CONN_BANNER_STICKY_PHONE = 'max-[800px]:sticky max-[800px]:top-[75px] max-[800px]:z-[4]';
 const BANNER_DISMISS =
   'flex-none text-caption font-medium text-text-muted px-2.5 py-1.5 rounded-md cursor-pointer [transition:color_150ms_ease] fine-hover:text-text focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2';
 const CONN_BANNER_ACTION =
   "font-semibold text-caption px-[13px] py-[7px] rounded-md border border-border bg-text text-surface cursor-pointer flex-none [transition:transform_120ms_ease-out,opacity_150ms_ease] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2";
 
-function ConnectionBanner({ state, remainingSecs }: { state: ConnectionState; remainingSecs: number }) {
+function ConnectionBanner({
+  state,
+  remainingSecs,
+  className = '',
+}: {
+  state: ConnectionState;
+  remainingSecs: number;
+  className?: string;
+}) {
   if (state.kind === 'reconnecting') {
     return (
-      <div className={`${CONN_BANNER_BASE} ${CONN_BANNER_WARNING}`} role="alert">
+      <div className={`${CONN_BANNER_BASE} ${CONN_BANNER_WARNING} ${className}`} role="alert">
         <RetryIcon className="text-warning" />
         <div className="flex-1 min-w-0">
           {/* The countdown ticks every second inside this alert region; hiding it from
@@ -515,7 +513,7 @@ function ConnectionBanner({ state, remainingSecs }: { state: ConnectionState; re
 
   if (state.kind === 'closed') {
     return (
-      <div className={`${CONN_BANNER_BASE} ${CONN_BANNER_DANGER}`} role="alert">
+      <div className={`${CONN_BANNER_BASE} ${CONN_BANNER_DANGER} ${className}`} role="alert">
         <AlertIcon className="text-down" />
         <div className="flex-1 min-w-0">
           <div className="font-semibold text-small">Disconnected</div>
@@ -725,16 +723,16 @@ function MarketClosedBanner({
               status region, and the absolute Cairo time already says when. */}
           {compact ? (
             <>
-              {preOpen ? 'Trading starts' : 'Reopens'} {formatNextOpen(status)} Cairo
+              {preOpen ? 'Trading starts' : 'Reopens'} {formatNextOpen(status, now)} Cairo
             </>
           ) : preOpen ? (
             <>
-              Continuous trading starts at {formatNextOpen(status)} Cairo time<span aria-hidden="true">, {until}</span>. Prices
+              Continuous trading starts at {formatCairoTimeShort(status.nextOpenAt)} Cairo time<span aria-hidden="true">, {until}</span>. Prices
               below are from the last completed session.
             </>
           ) : (
             <>
-              Showing the last completed session. Reopens {formatNextOpen(status)} Cairo time
+              Showing the last completed session. Reopens {formatNextOpen(status, now)} Cairo time
               <span aria-hidden="true">, {until}</span>.
             </>
           )}
@@ -757,7 +755,7 @@ function Sparkline({
   points: readonly number[];
   direction: 'up' | 'down' | 'flat';
   /** `'row'` (the default, `StockListRow`'s inline cell) sizes to `width:100%;
-   * height:34px`. `'hero'` (`HeroCard`'s price row) instead sizes to the fixed
+   * height:24px` (`h-6`). `'hero'` (`HeroCard`'s price row) instead sizes to the fixed
    * `96px x 30px` the design gives it there — this is a *different, non-overlapping*
    * className, not a base-then-override pair, so the two sizings never fight over
    * the same `width`/`height` utility (previously a `.tckr-hero__price-row
@@ -995,7 +993,7 @@ interface StockListRowProps {
   readonly alignDecimals?: number;
   readonly onActivate: (symbol: string) => void;
   /** Whether this row's symbol is the one currently open in the split-pane detail
-   * view (see `useMatch('/symbols/:symbol')` in `StockList`). Purely presentational
+   * view (see `useMatch(SYMBOL_ROUTE_PATTERN)` in `StockList`). Purely presentational
    * (a glass highlight + accent edge) — never affects subscription lifecycle. */
   readonly selected?: boolean;
   /** The columns this row renders a cell for — `visibleColumns(...)` in `StockList`,
@@ -1059,27 +1057,12 @@ function StockListRow({
   // lifetime, and `.cancel()` runs in this same subscription's cleanup so no trailing
   // call can ever fire after this row (or its subscription) is gone.
   //
-  // Exception: the `selected` row (its detail pane is open beside it in the split
-  // view — see `StockList`'s `useMatch`) subscribes *unthrottled*. `StockDetail`
-  // keeps its own independent ~30s-throttled display cadence (client-contract.md's
-  // "human-trackable" pacing, unchanged, still covered by
-  // `StockDetail.display-throttle.test.tsx`) — but its throttle window is anchored
-  // to whenever *it* mounted, which is essentially never in phase with this row's own
-  // (anchored to whenever this row's subscription last fired, likely long before the
-  // symbol was even selected). Two independently-phased ~30s windows reading the same
-  // tape can disagree for most of a 30s window at any given instant — visibly so,
-  // with the row and the detail pane for the *same symbol* on screen simultaneously.
-  // Since this now only affects one row at a time (not the whole table), the
-  // performance concern the throttle exists for does not apply here: an unthrottled
-  // single row always shows the same true current store value `StockDetail`'s own
-  // fresh `getSnapshot()`/live tick will (very shortly) converge to, closing the gap
-  // in the direction that was actually reported (the row lagging behind a freshly
-  // opened, more current detail pane).
+  // The `selected` row (its detail pane open beside it) is throttled like every other
+  // row: `createThrottle` aligns every instance's windows to the same wall-clock slots,
+  // so this row and `StockDetail`'s header flush the same burst on the same beat and
+  // show the same price, rather than one leading the other for most of a window.
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
-      if (selected) {
-        return subscribeSymbol(symbol, onStoreChange);
-      }
       const throttledStoreChange = createThrottle(onStoreChange, DISPLAY_REFRESH_INTERVAL_MS);
       const unsubscribe = subscribeSymbol(symbol, throttledStoreChange);
       return () => {
@@ -1087,7 +1070,7 @@ function StockListRow({
         unsubscribe();
       };
     },
-    [symbol, selected],
+    [symbol],
   );
   const view = useSyncExternalStore(subscribe, () => getSymbolSnapshot(symbol));
 
@@ -1170,7 +1153,7 @@ function StockListRow({
       }`}
       tabIndex={tabStop ? 0 : -1}
       aria-label={rowAriaLabel}
-      aria-current={selected ? 'true' : undefined}
+      aria-selected={selected}
       data-symbol={symbol}
       data-render-count={renderCountRef.current}
       onClick={() => onActivate(symbol)}
@@ -1184,7 +1167,7 @@ function StockListRow({
             Tab stop. A plain click falls through to the row's own handler, which also
             closes an already-open symbol; a modified click keeps the browser default. */}
         <Link
-          to={`/symbols/${symbol}`}
+          to={symbolPath(symbol)}
           tabIndex={-1}
           className="text-inherit no-underline"
           aria-label={`Open ${symbol} details`}
@@ -1312,8 +1295,12 @@ const SEARCH_WRAP_CLASS =
 
 function tableWrapClass(stale: boolean): string {
   const base =
-    'w-full max-w-full border border-glass-border rounded-[18px] overflow-hidden bg-glass backdrop-blur-tckr backdrop-saturate-[1.6] shadow-float [transition:opacity_250ms_ease] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none reduced-transparency:backdrop-saturate-100 contrast-more:bg-surface contrast-more:backdrop-blur-none contrast-more:backdrop-saturate-100';
-  return stale ? `${base} opacity-[0.72]` : base;
+    'w-full max-w-full border border-glass-border rounded-[18px] overflow-hidden bg-glass backdrop-blur-tckr backdrop-saturate-[1.6] shadow-float [transition:border-color_250ms_ease,outline-color_250ms_ease] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none reduced-transparency:backdrop-saturate-100 contrast-more:bg-surface contrast-more:backdrop-blur-none contrast-more:backdrop-saturate-100';
+  // Held prices keep full contrast (they are exactly what the user is judging); the
+  // card's edge turns amber and the caption says since when, instead of dimming them.
+  return stale
+    ? `${base} border-[color-mix(in_oklab,var(--tckr-color-warning)_45%,transparent)]! outline outline-offset-0 outline-[color-mix(in_oklab,var(--tckr-color-warning)_20%,transparent)]`
+    : base;
 }
 
 const SORT_BUTTON_CLASS =
@@ -1368,30 +1355,30 @@ export function StockList() {
   const [sortState, setSortState] = useState<SortState | null>(null);
   const [focusedSymbol, setFocusedSymbol] = useState<string | null>(null);
   const [sessionTrends, setSessionTrends] = useState<ReadonlyMap<string, readonly number[]>>(() => new Map());
-  const { state: connState, remainingSecs } = useConnectionBanner();
+  const { state: connState, remainingSecs, heldSince } = useConnectionBanner();
   const recovery = useRecoveryMoment(connState);
   const marketStatus = useMarketStatus();
   const viewerStream = useViewerStream();
   const openingBell = useOpeningBell(marketStatus);
 
-  // Whether a `/symbols/:symbol` child route is open, read straight from the URL —
+  // Whether a `/EGX/symbols/:symbol` child route is open, read straight from the URL —
   // see module doc "Split-pane detail". Purely presentational (grid columns, hero
   // visibility, row highlight); the detail pane's own data lifecycle is owned
   // entirely by `StockDetail` via the `<Outlet />` below, not by this value.
-  const detailMatch = useMatch('/symbols/:symbol');
+  const detailMatch = useMatch(SYMBOL_ROUTE_PATTERN);
   const selectedSymbol = detailMatch?.params.symbol ?? null;
   const isNarrowViewport = useNarrowViewport();
 
   // Top Gainer / Top Loser / Most Active — same imperative-poll discipline as
   // `TickerTape`/the active-sort-preset resort below (see module doc). Only runs
-  // once the universe is loaded; recomputes on the same cadence as everything else
-  // on this page.
+  // once the universe is loaded; re-picks on the board's re-rank cadence
+  // (`RANK_REFRESH_INTERVAL_MS`), while each card's figures repaint at the price cadence.
   const [heroTick, forceHeroRecompute] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
     if (!universe) {
       return;
     }
-    const id = setInterval(() => forceHeroRecompute(), DISPLAY_REFRESH_INTERVAL_MS);
+    const id = setInterval(() => forceHeroRecompute(), RANK_REFRESH_INTERVAL_MS);
     return () => clearInterval(id);
   }, [universe]);
   // `heroTick` is intentionally in this array even though the body never reads it —
@@ -1404,20 +1391,21 @@ export function StockList() {
   // Left alone, that means an active preset (e.g. "Most active") can show a stale,
   // increasingly-misleading ranking indefinitely between sort clicks/searches, even as
   // every individual row keeps visibly repainting. `resortTick` forces one extra
-  // recompute per `DISPLAY_REFRESH_INTERVAL_MS` — the same cadence every other repaint
-  // on this page already uses — so the ranking can go stale for at most one window,
-  // never indefinitely, without resorting on every tick. Mirrors
+  // recompute per `RANK_REFRESH_INTERVAL_MS` — half the price cadence, since rows moving
+  // under the pointer cost more attention than a number changing in place — so the
+  // ranking can go stale for at most one window, never indefinitely, without resorting
+  // on every tick. Mirrors
   // `useConnectionBanner`'s reconnecting-interval: only runs while there is something
   // to keep fresh (`sortState !== null`), and is keyed off that boolean rather than the
   // `SortState` object itself so switching between sort columns doesn't restart the
-  // 30s window.
+  // re-rank window.
   const [resortTick, forceResort] = useReducer((n: number) => n + 1, 0);
   const hasActiveSort = sortState !== null;
   useEffect(() => {
     if (!hasActiveSort) {
       return;
     }
-    const id = setInterval(() => forceResort(), DISPLAY_REFRESH_INTERVAL_MS);
+    const id = setInterval(() => forceResort(), RANK_REFRESH_INTERVAL_MS);
     return () => clearInterval(id);
   }, [hasActiveSort]);
 
@@ -1597,7 +1585,7 @@ export function StockList() {
     (symbol: string) => {
       // Mirrors the design import's `toggle()`: activating the already-open symbol
       // closes the detail pane instead of re-navigating to the same route.
-      navigate(selectedSymbol === symbol ? '/' : `/symbols/${symbol}`);
+      navigate(selectedSymbol === symbol ? '/' : symbolPath(symbol));
     },
     [navigate, selectedSymbol],
   );
@@ -1631,7 +1619,7 @@ export function StockList() {
         // ↑/↓ steps through instruments without an Enter per symbol.
         const nextSymbol = next.dataset.symbol;
         if (selectedSymbol !== null && nextSymbol && nextSymbol !== selectedSymbol) {
-          navigate(`/symbols/${nextSymbol}`);
+          navigate(symbolPath(nextSymbol));
         }
       }
     },
@@ -1640,7 +1628,7 @@ export function StockList() {
 
   // ---------------------------------------------------------------------------------
   // Re-rank motion (FLIP). When the row order changes — a preset or header sort, the
-  // 30-second re-rank of an active sort, or a search narrowing the list — each row
+  // 20-second re-rank of an active sort, or a search narrowing the list — each row
   // that moved glides from its old position to its new one, and rows newly in the list
   // fade in. Without it rows teleport, and the symbol you were watching is lost.
   //
@@ -1722,7 +1710,7 @@ export function StockList() {
     );
   }
 
-  const isStale = connState.kind === 'reconnecting' || connState.kind === 'closed';
+  const isStale = isHeld(connState);
   const activePreset = presetFor(sortState);
   const searching = debouncedQuery.trim() !== '';
   const isSplit = selectedSymbol !== null;
@@ -1741,6 +1729,64 @@ export function StockList() {
     sorted[0]?.symbol ??
     null;
 
+  // The open symbol's neighbours in the board's current order (sort and search
+  // included), for the phone's previous/next buttons.
+  const selectedIndex = selectedSymbol === null ? -1 : sorted.findIndex((def) => def.symbol === selectedSymbol);
+  const previousSymbol = selectedIndex > 0 ? sorted[selectedIndex - 1]!.symbol : null;
+  const nextSymbol = selectedIndex >= 0 && selectedIndex < sorted.length - 1 ? sorted[selectedIndex + 1]!.symbol : null;
+
+  // One instance of each control, placed by the layout below: in the toolbar row over
+  // the full board, or at the top of the list column in split view.
+  const presetPills = (
+    <div className="flex gap-1.5 flex-wrap">
+      {PRESETS.map((preset) => (
+        <button
+          key={preset.id}
+          type="button"
+          className={`${PILL_BASE} ${activePreset === preset.id ? PILL_ACTIVE : PILL_INACTIVE}`}
+          aria-pressed={activePreset === preset.id}
+          title={preset.hint}
+          aria-description={preset.hint}
+          onClick={() => setSortState(preset.sort)}
+        >
+          {preset.label}
+        </button>
+      ))}
+    </div>
+  );
+  const searchField = (
+    <label className={SEARCH_WRAP_CLASS} htmlFor="tckr-stocklist-search">
+      <SearchIcon size={14} className="text-text-muted" />
+      <input
+        id="tckr-stocklist-search"
+        ref={searchInputRef}
+        type="search"
+        className="appearance-none bg-transparent border-none m-0 p-0 outline-none [&::-webkit-search-cancel-button]:appearance-none flex-[1_1_auto] min-w-0 text-text text-small pointer-coarse:text-body placeholder:text-text-muted"
+        aria-label="Search symbol or name"
+        aria-keyshortcuts="Meta+K Control+K /"
+        placeholder="Search symbol or name"
+        value={rawQuery}
+        onChange={(event) => setRawQuery(event.target.value)}
+      />
+      {rawQuery !== '' ? (
+        <button
+          type="button"
+          aria-label="Clear search"
+          className="flex-none -my-1 p-1 rounded-full text-text-muted cursor-pointer fine-hover:text-text focus-visible:outline-2 focus-visible:outline-accent"
+          onClick={() => {
+            clearSearch();
+            searchInputRef.current?.focus();
+          }}
+        >
+          <CloseIcon size={13} />
+        </button>
+      ) : null}
+      <span className="flex-none font-mono text-label text-text-muted border border-border rounded px-1.5 py-[3px] pointer-coarse:hidden">
+        {modifierKeyLabel()}K
+      </span>
+    </label>
+  );
+
   return (
     <div className="w-full max-w-full">
       <h1 className="sr-only">Tckr Market Watch</h1>
@@ -1751,7 +1797,14 @@ export function StockList() {
         {searching ? `${sorted.length} of ${universe.length} instruments match “${debouncedQuery.trim()}”` : ''}
       </p>
 
-      <ConnectionBanner state={connState} remainingSecs={remainingSecs} />
+      {/* Sticks under the app header so a user scrolled deep into the board still
+          sees the stream is down and can retry. Not in desktop split view: the pane
+          sticks at the same offset and carries its own HELD line instead. */}
+      <ConnectionBanner
+        state={connState}
+        remainingSecs={remainingSecs}
+        className={isSplit ? CONN_BANNER_STICKY_PHONE : CONN_BANNER_STICKY}
+      />
       {viewerStream === 'DELAYED' ? <DelayedStreamBanner /> : null}
       {recovery.shown && connState.kind === 'connected' ? (
         <MomentBanner
@@ -1784,75 +1837,90 @@ export function StockList() {
         />
       </div>
 
-      {/* Below 800px the split view stacks and the list column hides, so this row
-          keeps only the back pill: it is the one way back to the list on a phone. */}
-      <div className="flex items-center gap-2.5 mb-3 flex-wrap">
-        {isSplit ? (
+      {/* Full board: ordering and search sit in one row above it. Split view: they move
+          into the list column (below), so the controls sit over the list they act on,
+          not across the chart. Below 800px the split view hides the list column, so this
+          row keeps only the back pill: the one way back to the list on a phone. */}
+      {isSplit ? (
+        // On a phone the list is hidden behind the detail, so stepping to the next
+        // symbol in the board's current order happens here instead of with ↑/↓.
+        <nav className="mb-3 flex items-center gap-2 min-[801px]:hidden" aria-label="Instrument navigation">
           <button
             type="button"
-            className={`${PILL_BASE} ${PILL_INACTIVE} flex-none inline-flex items-center gap-1.5`}
+            className={`${PILL_BASE} ${PILL_INACTIVE} inline-flex items-center gap-1.5 mr-auto`}
             onClick={() => navigate('/')}
           >
             <ArrowLeftIcon size={13} />
             All instruments
           </button>
-        ) : null}
-        <div className={`flex gap-1.5 flex-wrap${isSplit ? ' max-[800px]:hidden' : ''}`}>
-          {PRESETS.map((preset) => (
-            <button
-              key={preset.id}
-              type="button"
-              className={`${PILL_BASE} ${activePreset === preset.id ? PILL_ACTIVE : PILL_INACTIVE}`}
-              aria-pressed={activePreset === preset.id}
-              title={preset.hint}
-              aria-description={preset.hint}
-              onClick={() => setSortState(preset.sort)}
-            >
-              {preset.label}
-            </button>
-          ))}
-        </div>
-        <label className={`${SEARCH_WRAP_CLASS}${isSplit ? ' max-[800px]:hidden' : ''}`} htmlFor="tckr-stocklist-search">
-          <SearchIcon size={14} className="text-text-muted" />
-          <input
-            id="tckr-stocklist-search"
-            ref={searchInputRef}
-            type="search"
-            className="appearance-none bg-transparent border-none m-0 p-0 outline-none [&::-webkit-search-cancel-button]:appearance-none flex-[1_1_auto] min-w-0 text-text text-small pointer-coarse:text-body placeholder:text-text-muted"
-            aria-label="Search symbol or name"
-            aria-keyshortcuts="Meta+K Control+K /"
-            placeholder="Search symbol or name"
-            value={rawQuery}
-            onChange={(event) => setRawQuery(event.target.value)}
-          />
-          {rawQuery !== '' ? (
+          {previousSymbol !== null ? (
             <button
               type="button"
-              aria-label="Clear search"
-              className="flex-none -my-1 p-1 rounded-full text-text-muted cursor-pointer fine-hover:text-text focus-visible:outline-2 focus-visible:outline-accent"
-              onClick={() => {
-                clearSearch();
-                searchInputRef.current?.focus();
-              }}
+              className={`${PILL_BASE} ${PILL_INACTIVE} inline-flex items-center gap-1 font-mono`}
+              aria-label={`Previous: ${previousSymbol}`}
+              onClick={() => navigate(symbolPath(previousSymbol))}
             >
-              <CloseIcon size={13} />
+              <ChevronLeftIcon size={13} />
+              {previousSymbol}
             </button>
           ) : null}
-          <span className="flex-none font-mono text-label text-text-muted border border-border rounded px-1.5 py-[3px] pointer-coarse:hidden">
-            {modifierKeyLabel()}K
-          </span>
-        </label>
-      </div>
+          {nextSymbol !== null ? (
+            <button
+              type="button"
+              className={`${PILL_BASE} ${PILL_INACTIVE} inline-flex items-center gap-1 font-mono`}
+              aria-label={`Next: ${nextSymbol}`}
+              onClick={() => navigate(symbolPath(nextSymbol))}
+            >
+              {nextSymbol}
+              <ChevronRightIcon size={13} />
+            </button>
+          ) : null}
+        </nav>
+      ) : (
+        <div className="flex items-center gap-2.5 mb-3 flex-wrap">
+          {presetPills}
+          {searchField}
+        </div>
+      )}
 
       <div className={SHELL_CLASS}>
         <div className={shellListColClass(isSplit)}>
+          {isSplit ? (
+            <div className="grid gap-2.5 mb-3">
+              {searchField}
+              {presetPills}
+            </div>
+          ) : null}
           {isSplit ? <MarketClosedBanner status={marketStatus} className="max-[800px]:hidden" compact /> : null}
           <div className="group/board">
             <div className={tableWrapClass(isStale)}>
-              <table aria-label="Instruments" aria-describedby={BOARD_HELP_ID} className="w-full max-w-full border-collapse table-fixed">
-                <caption className="caption-top text-left px-3.5 pt-2.5 pb-1 text-caption text-text-muted" data-testid="board-order">
-                  {searching ? `${sorted.length} of ${universe.length} · ` : ''}
-                  {describeOrder(sortState)}
+              {/* A grid, not a plain table: its rows are focusable and open a symbol, and
+                  a table row has no role that says so. Read-only, single-select: the open
+                  symbol's row is the selected one. */}
+              <table
+                role="grid"
+                aria-readonly="true"
+                aria-label="Instruments"
+                aria-describedby={BOARD_HELP_ID}
+                className="w-full max-w-full border-collapse table-fixed"
+              >
+                <caption className="caption-top text-left px-3.5 pt-2.5 pb-1 text-caption text-text-muted">
+                  {isStale && heldSince !== null ? (
+                    <span className="inline-flex items-center gap-2 mr-2 text-text" data-testid="board-held">
+                      <HeldTag />
+                      <span className="font-mono">since {formatCairoClock(heldSince)}</span>
+                      <span aria-hidden="true" className="text-text-muted">·</span>
+                    </span>
+                  ) : null}
+                  <span data-testid="board-order">
+                    {searching ? `${sorted.length} of ${universe.length} · ` : ''}
+                    {describeOrder(sortState)}
+                  </span>
+                  {/* A ranked board moves on its own; say how often, so a row changing
+                      place isn't read as a glitch. Only while prices are moving. */}
+                  {sortState !== null && marketStatus.state === 'open' && !isStale ? (
+                    <span data-testid="board-rerank"> · re-ranked every {RANK_REFRESH_INTERVAL_MS / 1000}s</span>
+                  ) : null}
                 </caption>
                 <colgroup>
                   {columns.map((column) => (
@@ -1906,7 +1974,9 @@ export function StockList() {
                       >
                         <div className="font-mono text-caption tracking-[0.04em]">0 of {universe.length}</div>
                         <div className="mt-3 font-semibold text-title text-text">
-                          No instruments match &ldquo;{rawQuery}&rdquo;
+                          {/* The query the list was filtered by, not the one still being
+                              typed: the count and suggestions above use the same. */}
+                          No instruments match &ldquo;{debouncedQuery.trim()}&rdquo;
                         </div>
                         {suggestions.length > 0 ? (
                           <>

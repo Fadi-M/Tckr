@@ -318,7 +318,7 @@ Measured, not assumed. Each item names how it is checked.
       (`dispatcher.coalescing.test.ts`, raw stdout in
       `client/Tckr.MarketWatch/perf/raw/vitest-invariants/dispatcher.coalescing.out.txt`).
       **(b) recorded run, Playwright** — real frame timing in a real Chromium under the
-      same load (`/symbols/COMI` at `VITE_TCKR_SIM_RATE=25000`, COMI's measured 15.11%
+      same load (`/EGX/symbols/COMI` at `VITE_TCKR_SIM_RATE=25000`, COMI's measured 15.11%
       share ≈ 3,777 ticks/sec). The **load-bearing number is the coalesced flush path's
       own cost**: `rafCallbackDurationMs` p95 **0.0999 ms** (mean 0.0101 ms, max 0.2 ms)
       against a 16.7 ms frame budget — **≈0.6% of budget consumed** by the store-write

@@ -9,7 +9,7 @@
 | **Parallel with** | 05, 06 |
 | **Owns** | `src/pages/StockList.tsx`, `src/pages/__tests__/StockList.*.test.tsx`, `src/components/PriceCell.tsx` |
 
-> **Read [`client-contract.md`](client-contract.md) §2 (`GET /symbols`) first** — the
+> **Read [`client-contract.md`](client-contract.md) §2 (`GET /EGX/symbols`) first** — the
 > universe you render, and the `simulated` flag you must not swallow, are defined there.
 >
 > **State of the tree when you start:** tasks 01–03 are done. The contract types, the
@@ -102,7 +102,7 @@ Below 640px, Name and Volume drop out; Symbol, Price and Change % remain.
 - **Price flash** on change: brief background tint, up or down, **plus** the non-colour
   indicator task 03 defined. The flash must not schedule a re-render of its own — CSS
   animation keyed on the value, not a `setTimeout` in React state.
-- **Row click** navigates to `/symbols/:symbol`. Rows are keyboard reachable and activate
+- **Row click** navigates to `/EGX/symbols/:symbol`. Rows are keyboard reachable and activate
   on Enter/Space.
 - **Empty search result** renders an explicit "no instruments match" state, not a blank
   table.
@@ -171,7 +171,7 @@ add it yourself.
 | `StockList.sort.test.tsx` | sorting by price ascending/descending orders via `compare`, not lexicographically (`9.90` sorts below `85.10`) |
 | `StockList.default-order.test.tsx` | default order is `weight` descending — first four rows are COMI, CIB, ORAS, SWDY |
 | `StockList.pre-tick.test.tsx` | before any tick, each row shows its `referencePrice` in the muted style, never `0.00` |
-| `StockList.navigation.test.tsx` | clicking a row, and pressing Enter on a focused row, both navigate to `/symbols/<symbol>` |
+| `StockList.navigation.test.tsx` | clicking a row, and pressing Enter on a focused row, both navigate to `/EGX/symbols/<symbol>` |
 | `StockList.lifecycle.test.tsx` | `subscribe` called once with all 34 on mount; `unsubscribe` called with the same set on unmount |
 
 ---

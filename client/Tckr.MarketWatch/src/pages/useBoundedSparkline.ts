@@ -45,7 +45,7 @@ export function sparklineDirection(changePercent: number | undefined): 'up' | 'd
 /**
  * Reduces a session's full price history to `maxPoints` points — first and last kept
  * exactly — so a row's sparkline can show the whole session's shape from first paint
- * instead of starting flat and filling in one repaint (30s) at a time. Each point in
+ * instead of starting flat and filling in one repaint (10s) at a time. Each point in
  * between is the *mean* of its slice of the session, not one sampled tick: picking
  * single ticks out of a noisy tape kept the noise (critique 2026-09-27: the lines read
  * as texture, not trend), while averaging keeps the session's shape.

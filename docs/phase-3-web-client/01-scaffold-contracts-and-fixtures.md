@@ -45,7 +45,7 @@ The other eight tasks in one line each:
 | # | Produces |
 |---|---|
 | 02 | `MarketDataSource` interface, the browser `SimulatedSource`, the coalescing `TickDispatcher`, the external store, and `config.ts` |
-| 03 | App shell, routes `/` and `/symbols/:symbol`, theme, permanent simulated banner |
+| 03 | App shell, routes `/` and `/EGX/symbols/:symbol`, theme, permanent simulated banner |
 | 04 | The stock list page |
 | 05 | The uPlot price-vs-time chart |
 | 06 | The stock detail page — snapshot, then stream |

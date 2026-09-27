@@ -15,7 +15,7 @@
  * always generates across the FULL 34-symbol universe at `VITE_TCKR_SIM_RATE` events/sec,
  * regardless of what is subscribed — only `emit()` filters by `this.subscribed` before
  * pushing into `TickDispatcher`/the store (see `SimulatedSource.ts` lines ~522-536). So
- * navigating straight to `/symbols/COMI` (never visiting `/`) means `StockDetail` calls
+ * navigating straight to `/EGX/symbols/COMI` (never visiting `/`) means `StockDetail` calls
  * `subscribe(['COMI'])` alone, and COMI receives its full ~15% weighted share of whatever
  * `VITE_TCKR_SIM_RATE` is configured to, with every other generated tick silently dropped
  * at the subscription filter. At `VITE_TCKR_SIM_RATE=25000` that is ~3,750 ticks/sec
@@ -160,7 +160,7 @@ for (const run of [1, 2, 3] as const) {
       nativeRAF(probe);
     });
 
-    await page.goto(`/symbols/${HOT_SYMBOL}`);
+    await page.goto(`/EGX/symbols/${HOT_SYMBOL}`);
     await page.waitForSelector('.tckr-price-chart__canvas canvas', { timeout: 15_000 });
 
     // Warm-up: let the simulated tape, the chart's ring buffer and JIT warm up before

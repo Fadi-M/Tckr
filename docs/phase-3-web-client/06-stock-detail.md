@@ -28,7 +28,7 @@
    app shell (03) ──────────┤
                             ▼
               ┌──────── you are here ─────────┐
-              │  StockDetail  /symbols/:sym   │
+              │  StockDetail /EGX/symbols/:sym│
               │   header stats · lifecycle    │
               └───────────────┬───────────────┘
                               │ mounts
@@ -171,7 +171,7 @@ The chart internals (task 05), the stream badge and connection status components
 | `StockDetail.subscribe-lifecycle.test.tsx` | `subscribe(['COMI'])` called once on mount; `unsubscribe(['COMI'])` once on unmount; under StrictMode double-invoke, net subscriptions = 1 |
 | `StockDetail.symbol-switch.test.tsx` | navigating COMI → CIB calls `unsubscribe(['COMI'])` **before** `subscribe(['CIB'])`, and the chart is remounted/reset with no COMI point |
 | `StockDetail.delayed-labelling.test.tsx` | with `identity().stream === 'DELAYED'`, the `as of` timestamp is the event's exchange time and the DELAYED context is stated on screen |
-| `StockDetail.unknown-symbol.test.tsx` | `/symbols/NOPE` renders the not-found state with a working link back to `/` |
+| `StockDetail.unknown-symbol.test.tsx` | `/EGX/symbols/NOPE` renders the not-found state with a working link back to `/` |
 | `StockDetail.price-cell-reuse.test.tsx` | every price on the page is rendered by `PriceCell` (assert by component, not by string) |
 
 ---

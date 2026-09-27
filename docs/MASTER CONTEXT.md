@@ -1743,8 +1743,8 @@ A standalone `Tckr.MarketData.Api` is also intentionally removed. `Tckr.MarketDa
 
 ```text
 GET /health
-GET /symbols
-GET /symbols/{symbol}/snapshot
+GET /EGX/symbols
+GET /EGX/symbols/{symbol}/snapshot
 WebSocket /ws/market-data
 ```
 

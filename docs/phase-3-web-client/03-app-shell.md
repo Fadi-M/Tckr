@@ -86,8 +86,13 @@ breakpoints.
 | Path | Renders |
 |---|---|
 | `/` | `<StockList />` (task 04) |
-| `/symbols/:symbol` | `<StockDetail symbol={param} />` (task 06) |
+| `/EGX/symbols/:symbol` | `<StockDetail symbol={param} />` (task 06) |
+| `/symbols/:symbol` | redirect to `/EGX/symbols/:symbol` (links from before routes were market-scoped) |
 | anything else | redirect to `/` |
+
+Symbol routes carry the market (`EGX`) because a ticker is only unique within its
+exchange, and more markets are on the roadmap. Every path is built by
+`src/pages/routes.ts` (`symbolPath()`, `SYMBOL_ROUTE`); never hand-write one.
 
 Until tasks 04 and 06 land, route to a placeholder that renders the route name. Do not
 stub their props differently from the signatures above.
@@ -180,9 +185,9 @@ source.
 
 | Test | Asserts |
 |---|---|
-| `shell.banner-everywhere.test.tsx` | rendering at `/` and at `/symbols/COMI` both find the banner text; there is no button or control that removes it |
+| `shell.banner-everywhere.test.tsx` | rendering at `/` and at `/EGX/symbols/COMI` both find the banner text; there is no button or control that removes it |
 | `shell.banner-delay-label.test.tsx` | given `delayedOffsetMs={15000}`, the banner states the simulated offset and that the real delay is 15 minutes |
-| `shell.routing.test.tsx` | `/` renders the list placeholder, `/symbols/COMI` renders the detail placeholder with `symbol="COMI"`, `/nonsense` redirects to `/` |
+| `shell.routing.test.tsx` | `/` renders the list placeholder, `/EGX/symbols/COMI` renders the detail placeholder with `symbol="COMI"`, `/symbols/COMI` redirects to `/EGX/symbols/COMI`, `/nonsense` redirects to `/` |
 | `shell.slots.test.tsx` | nodes passed as `statusSlot` and `badgeSlot` appear in the header |
 | `shell.no-data-import.test.ts` | the source of `App.tsx`, `main.tsx` and `SimulatedBanner.tsx` contains no `from '../data` / `from './data` import (read files, assert by regex) |
 | `theme.tokens.test.ts` | `tokens.css` defines every required token under `:root`, under the dark media query, and under `[data-theme="dark"]` |
@@ -192,7 +197,7 @@ source.
 ## Definition of done
 
 - [ ] `npm run typecheck && npm test` exit 0; the six test files above exist and pass.
-- [ ] `npm run build` exits 0 and `npm run dev` serves `/` and `/symbols/COMI` without a
+- [ ] `npm run build` exits 0 and `npm run dev` serves `/` and `/EGX/symbols/COMI` without a
       console error (paste the dev-server output into *Notes*).
 - [ ] The banner is present in the rendered DOM of **both** routes — asserted by
       `shell.banner-everywhere.test.tsx`, not by inspection.
@@ -212,7 +217,7 @@ source.
 ```bash
 cd client/Tckr.MarketWatch
 npm run typecheck && npm test && npm run build
-npm run dev   # visit / and /symbols/COMI, resize to 400px wide, confirm no horizontal scrollbar
+npm run dev   # visit / and /EGX/symbols/COMI, resize to 400px wide, confirm no horizontal scrollbar
 grep -rn "min-width" src/styles/
 ```
 

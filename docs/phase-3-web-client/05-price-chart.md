@@ -203,7 +203,7 @@ stats, candlesticks, indicators, zoom/pan history, multi-symbol overlays.
 cd client/Tckr.MarketWatch
 npm run typecheck && npm test -- chart
 grep -rn "toFixed\|new uPlot" src/chart/
-npm run dev   # /symbols/COMI — watch the line advance, resize the window, hover the crosshair
+npm run dev   # /EGX/symbols/COMI — watch the line advance, resize the window, hover the crosshair
 ```
 
 ## Notes for other tasks

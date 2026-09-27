@@ -22,7 +22,7 @@ function renderConnectedAt(nowMs: number): HTMLElement {
     createFakeSource(fakeIdentity(), { connectionState: { kind: 'connected', since: nowMs } }),
   );
   render(<ConnectionStatus />);
-  return screen.getByRole('status').querySelector<HTMLElement>('[aria-hidden="true"]')!;
+  return screen.getByTestId('connection-status-dot');
 }
 
 beforeEach(() => {
