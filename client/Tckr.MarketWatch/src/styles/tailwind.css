@@ -97,6 +97,10 @@
   /* StockDetail's card/stats entrance reveal. */
   --animate-detail-reveal: tckr-detail-reveal 220ms var(--tckr-ease-out);
 
+  /* Skeleton placeholders (`components/Skeleton.tsx`): a soft band of light crosses each
+     shape. Transform only, so it runs on the compositor however many shapes there are. */
+  --animate-skeleton-sweep: tckr-skeleton-sweep 1.6s ease-in-out infinite;
+
   /* Only `from` is given for the tints: the figure animates back to whatever colour it
      rests at (ink, or muted), so the flash never has to know it. */
   @keyframes tckr-tick-tint-up {
@@ -179,6 +183,14 @@
     }
     100% {
       box-shadow: 0 0 0 10px color-mix(in oklab, currentColor 0%, transparent);
+    }
+  }
+  @keyframes tckr-skeleton-sweep {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(100%);
     }
   }
   @keyframes tckr-detail-reveal {

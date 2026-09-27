@@ -22,6 +22,31 @@ npm install
 npm run dev          # http://localhost:5173, hot-reloading
 ```
 
+### Testing during EGX trading hours
+
+The app follows EGX's real calendar (Sunday–Thursday, 10:00–14:30 Cairo), so outside
+those hours the board shows the last completed session and nothing ticks. To work on
+anything that only happens while the market trades, start the dev server on a
+simulated clock:
+
+```bash
+npm run dev:open                    # 12:00 Cairo: mid-session, two hours of history, ticking
+npm run dev:bell                    # 09:59:45 Cairo: pre-open auction, then the opening bell
+npm run dev -- --market 14:29:30    # any Cairo time HH:MM[:SS], e.g. just before the close
+npm run dev:open -- --port 5199     # other arguments go to Vite unchanged
+```
+
+The daily greeting (the candle forming, then flying into the header) plays on the first
+load of each Cairo day. To watch it again in development, add `?greeting` to any URL,
+e.g. `http://localhost:5173/?greeting`.
+
+The clock starts at that Cairo time on the latest trading day (today, or Thursday on a
+Friday or Saturday) and then runs forward in real time. The market opens, trades and
+closes on its own, and every time on screen follows this clock. The browser console logs
+where it started. It sets `VITE_TCKR_SIM_CLOCK` (see `src/data/simulatedClock.ts`), and
+only works in development with the simulated source. `resolveClientConfig` refuses it
+alongside the real gateway and in production builds.
+
 ```bash
 npm run typecheck    # tsc --noEmit
 npm test             # vitest run — 71 files / 309 tests, jsdom, no browser needed

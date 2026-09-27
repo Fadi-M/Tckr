@@ -96,7 +96,10 @@ import { SYMBOL_ROUTE_PATTERN, symbolPath } from './routes.ts';
 import { getPacedSymbolSnapshot, subscribeBeat, subscribePacedSymbol } from '../display/pacedViews.ts';
 import { formatCairoClock, formatCairoDateShort, formatCairoTimeShort, formatNextOpen, isPreOpenAuction, type MarketStatus } from '../data/marketCalendar.ts';
 import { AlertIcon, ArrowLeftIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, ClockIcon, CloseIcon, RetryIcon, SearchIcon } from '../components/icons.tsx';
-import { TckrMark } from '../components/TckrLogo.tsx';
+import { FormingCandle } from '../motion/FormingCandle.tsx';
+import { formatUntil } from '../display/formatUntil.ts';
+import { ScrambleWord } from '../motion/ScrambleWord.tsx';
+import { loadMotion, loadedMotion, type Motion } from '../motion/motion.ts';
 import { closestInstruments } from './closestInstruments.ts';
 import { PriceCell } from '../components/PriceCell.tsx';
 import { TickingText } from '../components/RollingText.tsx';
@@ -559,24 +562,7 @@ function ConnectionBanner({
 // hours, and vice versa.
 // ---------------------------------------------------------------------------------
 
-/** "in 1d 14h", "in 3h 12m", "in 12m", "in under a minute" — coarse on purpose: this
- * is a wait, not a timer, and a seconds countdown would only add noise. */
-export function formatUntil(ms: number): string {
-  const minutes = Math.max(0, Math.floor(ms / 60_000));
-  if (minutes < 1) {
-    return 'in under a minute';
-  }
-  const days = Math.floor(minutes / 1440);
-  const hours = Math.floor((minutes % 1440) / 60);
-  const mins = minutes % 60;
-  if (days > 0) {
-    return `in ${days}d ${hours}h`;
-  }
-  if (hours > 0) {
-    return `in ${hours}h ${mins}m`;
-  }
-  return `in ${mins}m`;
-}
+export { formatUntil } from '../display/formatUntil.ts';
 
 /**
  * True for `durationMs` after `trigger` is raised (see callers), plus a dismiss. Used
@@ -811,6 +797,8 @@ interface HeroCardProps {
   /** While EGX is closed the picks describe a past session, e.g. `"Thu 24 Sep"`;
    * `undefined` while it trades, when "today" goes without saying. */
   readonly sessionDate?: string | undefined;
+  /** The card's place in the row, which staggers its closing-bell label. */
+  readonly index?: number;
 }
 
 // `all: unset` on the card button had no direct Tailwind equivalent (see module's
@@ -824,8 +812,17 @@ interface HeroCardProps {
 const HERO_CARD_CLASS =
   'appearance-none m-0 p-0 outline-none text-inherit text-left box-border cursor-pointer w-full max-[640px]:w-[78%] max-[640px]:flex-none max-[640px]:snap-start max-[640px]:pt-3 max-[640px]:px-4 max-[640px]:pb-3 pt-4 px-[18px] pb-[15px] rounded-[20px] bg-glass border border-glass-border shadow-float backdrop-blur-tckr backdrop-saturate-[1.6] [transition:transform_160ms_ease-out,border-color_160ms_ease] fine-hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-accent focus-visible:outline-offset-2 reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none reduced-transparency:backdrop-saturate-100 contrast-more:bg-surface contrast-more:backdrop-blur-none contrast-more:backdrop-saturate-100';
 
-function HeroCard({ kicker, kind, definition, priceDecimals, onActivate, sessionTrend, sessionDate }: HeroCardProps) {
+function HeroCard({ kicker, kind, definition, priceDecimals, onActivate, sessionTrend, sessionDate, index = 0 }: HeroCardProps) {
   const { symbol, name, referencePrice } = definition;
+
+  // The closing bell: when EGX closes while this card is on screen, its label's session
+  // day ("· THU") resolves in, the three cards one after another, marking that the picks
+  // are now a recap. A page opened on a closed market just shows it (never on first paint).
+  const sawTrading = useRef(sessionDate === undefined);
+  const closedWhileWatching = sawTrading.current && sessionDate !== undefined;
+  useEffect(() => {
+    sawTrading.current = sessionDate === undefined;
+  }, [sessionDate]);
 
   // Same throttled-subscribe shape as `StockListRow` — see that component's doc for
   // why a hand-rolled interval/gate is the wrong tool here.
@@ -854,7 +851,7 @@ function HeroCard({ kicker, kind, definition, priceDecimals, onActivate, session
   const directionWord = direction === 'flat' ? 'unchanged' : direction;
   // On a closed day "Top gainer" would otherwise read as today's; the weekday alone
   // fits the card's label row, and the accessible name carries the full date.
-  const shownKicker = sessionDate === undefined ? kicker : `${kicker} · ${sessionDate.split(' ')[0]!.toUpperCase()}`;
+  const kickerDay = sessionDate === undefined ? null : ` · ${sessionDate.split(' ')[0]!.toUpperCase()}`;
   const spokenKicker = sessionDate === undefined ? kicker : `${kicker}, ${sessionDate} session`;
   const baseAriaLabel =
     kind === 'active'
@@ -873,7 +870,12 @@ function HeroCard({ kicker, kind, definition, priceDecimals, onActivate, session
           aria-hidden="true"
         >
           {delayed ? <ClockIcon size={11} /> : null}
-          {shownKicker}
+          <span>
+            {kicker}
+            {kickerDay === null ? null : (
+              <ScrambleWord key={kickerDay} text={kickerDay} from={closedWhileWatching ? '' : undefined} delay={index * 0.09} />
+            )}
+          </span>
         </span>
         <span
           className={`font-mono text-label font-semibold px-2.5 py-[3px] rounded-full whitespace-nowrap [transition:background-color_600ms_var(--tckr-ease-out),color_600ms_var(--tckr-ease-out)] ${badgeDeltaClass}`}
@@ -942,9 +944,10 @@ function HeroCards({
     // to the screen edge; the glass shadows get vertical room so the scroller doesn't
     // clip them.
     <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))] max-[640px]:flex max-[640px]:gap-2.5 max-[640px]:overflow-x-auto max-[640px]:snap-x max-[640px]:snap-mandatory max-[640px]:-mx-3 max-[640px]:px-3 max-[640px]:scroll-px-3 max-[640px]:pt-0.5 max-[640px]:pb-3 max-[640px]:-mb-3 max-[640px]:[scrollbar-width:none] max-[640px]:[&::-webkit-scrollbar]:hidden">
-      {picks.map((pick) => (
+      {picks.map((pick, index) => (
         <HeroCard
           key={pick.kind}
+          index={index}
           kicker={pick.kicker}
           kind={pick.kind}
           definition={pick.definition}
@@ -1549,71 +1552,100 @@ export function StockList() {
   );
 
   // ---------------------------------------------------------------------------------
-  // Re-rank motion (FLIP). When the row order changes — a preset or header sort, the
-  // 20-second re-rank of an active sort, or a search narrowing the list — each row
-  // that moved glides from its old position to its new one, and rows newly in the list
+  // Re-rank motion (GSAP Flip). When the row order changes — a preset or header sort,
+  // the per-beat re-rank of an active sort, or a search narrowing the list — each row
+  // that moved glides from where it was to its new rank, and rows newly in the list
   // fade in. Without it rows teleport, and the symbol you were watching is lost.
   //
-  // Positions are row `offsetTop`s (relative to the table, so page scroll between two
-  // re-ranks can't read as movement). The layout effect measures after React commits
-  // the new order but before paint, inverts each moved row with a transform, and plays
-  // it back to rest with the Web Animations API: transform and opacity, plus a moving
-  // row's background (paint only, never layout). Runs only when the order actually changes (`orderKey`); a
-  // column-set change (split view, narrow viewport) just re-measures.
+  // The "before" is read during the render that changes the order, i.e. from the DOM
+  // React is about to replace, so it is where each row *is on screen* — mid-glide
+  // included. A re-rank that lands while the last one is still flying (a sort click, a
+  // search keystroke) carries each row on from where it actually is, instead of
+  // snapping it back to its old resting place first. (That read is the one layout read
+  // this render does, only when the order changes; if React throws the render away,
+  // the next one reads again.) The layout effect then clears the previous glide and
+  // plays this one before paint: transform and opacity, plus a moving row's background
+  // (paint only, never layout).
+  //
+  // Needs GSAP already loaded (`loadMotion` below): the first re-rank after a cold load
+  // may land unanimated, never late.
   // ---------------------------------------------------------------------------------
   const tbodyRef = useRef<HTMLTableSectionElement | null>(null);
-  const rowTopsRef = useRef<Map<string, number> | null>(null);
   const orderKey = sorted.map((def) => def.symbol).join(',');
-  const columnSetKey = `${selectedSymbol !== null}|${isNarrowViewport}`;
-  const lastOrderKeyRef = useRef<string | null>(null);
+  const committedOrderKeyRef = useRef<string | null>(null);
+  const flipRef = useRef<{ readonly orderKey: string; readonly state: ReturnType<Motion['Flip']['getState']> } | null>(null);
+  const glideRef = useRef<ReturnType<Motion['Flip']['from']> | null>(null);
+
+  useEffect(() => {
+    void loadMotion().catch(() => undefined);
+  }, []);
+
+  const flipMotion = loadedMotion();
+  if (
+    flipMotion !== null &&
+    tbodyRef.current !== null &&
+    committedOrderKeyRef.current !== null &&
+    committedOrderKeyRef.current !== orderKey &&
+    flipRef.current?.orderKey !== orderKey &&
+    !prefersReducedMotion()
+  ) {
+    flipRef.current = {
+      orderKey,
+      state: flipMotion.Flip.getState(tbodyRef.current.querySelectorAll('tr[data-symbol]'), { simple: true }),
+    };
+  }
 
   useLayoutEffect(() => {
     const tbody = tbodyRef.current;
-    if (!tbody) {
+    const pending = flipRef.current;
+    const motion = loadedMotion();
+    committedOrderKeyRef.current = tbody ? orderKey : null;
+    flipRef.current = null;
+    if (!tbody || !motion || pending?.orderKey !== orderKey) {
       return;
     }
+    const { gsap, Flip } = motion;
     const rows = Array.from(tbody.querySelectorAll<HTMLTableRowElement>('tr[data-symbol]'));
-    const nextTops = new Map(rows.map((row) => [row.dataset.symbol ?? '', row.offsetTop]));
-    const previousTops = rowTopsRef.current;
-    const orderChanged = lastOrderKeyRef.current !== null && lastOrderKeyRef.current !== orderKey;
-    rowTopsRef.current = nextTops;
-    lastOrderKeyRef.current = orderKey;
-
-    if (!orderChanged || !previousTops || prefersReducedMotion()) {
-      return;
-    }
-    for (const row of rows) {
-      if (typeof row.animate !== 'function') {
-        continue;
-      }
-      const symbol = row.dataset.symbol ?? '';
-      const before = previousTops.get(symbol);
-      if (before === undefined) {
-        row.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'ease-out' });
-        continue;
-      }
-      const delta = before - (nextTops.get(symbol) ?? before);
-      if (Math.abs(delta) > 0.5) {
-        row.animate([{ transform: `translateY(${delta}px)` }, { transform: 'none' }], {
-          duration: FLIP_DURATION_MS,
-          easing: 'cubic-bezier(0.23, 1, 0.32, 1)',
-        });
-        // Rows are transparent over the glass, so rows crossing each other would
-        // overprint their text. A moving row carries a near-opaque surface for the
-        // flight and only hands back to its own background (the last keyframe omits
-        // it) once it has almost landed — a separate, linear animation, because the
-        // glide's front-loaded ease-out would thin the surface out almost at once.
+    // The last glide's transforms are still inline; clear them so this one measures
+    // the rows' true new places.
+    glideRef.current?.kill();
+    gsap.set(rows, { clearProps: 'transform,opacity' });
+    const moved = rows.filter((row) => {
+      const before = pending.state.getElementState(row);
+      return before !== undefined && Math.abs(before.y - row.getBoundingClientRect().top) > 0.5;
+    });
+    const glide = Flip.from(pending.state, {
+      targets: rows,
+      duration: FLIP_DURATION_MS / 1000,
+      simple: true,
+      onEnter: (entering) => gsap.fromTo(entering, { opacity: 0 }, { opacity: 1, duration: 0.2, ease: 'power1.out' }),
+    });
+    // Rows are transparent over the glass, so rows crossing each other would overprint
+    // their text. A moving row carries a near-opaque surface for the flight and only
+    // hands back to its own background (the last keyframe omits it) once it has almost
+    // landed — a separate, linear animation, because the glide's front-loaded ease-out
+    // would thin the surface out almost at once. Web Animations rather than GSAP: it
+    // fades to whatever the row's own background resolves to, selected tint included.
+    for (const row of moved) {
+      if (typeof row.animate === 'function') {
         row.animate(
-          [
-            { backgroundColor: MOVING_ROW_BACKGROUND },
-            { backgroundColor: MOVING_ROW_BACKGROUND, offset: 0.7 },
-            {},
-          ],
+          [{ backgroundColor: MOVING_ROW_BACKGROUND }, { backgroundColor: MOVING_ROW_BACKGROUND, offset: 0.7 }, {}],
           { duration: FLIP_DURATION_MS, easing: 'linear' },
         );
       }
     }
-  }, [orderKey, columnSetKey]);
+    glide.eventCallback('onComplete', () => {
+      gsap.set(rows, { clearProps: 'transform,opacity' });
+    });
+    glideRef.current = glide;
+  }, [orderKey]);
+
+  useEffect(
+    () => () => {
+      glideRef.current?.kill();
+    },
+    [],
+  );
 
   if (universe === null) {
     const loadingSplit = selectedSymbol !== null;
@@ -1621,10 +1653,13 @@ export function StockList() {
       <>
         <h1 className="sr-only">Tckr Market Watch</h1>
         <div className={SHELL_CLASS}>
-          <div className={shellListColClass(loadingSplit)}>
-            <p className="text-text-muted">Loading instruments…</p>
+          <div data-greet-rise className={shellListColClass(loadingSplit)}>
+            <p className="flex items-center gap-2.5 text-text-muted">
+              <FormingCandle height={22} loop />
+              Loading instruments…
+            </p>
           </div>
-          <div className={shellDetailPaneClass(loadingSplit)}>
+          <div data-greet-rise className={shellDetailPaneClass(loadingSplit)}>
             <Outlet />
           </div>
         </div>
@@ -1799,7 +1834,7 @@ export function StockList() {
       ) : null}
       {openingBell.shown && marketStatus.state === 'open' ? (
         <MomentBanner
-          icon={<TckrMark height={18} />}
+          icon={<FormingCandle height={18} />}
           title="EGX is open"
           detail={`Continuous trading started at ${formatCairoTimeShort(marketStatus.sessionOpenAt)} Cairo time. The board is moving.`}
           onDismiss={openingBell.dismiss}
@@ -1810,7 +1845,9 @@ export function StockList() {
           keep it here: their split view hides the list column. */}
       <MarketClosedBanner status={marketStatus} className={isSplit ? 'min-[801px]:hidden' : ''} />
 
-      <div className={heroWrapClass(isSplit)}>
+      {/* `data-greet-rise`: the panes the daily greeting raises into place as it hands
+          the page over (`motion/Greeting.tsx`). */}
+      <div data-greet-rise className={heroWrapClass(isSplit)}>
         <HeroCards
           universe={universe}
           priceDecimalsBySymbol={priceDecimalsBySymbol}
@@ -1827,7 +1864,7 @@ export function StockList() {
       {isSplit ? (
         // On a phone the list is hidden behind the detail, so stepping to the next
         // symbol in the board's current order happens here instead of with ↑/↓.
-        <nav className="mb-3 flex items-center gap-2 min-[801px]:hidden" aria-label="Instrument navigation">
+        <nav data-greet-rise className="mb-3 flex items-center gap-2 min-[801px]:hidden" aria-label="Instrument navigation">
           <button
             type="button"
             className={`${PILL_BASE} ${PILL_INACTIVE} inline-flex items-center gap-1.5 mr-auto`}
@@ -1860,14 +1897,14 @@ export function StockList() {
           ) : null}
         </nav>
       ) : (
-        <div className="flex items-center gap-2.5 mb-3 flex-wrap">
+        <div data-greet-rise className="flex items-center gap-2.5 mb-3 flex-wrap">
           {presetPills}
           {searchField}
         </div>
       )}
 
       <div className={SHELL_CLASS}>
-        <div className={shellListColClass(isSplit)}>
+        <div data-greet-rise className={shellListColClass(isSplit)}>
           {isSplit ? (
             <div className="grid gap-2.5 mb-3">
               {searchField}
@@ -2026,7 +2063,7 @@ export function StockList() {
             <BoardKeyboardHelp detailOpen={isSplit} />
           </div>
         </div>
-        <div className={shellDetailPaneClass(isSplit)}>
+        <div data-greet-rise className={shellDetailPaneClass(isSplit)}>
           <Outlet />
         </div>
       </div>

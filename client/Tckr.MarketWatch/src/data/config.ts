@@ -28,12 +28,17 @@
  * artifact* (client-contract.md §5): the real delay is 15 minutes, produced server-side.
  * This default must be labelled on screen wherever it is shown. |
  * | `VITE_TCKR_SIM_SEED` | `20260912` | seed for the simulator's mulberry32 PRNG |
+ * | `VITE_TCKR_SIM_CLOCK` | unset (real time) | development only, simulated source only:
+ * run the app's clock from `open` (12:00 Cairo), `bell` (09:59:45 Cairo) or a Cairo
+ * `HH:MM[:SS]` on the latest trading day — see `simulatedClock.ts`. Set by
+ * `npm run dev:open` / `dev:bell` / `dev -- --market HH:MM[:SS]` (`scripts/dev.mjs`). |
  * | `VITE_TCKR_ALLOW_SIMULATED_IN_PROD` | unset (falsy) | explicit opt-in to run a
  * production build (`import.meta.env.PROD === true`) against the simulated source —
  * see `resolveClientConfig`'s fail-fast guard below. |
  */
 import type { MarketDataSource } from './MarketDataSource.ts';
 import { SimulatedSource } from './SimulatedSource.ts';
+import { resolveSimulatedClockTarget } from './simulatedClock.ts';
 import { TckrGatewaySource } from './TckrGatewaySource.ts';
 
 export interface ClientConfig {
@@ -44,6 +49,9 @@ export interface ClientConfig {
     readonly eventsPerSecond: number;
     readonly delayedOffsetMs: number;
     readonly seed: number;
+    /** `VITE_TCKR_SIM_CLOCK`: where the development clock starts (see
+     * `simulatedClock.ts`); `undefined` runs on real time. */
+    readonly clock?: string | undefined;
   };
 }
 
@@ -120,6 +128,7 @@ export function resolveClientConfig(overrides?: Partial<ClientConfig>): ClientCo
       eventsPerSecond: readEnvCount('VITE_TCKR_SIM_RATE') ?? DEFAULTS.simulated.eventsPerSecond,
       delayedOffsetMs: readEnvCount('VITE_TCKR_SIM_DELAY_MS') ?? DEFAULTS.simulated.delayedOffsetMs,
       seed: readEnvCount('VITE_TCKR_SIM_SEED') ?? DEFAULTS.simulated.seed,
+      clock: readEnvString('VITE_TCKR_SIM_CLOCK'),
     },
   };
   const resolved: ClientConfig = {
@@ -138,6 +147,22 @@ export function resolveClientConfig(overrides?: Partial<ClientConfig>): ClientCo
         'VITE_TCKR_SOURCE=gateway, or set VITE_TCKR_ALLOW_SIMULATED_IN_PROD=true if this ' +
         'is intentional (e.g. a staging/demo environment).',
     );
+  }
+
+  // The development clock only makes sense against the simulator, and only in
+  // development: a real gateway stamps prices with the server's time, which a shifted
+  // client clock would contradict (and the market status would lie about the real
+  // exchange), and a production build must never run on a made-up time.
+  const clock = resolved.simulated.clock;
+  if (clock !== undefined) {
+    if (resolved.source !== 'simulated') {
+      throw new Error('VITE_TCKR_SIM_CLOCK (npm run dev:open / dev:bell / --market) only works with the simulated source.');
+    }
+    if (import.meta.env.PROD) {
+      throw new Error('VITE_TCKR_SIM_CLOCK (npm run dev:open / dev:bell / --market) is for development only; unset it for a production build.');
+    }
+    // Validates the value now, so a typo fails at startup rather than at first use.
+    resolveSimulatedClockTarget(clock, Date.now());
   }
 
   return resolved;

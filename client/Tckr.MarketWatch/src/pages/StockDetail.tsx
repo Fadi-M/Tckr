@@ -60,7 +60,7 @@
  * removed code (see `StockDetail.market-closed.test.tsx`, deleted in the same
  * revamp) to restore verbatim.
  */
-import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type JSX } from 'react';
 import { Link } from 'react-router-dom';
 import { getSharedSource } from '../data/config.ts';
 import { compare, percentChange, subtract, toDecimal, type DecimalString } from '../contracts/decimal.ts';
@@ -81,8 +81,20 @@ import { isHeld, useConnectionState } from '../components/useConnectionState.ts'
 import { HeldTag } from '../components/HeldTag.tsx';
 import { useViewTransitionNavigate } from '../components/useViewTransitionNavigate.ts';
 import { PriceChart, type ChartHistoryPoint } from '../chart/PriceChart.tsx';
+import { ChartSkeleton } from '../chart/ChartSkeleton.tsx';
+import {
+  DETAIL_PANEL_CLASS,
+  PriceBlockSkeleton,
+  RANGE_PILL_BASE_CLASSES,
+  RANGE_PILL_VARIANT_CLASSES,
+  rangePillClassName,
+  StatSkeleton,
+  StatTile,
+  useChartHeight,
+} from './detailChrome.tsx';
 import { flushPacedSymbol, subscribeBeat } from '../display/pacedViews.ts';
 import { formatPercentFigure } from '../display/percent.ts';
+import { useMotion } from '../motion/motion.ts';
 
 /* Card/stat glass values below are taken directly from the design import
    ("Tckr.MarketWatch Frosted Glass Revamp/Tckr Market Watch.dc.html") rather than
@@ -198,39 +210,6 @@ function storeRange(key: RangeKey): void {
   }
 }
 
-/** The chart's height. Side by side with the board (desktop), the detail column is the
- * viewport's height and the chart takes what the header, figures and stat tiles leave,
- * between 340 and 600px, instead of sitting at 340 above empty glass. Stacked (phones,
- * narrow windows) the page scrolls, so it keeps 340. */
-const CHART_MIN_HEIGHT = 340;
-const CHART_MAX_HEIGHT = 600;
-/** Everything in the viewport that isn't the chart, beside the board: the app header,
- * the price panel's own rows and padding, the stat tiles and the gaps between them. */
-const CHART_CHROME_HEIGHT = 380;
-const SPLIT_QUERY = '(min-width: 801px)';
-
-function chartHeightFor(viewportHeight: number, split: boolean): number {
-  if (!split) {
-    return CHART_MIN_HEIGHT;
-  }
-  return Math.round(Math.min(CHART_MAX_HEIGHT, Math.max(CHART_MIN_HEIGHT, viewportHeight - CHART_CHROME_HEIGHT)));
-}
-
-function useChartHeight(): number {
-  const read = (): number =>
-    typeof window.matchMedia === 'function'
-      ? chartHeightFor(window.innerHeight, window.matchMedia(SPLIT_QUERY).matches)
-      : CHART_MIN_HEIGHT;
-  const [height, setHeight] = useState(read);
-  useEffect(() => {
-    const update = (): void => setHeight(read());
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  return height;
-}
-
 /** A session figure the page doesn't have yet. Never the current price standing in for
  * it: an Open, High or Low that is really the last trade is a made-up number. */
 function NoFigure(): JSX.Element {
@@ -241,15 +220,6 @@ function NoFigure(): JSX.Element {
   );
 }
 
-function StatTile({ label, children, note }: { label: string; children: ReactNode; note?: ReactNode }) {
-  return (
-    <div className="bg-glass-stat border border-glass-border-stat backdrop-blur-[20px] rounded-2xl py-[13px] px-[15px] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
-      <span className="block font-mono text-label tracking-[0.14em] uppercase text-text-muted">{label}</span>
-      <span className="block mt-[5px] font-mono text-title font-semibold tabular-nums">{children}</span>
-      {note ? <span className="block mt-1 font-mono text-caption tabular-nums text-text-muted">{note}</span> : null}
-    </div>
-  );
-}
 
 function deltaClassName(change: DecimalString): string {
   const direction = deltaDirection(change);
@@ -272,24 +242,6 @@ function deltaClassName(change: DecimalString): string {
 // existing mount-time seeding logic instead of adding a second, parallel "apply a
 // new history after mount" code path to an already-intricate component.
 // ---------------------------------------------------------------------------------
-
-// Base layout/type classes shared by every range pill, plus an active/inactive
-// colour variant computed separately — same "don't let two same-property utility
-// classes both land on one element" reasoning as `deltaClassName` below. Replaces
-// `.tckr-detail__range-pill`'s `all: unset` reset: Tailwind has no unset-all
-// utility, so every visual property that rule used to reset-then-redeclare is
-// re-declared explicitly here instead (mirrors `ThemeToggle`'s own `all: unset`
-// conversion elsewhere in this migration).
-const RANGE_PILL_BASE_CLASSES =
-  'appearance-none cursor-pointer font-mono text-caption font-semibold py-[7px] px-3.5 rounded-full border outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-accent focus-visible:outline-offset-2';
-const RANGE_PILL_VARIANT_CLASSES = {
-  active: 'bg-text text-surface border-text',
-  inactive: 'bg-surface-raised text-text-muted border-border',
-} as const;
-
-function rangePillClassName(active: boolean): string {
-  return `${RANGE_PILL_BASE_CLASSES} ${active ? RANGE_PILL_VARIANT_CLASSES.active : RANGE_PILL_VARIANT_CLASSES.inactive}`;
-}
 
 // ---------------------------------------------------------------------------------
 // Data shape this page renders from — built from `Snapshot`/`Tick` directly, never
@@ -373,9 +325,6 @@ function mergeTickIntoQuote(
 
 type Phase = 'loading' | 'ready' | 'not-found';
 
-/** The detail panel's glass — the price panel, and the not-found state in its place. */
-const DETAIL_PANEL_CLASS =
-  'relative flex flex-col py-[22px] px-6 rounded-[22px] bg-glass-card border border-glass-border-card backdrop-blur-[26px] backdrop-saturate-[160%] shadow-float animate-detail-reveal motion-reduce:animate-none reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none';
 
 /** The price panel's edge while the stream is held — the board card's amber treatment. */
 const DETAIL_HELD_EDGE =
@@ -736,6 +685,31 @@ export function StockDetail({ symbol }: { symbol: string }) {
     [historyPoints, chartRange],
   );
 
+  // The pane's arrival (DESIGN.md › Detail reveal): the panel's glass fades up (CSS),
+  // then what is on it lands in reading order — the symbol and the range pills, then,
+  // once the first quote is in, the price, its as-of line and the four stat tiles.
+  // Replays when the symbol changes (the pane is not remounted for a switch); never for
+  // a range change or a tick. Runs inside the view transition's live "new" view, so it
+  // plays while the pane slides in.
+  const revealRef = useRef<HTMLDivElement | null>(null);
+  const hasQuote = quote !== undefined && phase === 'ready';
+  useMotion(
+    revealRef,
+    ({ gsap }) => {
+      gsap.from('[data-reveal="frame"]', { opacity: 0, y: 6, duration: 0.32, stagger: 0.05 });
+    },
+    [symbol],
+  );
+  useMotion(
+    revealRef,
+    hasQuote
+      ? ({ gsap }) => {
+          gsap.from('[data-reveal="figures"]', { opacity: 0, y: 6, duration: 0.32, stagger: 0.04, delay: 0.06 });
+        }
+      : null,
+    [symbol, hasQuote],
+  );
+
   if (phase === 'not-found') {
     return (
       <div className={`${DETAIL_PANEL_CLASS} gap-3 text-text`} data-testid="stock-detail-not-found">
@@ -779,14 +753,14 @@ export function StockDetail({ symbol }: { symbol: string }) {
   const tickSize = universeDef?.tickSize ?? FALLBACK_TICK_SIZE;
 
   return (
-    <div className="flex flex-col gap-3">
+    <div ref={revealRef} className="flex flex-col gap-3">
       <div
         className={`${DETAIL_PANEL_CLASS} gap-4 [transition:border-color_250ms_ease,outline-color_250ms_ease]${held ? ` ${DETAIL_HELD_EDGE}` : ''}`}
         data-held={held || undefined}
       >
         <div className="flex items-start justify-between gap-5 flex-wrap">
           <div className="max-[640px]:pr-11">
-            <div className="flex items-baseline gap-3 flex-wrap">
+            <div data-reveal="frame" className="flex items-baseline gap-3 flex-wrap">
               {/* h2: the page's h1 is the board ("Tckr Market Watch"); the open
                   symbol is a section of it. Focusable (not tabbable) so StockList can
                   move focus here when opening the detail hides the focused row. */}
@@ -802,12 +776,10 @@ export function StockDetail({ symbol }: { symbol: string }) {
             </div>
 
             {phase === 'loading' || !quote ? (
-              <p className="text-text-muted" data-testid="stock-detail-loading">
-                Loading…
-              </p>
+              <PriceBlockSkeleton symbol={symbol} testId="stock-detail-loading" />
             ) : (
               <>
-                <div className="flex items-center gap-3.5 mt-2.5 flex-wrap">
+                <div data-reveal="figures" className="flex items-center gap-3.5 mt-2.5 flex-wrap">
                   <span
                     className="font-mono font-semibold text-display tracking-[-0.02em] tabular-nums"
                     data-testid="stock-detail-price"
@@ -828,7 +800,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
                     </span>
                   </span>
                 </div>
-                <p className="mt-2 font-mono text-caption text-text-muted" data-testid="stock-detail-asof">
+                <p data-reveal="figures" className="mt-2 font-mono text-caption text-text-muted" data-testid="stock-detail-asof">
                   {held ? (
                     <>
                       <HeldTag testId="stock-detail-held" />{' '}
@@ -848,7 +820,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
             )}
           </div>
 
-          <div className="flex items-center gap-1.5 flex-none">
+          <div data-reveal="frame" className="flex items-center gap-1.5 flex-none">
             {RANGE_KEYS.map((key) => (
               <button
                 key={key}
@@ -881,9 +853,10 @@ export function StockDetail({ symbol }: { symbol: string }) {
         </div>
 
         {rangedHistory === undefined ? (
-          <p className="text-text-muted" data-testid="stock-detail-chart-loading">
-            Loading chart…
-          </p>
+          <div data-testid="stock-detail-chart-loading">
+            <span className="sr-only">Loading chart…</span>
+            <ChartSkeleton height={chartHeight} />
+          </div>
         ) : (
           <PriceChart
             key={`${symbol}:${range}`}
@@ -905,25 +878,25 @@ export function StockDetail({ symbol }: { symbol: string }) {
         )}
       </div>
 
-      {quote ? (
-        <div
-          className="flex flex-col gap-2.5 animate-[tckr-detail-reveal_220ms_var(--tckr-ease-out)_40ms_backwards] motion-reduce:animate-none"
-          data-testid="stock-detail-footer"
-        >
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2.5">
-            <StatTile label="Open" note={extras?.baselineIsPreviousClose ? <SinceOpen open={extras.open} price={quote.price} /> : undefined}>
-              {extras ? <PriceCell value={extras.open} flashGlyph={false} /> : <NoFigure />}
-            </StatTile>
-            <StatTile label="High">
-              {extras ? <PriceCell value={extras.high} flashGlyph={false} /> : <NoFigure />}
-            </StatTile>
-            <StatTile label="Low">
-              {extras ? <PriceCell value={extras.low} flashGlyph={false} /> : <NoFigure />}
-            </StatTile>
-            <StatTile label="Volume">{new Intl.NumberFormat('en-US').format(quote.volume)}</StatTile>
-          </div>
+      {/* One set of tiles, loading or not: their labels are known before any figure,
+          so only each value swaps from its skeleton to the figure (and staggers in). */}
+      <div className="flex flex-col gap-2.5" data-testid={quote ? 'stock-detail-footer' : 'stock-detail-footer-loading'}>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2.5">
+          <StatTile
+            label="Open"
+            note={quote && extras?.baselineIsPreviousClose ? <SinceOpen open={extras.open} price={quote.price} /> : undefined}
+          >
+            {!quote ? <StatSkeleton /> : extras ? <PriceCell value={extras.open} flashGlyph={false} /> : <NoFigure />}
+          </StatTile>
+          <StatTile label="High">
+            {!quote ? <StatSkeleton /> : extras ? <PriceCell value={extras.high} flashGlyph={false} /> : <NoFigure />}
+          </StatTile>
+          <StatTile label="Low">
+            {!quote ? <StatSkeleton /> : extras ? <PriceCell value={extras.low} flashGlyph={false} /> : <NoFigure />}
+          </StatTile>
+          <StatTile label="Volume">{!quote ? <StatSkeleton /> : new Intl.NumberFormat('en-US').format(quote.volume)}</StatTile>
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }

@@ -36,6 +36,9 @@ import { App } from './App';
 import { ConnectionStatus } from './components/ConnectionStatus';
 import { StreamBadge } from './components/StreamBadge';
 import { resolveClientConfig } from './data/config';
+import { installSimulatedClock, resolveSimulatedClockTarget } from './data/simulatedClock';
+import { shouldGreetToday } from './motion/greetingSchedule';
+import { loadMotion, preloadMotion } from './motion/motion';
 import './styles/tailwind.css';
 
 const rootElement = document.getElementById('root');
@@ -51,17 +54,38 @@ if (rootElement) {
   // general app-wide error boundary for render-time errors) and it still rethrows after
   // rendering the message, so the failure continues to surface to the console/any error
   // tracking exactly as before. The resolved config's fields are no longer otherwise
-  // needed here (see "the permanent simulated-data marker is gone" above), so the
-  // return value is intentionally discarded — only the validating side effect matters.
+  // needed here (see "the permanent simulated-data marker is gone" above) except the
+  // development clock below.
   try {
-    resolveClientConfig();
+    const config = resolveClientConfig();
+    // `npm run dev:open` (or `dev:bell`, or `dev -- --market HH:MM`): run the app's clock from EGX trading hours
+    // (development and simulated source only — `resolveClientConfig` enforces both).
+    // Installed before the first render, so nothing has read the real time yet.
+    if (config.simulated.clock !== undefined) {
+      const target = resolveSimulatedClockTarget(config.simulated.clock, Date.now());
+      installSimulatedClock(target);
+      console.info(
+        `[tckr] Simulated market clock: starting at ${new Date(target).toISOString()} (${config.simulated.clock}). ` +
+          'Every time on screen follows this clock, not the real one.',
+      );
+    }
+    // The daily greeting (`motion/Greeting.tsx`): decided now, on the (possibly
+    // simulated) clock, and GSAP fetched at once rather than at idle, since the
+    // greeting is about to need it.
+    const greet = shouldGreetToday(Date.now(), window.location.search, import.meta.env.DEV);
+    if (greet) {
+      void loadMotion().catch(() => undefined);
+    }
     createRoot(rootElement).render(
       <StrictMode>
         <BrowserRouter>
-          <App statusSlot={<ConnectionStatus />} badgeSlot={<StreamBadge />} />
+          <App statusSlot={<ConnectionStatus />} badgeSlot={<StreamBadge />} greet={greet} />
         </BrowserRouter>
       </StrictMode>,
     );
+    // GSAP is only needed for moments that happen after first paint (the opening bell,
+    // a stream flip, a re-rank); fetch its chunk once the page is idle.
+    preloadMotion();
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const wrapper = document.createElement('div');

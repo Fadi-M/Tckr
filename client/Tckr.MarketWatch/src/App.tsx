@@ -42,14 +42,17 @@
  * "header simulated-tape tag" tests in `shell.slots.test.tsx`. `git log` has all of
  * it verbatim if a future requirement needs it restored.
  */
-import { lazy, Suspense, useEffect, useRef, type MouseEvent, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import { Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { FrostGlows } from './components/FrostGlows';
 import { TckrLogo } from './components/TckrLogo';
 import { SkipLink } from './components/SkipLink';
 import { TransitionScopeContext } from './components/transitionScope';
 import { useViewTransitionNavigate } from './components/useViewTransitionNavigate';
 import { ThemeToggle } from './components/ThemeToggle';
 import { StockList } from './pages/StockList';
+import { DetailPaneSkeleton } from './pages/detailChrome';
+import { Greeting } from './motion/Greeting';
 import { BOARD_ID } from './pages/pageAnchors';
 import { LEGACY_SYMBOL_ROUTE_PATTERN, SYMBOL_ROUTE, symbolPath } from './pages/routes';
 
@@ -62,8 +65,8 @@ import { LEGACY_SYMBOL_ROUTE_PATTERN, SYMBOL_ROUTE, symbolPath } from './pages/r
 // and once loaded the component is rendered directly rather than through `lazy`.
 // Opening a symbol runs a view transition that snapshots the first commit after
 // navigation; `lazy` suspends on its first render even when the chunk is already
-// cached, so that commit would be the Suspense "Loading…" fallback instead of the
-// detail pane. The chunk stays out of the initial bundle either way.
+// cached, so that commit would be the Suspense fallback (the pane's skeleton,
+// `DetailPaneSkeleton`) instead of the detail pane. The chunk stays out of the initial bundle either way.
 type StockDetailModule = typeof import('./pages/StockDetail');
 let loadedStockDetail: StockDetailModule['StockDetail'] | null = null;
 const loadStockDetail = () =>
@@ -136,7 +139,7 @@ function StockDetailRoute() {
   const { symbol } = useParams<{ symbol: string }>();
   const StockDetail = loadedStockDetail ?? LazyStockDetail;
   return (
-    <Suspense fallback={<p className="text-text-muted">Loading…</p>}>
+    <Suspense fallback={<DetailPaneSkeleton symbol={symbol ?? ''} />}>
       <StockDetail symbol={symbol ?? ''} />
     </Suspense>
   );
@@ -147,10 +150,15 @@ export interface AppProps {
   statusSlot?: ReactNode | undefined;
   /** See `AppHeaderProps.badgeSlot`. */
   badgeSlot?: ReactNode | undefined;
+  /** Play the daily greeting over this load. Decided by the composition root
+   * (`main.tsx`, via `greetingSchedule.ts`), never here, so the shell stays free of
+   * storage and clock reads; off unless asked for. */
+  greet?: boolean | undefined;
 }
 
-export function App({ statusSlot, badgeSlot }: AppProps) {
+export function App({ statusSlot, badgeSlot, greet = false }: AppProps) {
   usePrefetchStockDetail();
+  const [greeting, setGreeting] = useState(greet);
   // Opening, switching and closing a symbol only changes what's inside <main>, so
   // those view transitions are scoped to it (see `transitionScope.ts`). The header
   // sits outside the scope: it stays live and on top, never snapshotted.
@@ -162,18 +170,7 @@ export function App({ statusSlot, badgeSlot }: AppProps) {
           container, which silently disables `position: sticky` for the header and the
           detail pane. */}
       <div className="relative flex flex-col min-h-full w-full max-w-[100vw] overflow-x-clip">
-        <span
-          className="fixed -z-1 rounded-full blur-[70px] pointer-events-none max-[640px]:hidden top-[-180px] right-[-80px] w-[720px] h-[560px] bg-[radial-gradient(circle_at_60%_40%,var(--tckr-blob-a),transparent_68%)]"
-          aria-hidden="true"
-        />
-        <span
-          className="fixed -z-1 rounded-full blur-[70px] pointer-events-none max-[640px]:hidden top-[90px] right-[280px] w-[480px] h-[440px] bg-[radial-gradient(circle_at_50%_50%,var(--tckr-blob-b),transparent_70%)]"
-          aria-hidden="true"
-        />
-        <span
-          className="fixed -z-1 rounded-full blur-[70px] pointer-events-none max-[640px]:hidden bottom-[-220px] left-[-140px] w-[720px] h-[600px] bg-[radial-gradient(circle_at_40%_60%,var(--tckr-blob-c),transparent_70%)]"
-          aria-hidden="true"
-        />
+        <FrostGlows layer="page" />
         {/* First in the Tab order, ahead of the logo: past the header, the banners, the
             highlight cards, the presets, the search box and seven sort headers. */}
         <SkipLink targetId={BOARD_ID}>Skip to instruments</SkipLink>
@@ -182,6 +179,7 @@ export function App({ statusSlot, badgeSlot }: AppProps) {
             (list, detail, hero cards) local to it: its own scoped transitions use them,
             while a document-wide transition (the theme switch) captures <main> as part
             of the page instead of lifting those layers above the header. */}
+        {greeting ? <Greeting onDone={() => setGreeting(false)} /> : null}
         <main ref={mainRef} className="flex-1 w-full p-4 max-[640px]:p-3 [view-transition-scope:all]">
           <Routes>
             <Route path="/" element={<StockList />}>
