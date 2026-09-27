@@ -113,7 +113,7 @@ function AppHeader({ statusSlot, badgeSlot }: AppHeaderProps) {
         to="/"
         onClick={handleLogoClick}
         aria-label="Tckr"
-        className="flex items-center rounded-md no-underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent flex-none"
+        className="flex items-center rounded-md no-underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-4 focus-visible:outline-accent flex-none"
       >
         <TckrLogo size={24} />
       </Link>

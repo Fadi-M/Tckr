@@ -12,6 +12,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { toDecimal } from '../../contracts/decimal.ts';
 import { applyTick, primeUniverse, resetStore } from '../../data/store.ts';
+import { beatNowForTests } from '../../display/pacedViews.ts';
 import { loadUniverseFixture, makeFakeSource, tickFixture } from './testSupport.ts';
 
 const { mockGetSharedSource } = vi.hoisted(() => ({ mockGetSharedSource: vi.fn() }));
@@ -51,13 +52,8 @@ describe('StockList row aria-label', () => {
     expect(row).toBeTruthy();
   });
 
-  // Each direction gets its own fresh render rather than two ticks against the same
-  // mounted row: `StockListRow` deliberately throttles to at most one repaint per
-  // `DISPLAY_REFRESH_INTERVAL_MS` (`createThrottle` wrapping the store subscription —
-  // see that file's doc comment), so a second tick landing inside the same window
-  // would not repaint and this test would flake on that timing rather than testing the
-  // aria-label. A fresh mount always paints its first tick immediately — `createThrottle`
-  // fires the first call in a fresh window leading-edge, with no delay.
+  // A row repaints only on the page's beat (`src/display/pacedViews.ts`); each test
+  // fires one beat right after its tick, as the wall clock would.
   it('includes formatted price and "up" direction after an up tick', async () => {
     const universeSymbols = loadUniverseFixture();
     // A real `MarketDataSource` primes the store's universe itself before any tick can
@@ -80,6 +76,7 @@ describe('StockList row aria-label', () => {
     // COMI's reference price is 85.10 (public/symbols.json) — tick it up.
     act(() => {
       applyTick(tickFixture({ s: 'COMI', p: toDecimal('90.00') }));
+      beatNowForTests();
     });
     const upRow = screen.getByRole('row', { name: /^COMI, 90(\.0+)?, up \d+(\.\d+)?%, change \+4\.90, volume [\d,]+$/ });
     expect(upRow).toBeTruthy();
@@ -103,6 +100,7 @@ describe('StockList row aria-label', () => {
     // Tick it down relative to the session baseline (referencePrice).
     act(() => {
       applyTick(tickFixture({ s: 'COMI', p: toDecimal('10.00') }));
+      beatNowForTests();
     });
     const downRow = screen.getByRole('row', { name: /^COMI, 10(\.0+)?, down \d+(\.\d+)?%, change -75\.10, volume [\d,]+$/ });
     expect(downRow).toBeTruthy();

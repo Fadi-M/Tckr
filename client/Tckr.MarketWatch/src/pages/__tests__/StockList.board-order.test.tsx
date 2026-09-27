@@ -43,7 +43,7 @@ describe('StockList order caption', () => {
     expect(caption.textContent).toBe('Exchange order');
 
     fireEvent.click(screen.getByRole('button', { name: 'Gainers' }));
-    expect(caption.textContent).toBe('Gainers · Biggest rise since the open first');
+    expect(caption.textContent).toBe('Gainers · Biggest rise first');
 
     fireEvent.click(within(screen.getByRole('columnheader', { name: /^Price/ })).getByRole('button'));
     expect(caption.textContent).toBe('Sorted by Price, highest first');

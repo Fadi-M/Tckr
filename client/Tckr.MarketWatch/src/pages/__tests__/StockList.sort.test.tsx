@@ -9,6 +9,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom';
 import { toDecimal } from '../../contracts/decimal.ts';
 import { applyTick, primeUniverse, resetStore } from '../../data/store.ts';
+import { beatNowForTests } from '../../display/pacedViews.ts';
 import { loadUniverseFixture, makeFakeSource, tickFixture } from './testSupport.ts';
 
 const { mockGetSharedSource } = vi.hoisted(() => ({ mockGetSharedSource: vi.fn() }));
@@ -63,6 +64,7 @@ describe('StockList sort', () => {
     act(() => {
       applyTick(tickFixture({ s: 'COMI', p: toDecimal('9.90') }));
       applyTick(tickFixture({ s: 'SWDY', p: toDecimal('18.90') }));
+      beatNowForTests();
     });
 
     const priceHeader = screen.getByRole('columnheader', { name: /^price/i });

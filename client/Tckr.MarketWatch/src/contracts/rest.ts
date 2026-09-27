@@ -60,6 +60,12 @@ export interface Snapshot {
   readonly change: DecimalString;
   readonly changePercent: string;
   readonly open: DecimalString;
+  /** The previous session's closing price — on EGX, the instrument's reference price for
+   * this session. Additive and optional in v1 (client-contract.md, "Versioning"): when
+   * present, the client measures Change and Change % from it, as EGX and its brokers
+   * quote them; `change`/`changePercent` above stay "since `open`". Absent, the client
+   * falls back to `open`. */
+  readonly previousClose?: DecimalString;
   readonly high: DecimalString;
   readonly low: DecimalString;
   readonly volume: number;

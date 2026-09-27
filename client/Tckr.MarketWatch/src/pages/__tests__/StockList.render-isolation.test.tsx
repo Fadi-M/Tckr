@@ -15,6 +15,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { toDecimal } from '../../contracts/decimal.ts';
 import { applyTick, primeUniverse, resetStore } from '../../data/store.ts';
+import { beatNowForTests } from '../../display/pacedViews.ts';
 import { loadUniverseFixture, makeFakeSource, tickFixture } from './testSupport.ts';
 
 const { mockGetSharedSource } = vi.hoisted(() => ({ mockGetSharedSource: vi.fn() }));
@@ -70,6 +71,7 @@ describe('StockList render isolation', () => {
 
     act(() => {
       applyTick(tickFixture({ s: 'COMI', p: toDecimal('85.42'), q: 500 }));
+      beatNowForTests();
     });
 
     const rowsAfter = screen.getAllByRole('row').filter((row) => row.hasAttribute('data-symbol'));

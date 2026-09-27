@@ -66,7 +66,7 @@ describe('StockDetail unknown symbol', () => {
     const notFound = screen.getByTestId('stock-detail-not-found');
     expect(notFound.textContent ?? '').toContain('NOPE');
 
-    const backLink = screen.getByRole('link', { name: /back to the list/i });
+    const backLink = screen.getByRole('link', { name: /all instruments/i });
     expect(backLink.getAttribute('href')).toBe('/');
 
     // Never a blank page: no crash, and no leftover loading/price UI.

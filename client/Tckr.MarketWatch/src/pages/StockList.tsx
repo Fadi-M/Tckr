@@ -79,6 +79,7 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  type CSSProperties,
   type KeyboardEvent,
   type ReactNode,
 } from 'react';
@@ -92,11 +93,13 @@ import type { Stream } from '../contracts/messages.ts';
 import { streamDelay } from '../components/streamDelay.ts';
 import { BOARD_ID, DETAIL_HEADING_ID } from './pageAnchors.ts';
 import { SYMBOL_ROUTE_PATTERN, symbolPath } from './routes.ts';
-import { getSymbolSnapshot, subscribeSymbol } from '../data/store.ts';
+import { getPacedSymbolSnapshot, subscribeBeat, subscribePacedSymbol } from '../display/pacedViews.ts';
 import { formatCairoClock, formatCairoDateShort, formatCairoTimeShort, formatNextOpen, isPreOpenAuction, type MarketStatus } from '../data/marketCalendar.ts';
 import { AlertIcon, ArrowLeftIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, ClockIcon, CloseIcon, RetryIcon, SearchIcon } from '../components/icons.tsx';
 import { TckrMark } from '../components/TckrLogo.tsx';
+import { closestInstruments } from './closestInstruments.ts';
 import { PriceCell } from '../components/PriceCell.tsx';
+import { TickingText } from '../components/RollingText.tsx';
 import { DELTA_TONE_CLASSES, deltaTone, type DeltaTone } from '../components/deltaTone.ts';
 import { isEditableTarget, modifierKeyLabel } from '../components/keyboard.ts';
 import { prefersReducedMotion } from '../components/prefersReducedMotion.ts';
@@ -104,13 +107,14 @@ import { useMarketStatus } from '../components/useMarketStatus.ts';
 import { isHeld, useConnectionState } from '../components/useConnectionState.ts';
 import { HeldTag } from '../components/HeldTag.tsx';
 import { useViewTransitionNavigate } from '../components/useViewTransitionNavigate.ts';
-import { createThrottle, DISPLAY_REFRESH_INTERVAL_MS, RANK_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
+import { DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
+import { formatPercentFigure } from '../display/percent.ts';
 import { toPlotValue } from '../chart/ringBuffer.ts';
 import { sparklineDirection, useSessionSparkline } from './useBoundedSparkline.ts';
 
 const ZERO_DECIMAL: DecimalString = toDecimal('0');
 
-type SortColumn = 'symbol' | 'name' | 'price' | 'change' | 'changePercent' | 'volume' | 'value' | 'lastUpdate';
+type SortColumn = 'symbol' | 'name' | 'price' | 'change' | 'changePercent' | 'volume' | 'value';
 type ColumnKey = SortColumn | 'trend';
 type SortDirection = 'asc' | 'desc';
 
@@ -133,9 +137,6 @@ interface ColumnSpec {
   readonly hideNarrow?: boolean;
   /** Right-aligned figures; the header right-aligns to match. */
   readonly numeric?: boolean;
-  /** Only meaningful while EGX is trading; left out of the table while it is closed,
-   * when every row would say the same thing (the Market closed banner says it once). */
-  readonly liveOnly?: boolean;
   /** `table-layout: fixed` (kept for perf/no-reflow — a symbol's price can repaint
    * every `DISPLAY_REFRESH_INTERVAL_MS` and must never trigger a table-wide reflow)
    * otherwise divides the table into 8 *equal* columns regardless of content, which
@@ -159,13 +160,15 @@ const COLUMNS: readonly ColumnSpec[] = [
     title: 'Price through the session, from the open to now (or to the close)',
     sortable: false,
     hideNarrow: true,
-    widthPercent: 10,
+    widthPercent: 12,
   },
-  { key: 'name', label: 'Name', sortable: true, hideNarrow: true, widthPercent: 18 },
+  { key: 'name', label: 'Name', sortable: true, hideNarrow: true, widthPercent: 26 },
   { key: 'price', label: 'Price', sortable: true, numeric: true, widthPercent: 10 },
-  { key: 'change', label: 'Change', sortable: true, numeric: true, hideNarrow: true, widthPercent: 9 },
-  { key: 'changePercent', label: 'Change %', sortable: true, numeric: true, widthPercent: 10 },
-  { key: 'volume', label: 'Volume', title: 'Shares traded this session', sortable: true, numeric: true, hideNarrow: true, widthPercent: 10 },
+  // Change is measured from the previous close (EGX convention); the caption says so on
+  // the board itself, since a tooltip can't be opened on touch.
+  { key: 'change', label: 'Change', title: 'Since the previous close', sortable: true, numeric: true, hideNarrow: true, widthPercent: 10 },
+  { key: 'changePercent', label: 'Change %', title: 'Since the previous close', sortable: true, numeric: true, widthPercent: 11 },
+  { key: 'volume', label: 'Volume', title: 'Shares traded this session', sortable: true, numeric: true, hideNarrow: true, widthPercent: 11 },
   {
     key: 'value',
     label: 'Value',
@@ -174,17 +177,38 @@ const COLUMNS: readonly ColumnSpec[] = [
     sortable: true,
     numeric: true,
     hideNarrow: true,
-    widthPercent: 10,
+    widthPercent: 12,
   },
-  { key: 'lastUpdate', label: 'Last update', sortable: true, hideNarrow: true, liveOnly: true, widthPercent: 15 },
 ];
 
+/**
+ * "updated 13:42:30", once, in the board's caption: every row repaints on the same beat
+ * (`src/display/pacedViews.ts`), so the per-row "Last update" column said the same thing
+ * 34 times. Its own component, subscribed to the beat, so the clock re-renders this
+ * line and never the rows. The time is Cairo's, like every clock on the page. On the
+ * DELAYED stream it carries the amber clock: it is when the prices *arrived*, not when
+ * they traded.
+ */
+function BoardUpdatedAt({ delayed }: { delayed: boolean }): ReactNode {
+  const [at, setAt] = useState<number | null>(null);
+  useEffect(() => subscribeBeat(() => setAt(Date.now())), []);
+  if (at === null) {
+    return null;
+  }
+  return (
+    <span data-testid="board-updated-at" className={delayed ? 'text-warning' : undefined}>
+      {' · '}
+      {delayed ? <ClockIcon size={11} className="inline -mt-0.5 mr-1" /> : null}
+      updated <span className="font-mono">{formatCairoClock(at)}</span>
+    </span>
+  );
+}
+
 /** The columns the table renders: all of them, minus the `hideNarrow` ones when the
- * list is narrow (split pane or a phone-width viewport) and the `liveOnly` ones while
- * EGX is closed. The header, the `<colgroup>` and every row read this one list, so
+ * list is narrow (split pane or a phone-width viewport). The header, the `<colgroup>` and every row read this one list, so
  * they can never disagree. */
-function visibleColumns(narrow: boolean, marketClosed: boolean): readonly ColumnSpec[] {
-  return COLUMNS.filter((column) => !(narrow && column.hideNarrow) && !(marketClosed && column.liveOnly));
+function visibleColumns(narrow: boolean): readonly ColumnSpec[] {
+  return COLUMNS.filter((column) => !(narrow && column.hideNarrow));
 }
 
 /** `table-layout: fixed`'s `<colgroup>` widths don't give a left-out column's share back
@@ -205,8 +229,8 @@ type Preset = 'exchange' | 'most-active' | 'gainers' | 'losers';
 const PRESETS: readonly { readonly id: Preset; readonly label: string; readonly hint: string; readonly sort: SortState | null }[] = [
   { id: 'exchange', label: 'Exchange order', hint: 'The order EGX lists its instruments in', sort: null },
   { id: 'most-active', label: 'Most active', hint: 'Highest traded value (EGP) this session first', sort: { column: 'value', direction: 'desc' } },
-  { id: 'gainers', label: 'Gainers', hint: 'Biggest rise since the open first', sort: { column: 'changePercent', direction: 'desc' } },
-  { id: 'losers', label: 'Losers', hint: 'Biggest fall since the open first', sort: { column: 'changePercent', direction: 'asc' } },
+  { id: 'gainers', label: 'Gainers', hint: 'Biggest rise first', sort: { column: 'changePercent', direction: 'desc' } },
+  { id: 'losers', label: 'Losers', hint: 'Biggest fall first', sort: { column: 'changePercent', direction: 'asc' } },
 ];
 
 function presetFor(sortState: SortState | null): Preset | null {
@@ -251,7 +275,7 @@ function decimalPlacesOf(value: string): number {
 /** A symbol's traded value this session (last price × shares traded), exact — how
  * EGX ranks "most active". Reads the store unless the caller already holds the view.
  * Before the first snapshot: the reference price × 0. */
-function tradedValue(definition: SymbolDefinition, view = getSymbolSnapshot(definition.symbol)): DecimalString {
+function tradedValue(definition: SymbolDefinition, view = getPacedSymbolSnapshot(definition.symbol)): DecimalString {
   return multiplyByQuantity(view?.price ?? definition.referencePrice, view?.volume ?? 0);
 }
 
@@ -262,32 +286,27 @@ function compareBy(column: SortColumn, a: SymbolDefinition, b: SymbolDefinition)
     case 'name':
       return a.name.localeCompare(b.name);
     case 'price': {
-      const pa = getSymbolSnapshot(a.symbol)?.price ?? a.referencePrice;
-      const pb = getSymbolSnapshot(b.symbol)?.price ?? b.referencePrice;
+      const pa = getPacedSymbolSnapshot(a.symbol)?.price ?? a.referencePrice;
+      const pb = getPacedSymbolSnapshot(b.symbol)?.price ?? b.referencePrice;
       return compare(pa, pb);
     }
     case 'change': {
-      const ca = getSymbolSnapshot(a.symbol)?.change ?? ZERO_DECIMAL;
-      const cb = getSymbolSnapshot(b.symbol)?.change ?? ZERO_DECIMAL;
+      const ca = getPacedSymbolSnapshot(a.symbol)?.change ?? ZERO_DECIMAL;
+      const cb = getPacedSymbolSnapshot(b.symbol)?.change ?? ZERO_DECIMAL;
       return compare(ca, cb);
     }
     case 'changePercent': {
-      const pa = getSymbolSnapshot(a.symbol)?.changePercent ?? 0;
-      const pb = getSymbolSnapshot(b.symbol)?.changePercent ?? 0;
+      const pa = getPacedSymbolSnapshot(a.symbol)?.changePercent ?? 0;
+      const pb = getPacedSymbolSnapshot(b.symbol)?.changePercent ?? 0;
       return pa - pb;
     }
     case 'volume': {
-      const va = getSymbolSnapshot(a.symbol)?.volume ?? 0;
-      const vb = getSymbolSnapshot(b.symbol)?.volume ?? 0;
+      const va = getPacedSymbolSnapshot(a.symbol)?.volume ?? 0;
+      const vb = getPacedSymbolSnapshot(b.symbol)?.volume ?? 0;
       return va - vb;
     }
     case 'value':
       return compare(tradedValue(a), tradedValue(b));
-    case 'lastUpdate': {
-      const la = getSymbolSnapshot(a.symbol)?.lastUpdate ?? 0;
-      const lb = getSymbolSnapshot(b.symbol)?.lastUpdate ?? 0;
-      return la - lb;
-    }
     default:
       return 0;
   }
@@ -309,28 +328,24 @@ function percentTone(changePercent: number | undefined): DeltaTone {
   return changePercent === undefined || isEffectivelyUnchanged(changePercent) ? 'flat' : deltaTone(changePercent);
 }
 
+/**
+ * Every row repaints on the same wall-clock beat (`src/display/throttle.ts`), and 34
+ * rows changing in one frame reads as the whole board being redrawn. Each row's figures
+ * land a few milliseconds after the row above, so a repaint travels down the board as
+ * one wave instead. Capped so the last rows are never more than ~quarter of a second
+ * behind: the values are already in the DOM; only their arrival animation waits.
+ */
+const TICK_STAGGER_MS = 9;
+const TICK_STAGGER_MAX_MS = 260;
+function tickDelay(boardIndex: number): string {
+  return `${Math.min(boardIndex * TICK_STAGGER_MS, TICK_STAGGER_MAX_MS)}ms`;
+}
+
 function formatSignedPercent(value: number): string {
   if (isEffectivelyUnchanged(value)) {
     return '0.00%';
   }
-  const sign = value > 0 ? '+' : '';
-  return `${sign}${value.toFixed(2)}%`;
-}
-
-function formatRelativeTime(lastUpdate: number, now: number): string {
-  const deltaSeconds = Math.max(0, Math.floor((now - lastUpdate) / 1000));
-  if (deltaSeconds < 1) {
-    return 'just now';
-  }
-  if (deltaSeconds < 60) {
-    return `${deltaSeconds}s ago`;
-  }
-  const minutes = Math.floor(deltaSeconds / 60);
-  if (minutes < 60) {
-    return `${minutes}m ago`;
-  }
-  const hours = Math.floor(minutes / 60);
-  return `${hours}h ago`;
+  return `${formatPercentFigure(value)}%`;
 }
 
 const NARROW_VIEWPORT_QUERY = '(max-width: 640px)';
@@ -470,9 +485,9 @@ const CONN_BANNER_GOOD =
 const CONN_BANNER_STICKY = 'sticky top-[75px] z-[4]';
 const CONN_BANNER_STICKY_PHONE = 'max-[800px]:sticky max-[800px]:top-[75px] max-[800px]:z-[4]';
 const BANNER_DISMISS =
-  'flex-none text-caption font-medium text-text-muted px-2.5 py-1.5 rounded-md cursor-pointer [transition:color_150ms_ease] fine-hover:text-text focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2';
+  'flex-none text-caption font-medium text-text-muted px-2.5 py-1.5 rounded-md cursor-pointer [transition:color_150ms_ease] fine-hover:text-text focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-accent focus-visible:outline-offset-2';
 const CONN_BANNER_ACTION =
-  "font-semibold text-caption px-[13px] py-[7px] rounded-md border border-border bg-text text-surface cursor-pointer flex-none [transition:transform_120ms_ease-out,opacity_150ms_ease] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2";
+  "font-semibold text-caption px-[13px] py-[7px] rounded-md border border-border bg-text text-surface cursor-pointer flex-none [transition:transform_120ms_ease-out,opacity_150ms_ease] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-accent focus-visible:outline-offset-2";
 
 function ConnectionBanner({
   state,
@@ -543,61 +558,6 @@ function ConnectionBanner({
 // banner, since a user restarting a healthy connection can't do anything about market
 // hours, and vice versa.
 // ---------------------------------------------------------------------------------
-
-/** Levenshtein distance, for the empty-search "closest matches". Inputs are short
- * (a query against a 3–5 letter ticker or one word of a name), so O(n·m) is nothing. */
-function editDistance(a: string, b: string): number {
-  const row = Array.from({ length: b.length + 1 }, (_, i) => i);
-  for (let i = 1; i <= a.length; i += 1) {
-    let diagonal = row[0]!;
-    row[0] = i;
-    for (let j = 1; j <= b.length; j += 1) {
-      const above = row[j]!;
-      row[j] = Math.min(row[j]! + 1, row[j - 1]! + 1, diagonal + (a[i - 1] === b[j - 1] ? 0 : 1));
-      diagonal = above;
-    }
-  }
-  return row[b.length]!;
-}
-
-/**
- * Up to `limit` instruments closest to a query that matched nothing — a typo'd ticker
- * ("COMY" → COMI) or a misspelled word of a company name ("orascon" → ORAS). Compares
- * the query with the symbol, and with the same-length start of each word of the name
- * (ticker matches rank first);
- * a candidate must be within roughly one edit per three characters to be offered at all,
- * so an unrelated query gets no suggestions rather than random ones.
- */
-export function closestInstruments(
-  query: string,
-  universe: readonly SymbolDefinition[],
-  limit = 3,
-): SymbolDefinition[] {
-  const q = query.trim().toLowerCase();
-  if (q.length < 2) {
-    return [];
-  }
-  const allowed = Math.max(1, Math.floor(q.length / 3));
-  const candidates = universe
-    .map((def) => {
-      const nameWordStarts = def.name.toLowerCase().split(/\s+/).map((word) => word.slice(0, q.length));
-      const symbolDistance = editDistance(q, def.symbol.toLowerCase());
-      const nameDistance = Math.min(...nameWordStarts.map((start) => editDistance(q, start)));
-      // At equal distance a ticker match outranks a name-word match: the search box
-      // is mostly typed into with tickers, so "COMY" means COMI before "Company".
-      const rank = Math.min(symbolDistance * 2, nameDistance * 2 + 1);
-      return { def, distance: Math.min(symbolDistance, nameDistance), rank };
-    })
-    .filter(({ distance }) => distance <= allowed);
-  // A ticker-shaped query ("COMY") with a close ticker means a mistyped ticker: a
-  // name-word near-miss ("Company" -> ARCC) beside it is noise, not a second guess.
-  const tickerShaped = /^[a-z0-9]{2,6}$/.test(q);
-  const tickerMatches = candidates.filter(({ def }) => editDistance(q, def.symbol.toLowerCase()) <= allowed);
-  return (tickerShaped && tickerMatches.length > 0 ? tickerMatches : candidates)
-    .sort((a, b) => a.rank - b.rank || a.def.symbol.localeCompare(b.def.symbol))
-    .slice(0, limit)
-    .map(({ def }) => def);
-}
 
 /** "in 1d 14h", "in 3h 12m", "in 12m", "in under a minute" — coarse on purpose: this
  * is a wait, not a timer, and a seconds countdown would only add noise. */
@@ -807,7 +767,7 @@ function pickHeroes(universe: readonly SymbolDefinition[]): readonly HeroPick[] 
     return [];
   }
   const metrics = universe.map((definition) => {
-    const view = getSymbolSnapshot(definition.symbol);
+    const view = getPacedSymbolSnapshot(definition.symbol);
     return { definition, changePercent: view?.changePercent ?? 0, value: tradedValue(definition) };
   });
   const gainer = [...metrics].sort((a, b) => b.changePercent - a.changePercent)[0]!;
@@ -818,11 +778,20 @@ function pickHeroes(universe: readonly SymbolDefinition[]): readonly HeroPick[] 
     { kind: 'loser', kicker: 'TOP LOSER', definition: loser.definition },
     { kind: 'active', kicker: 'MOST ACTIVE', definition: active.definition },
   ];
+  // A card only shows a symbol its label is true of: when nothing on the board is up,
+  // there is no top gainer (the least-down stock is not one), and likewise for losers.
   // A tiny universe (or a fixture in a test) can have the same symbol win more than
   // one slot — keep only the first (highest-priority) pick per symbol so a card never
   // renders twice.
+  const qualifies = (pick: HeroPick, changePercent: number): boolean =>
+    pick.kind === 'active' ||
+    (!isEffectivelyUnchanged(changePercent) && (pick.kind === 'gainer' ? changePercent > 0 : changePercent < 0));
+  const changeOf = new Map(metrics.map((m) => [m.definition.symbol, m.changePercent]));
   const seen = new Set<string>();
   return candidates.filter((pick) => {
+    if (!qualifies(pick, changeOf.get(pick.definition.symbol) ?? 0)) {
+      return false;
+    }
     if (seen.has(pick.definition.symbol)) {
       return false;
     }
@@ -853,25 +822,17 @@ interface HeroCardProps {
 // with no separate reset step, so there is never a same-property class pair whose
 // winner depends on Tailwind's internal utility ordering.
 const HERO_CARD_CLASS =
-  'appearance-none m-0 p-0 outline-none text-inherit text-left box-border cursor-pointer w-full max-[640px]:w-[78%] max-[640px]:flex-none max-[640px]:snap-start max-[640px]:pt-3 max-[640px]:px-4 max-[640px]:pb-3 pt-4 px-[18px] pb-[15px] rounded-[20px] bg-glass border border-glass-border shadow-float backdrop-blur-tckr backdrop-saturate-[1.6] [transition:transform_160ms_ease-out,border-color_160ms_ease] fine-hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none reduced-transparency:backdrop-saturate-100 contrast-more:bg-surface contrast-more:backdrop-blur-none contrast-more:backdrop-saturate-100';
+  'appearance-none m-0 p-0 outline-none text-inherit text-left box-border cursor-pointer w-full max-[640px]:w-[78%] max-[640px]:flex-none max-[640px]:snap-start max-[640px]:pt-3 max-[640px]:px-4 max-[640px]:pb-3 pt-4 px-[18px] pb-[15px] rounded-[20px] bg-glass border border-glass-border shadow-float backdrop-blur-tckr backdrop-saturate-[1.6] [transition:transform_160ms_ease-out,border-color_160ms_ease] fine-hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-accent focus-visible:outline-offset-2 reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none reduced-transparency:backdrop-saturate-100 contrast-more:bg-surface contrast-more:backdrop-blur-none contrast-more:backdrop-saturate-100';
 
 function HeroCard({ kicker, kind, definition, priceDecimals, onActivate, sessionTrend, sessionDate }: HeroCardProps) {
   const { symbol, name, referencePrice } = definition;
 
   // Same throttled-subscribe shape as `StockListRow` — see that component's doc for
   // why a hand-rolled interval/gate is the wrong tool here.
-  const subscribe = useCallback(
-    (onStoreChange: () => void) => {
-      const throttledStoreChange = createThrottle(onStoreChange, DISPLAY_REFRESH_INTERVAL_MS);
-      const unsubscribe = subscribeSymbol(symbol, throttledStoreChange);
-      return () => {
-        throttledStoreChange.cancel();
-        unsubscribe();
-      };
-    },
-    [symbol],
-  );
-  const view = useSyncExternalStore(subscribe, () => getSymbolSnapshot(symbol));
+  // Paced, not live: a render between beats (a click, a sort) shows what the last beat
+  // painted — see `src/display/pacedViews.ts`.
+  const subscribe = useCallback((onStoreChange: () => void) => subscribePacedSymbol(symbol, onStoreChange), [symbol]);
+  const view = useSyncExternalStore(subscribe, () => getPacedSymbolSnapshot(symbol));
 
   const priceMuted = view === undefined;
   const price = view?.price ?? referencePrice;
@@ -900,7 +861,7 @@ function HeroCard({ kicker, kind, definition, priceDecimals, onActivate, session
       ? `${spokenKicker}: ${symbol}, ${String(price)}, traded value ${valueLabel}`
       : changePercent === undefined
         ? `${spokenKicker}: ${symbol}, ${String(price)}`
-        : `${spokenKicker}: ${symbol}, ${String(price)}, ${directionWord} ${Math.abs(changePercent).toFixed(2)}%`;
+        : `${spokenKicker}: ${symbol}, ${String(price)}, ${directionWord} ${formatPercentFigure(changePercent, { magnitude: true })}%`;
   // Same rule as a board row: a delayed price is never read, or shown, as live.
   const ariaLabel = delayed ? `${baseAriaLabel}, delayed stream` : baseAriaLabel;
 
@@ -915,10 +876,10 @@ function HeroCard({ kicker, kind, definition, priceDecimals, onActivate, session
           {shownKicker}
         </span>
         <span
-          className={`font-mono text-label font-semibold px-2.5 py-[3px] rounded-full whitespace-nowrap ${badgeDeltaClass}`}
+          className={`font-mono text-label font-semibold px-2.5 py-[3px] rounded-full whitespace-nowrap [transition:background-color_600ms_var(--tckr-ease-out),color_600ms_var(--tckr-ease-out)] ${badgeDeltaClass}`}
           aria-hidden="true"
         >
-          {badgeText}
+          <TickingText text={badgeText} direction={changePercent !== undefined && changePercent < 0 ? 'down' : 'up'} />
         </span>
       </div>
       <div className="flex items-baseline gap-2 mt-3 min-w-0" aria-hidden="true">
@@ -927,7 +888,14 @@ function HeroCard({ kicker, kind, definition, priceDecimals, onActivate, session
       </div>
       <div className="flex items-end justify-between gap-2.5 mt-2.5" aria-hidden="true">
         <span className="font-mono font-semibold text-price">
-          <PriceCell value={price} decimals={priceDecimals} muted={priceMuted} />
+          <PriceCell
+            value={price}
+            decimals={priceDecimals}
+            muted={priceMuted}
+            flashDirectionOverride={
+              changePercent === undefined ? undefined : changePercent > 0 ? 'up' : changePercent < 0 ? 'down' : null
+            }
+          />
         </span>
         <Sparkline points={sparklinePoints} direction={direction} variant="hero" />
       </div>
@@ -936,18 +904,34 @@ function HeroCard({ kicker, kind, definition, priceDecimals, onActivate, session
 }
 
 function HeroCards({
-  picks,
+  universe,
   priceDecimalsBySymbol,
   onActivate,
   sessionTrends,
   sessionDate,
 }: {
-  picks: readonly HeroPick[];
+  universe: readonly SymbolDefinition[] | null;
   priceDecimalsBySymbol: Map<string, number>;
   onActivate: (symbol: string) => void;
   sessionTrends: ReadonlyMap<string, readonly number[]>;
   sessionDate: string | undefined;
 }) {
+  // Top Gainer / Top Loser / Most Active — re-picked on the price beat itself
+  // (`subscribeBeat`), in the same commit as the figures they are picked by, so a card's
+  // label and its numbers are one read and can never contradict each other. The pick
+  // lives here, not in `StockList`, so a beat re-renders these cards and never the
+  // board's 34 rows.
+  const [heroTick, forceHeroRecompute] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => {
+    if (!universe) {
+      return undefined;
+    }
+    return subscribeBeat(forceHeroRecompute);
+  }, [universe]);
+  // `heroTick` is intentionally in this array even though the body never reads it —
+  // bumping it is exactly what forces this memo to recompute on the beat above.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const picks = useMemo(() => (universe ? pickHeroes(universe) : []), [universe, heroTick]);
   if (picks.length === 0) {
     return null;
   }
@@ -987,6 +971,8 @@ const CELL_BASE = 'px-3 py-2 pointer-coarse:py-2.5 border-b border-glass-border 
 
 interface StockListRowProps {
   readonly definition: SymbolDefinition;
+  /** The row's position on the board, which staggers its repaint (see `tickDelay`). */
+  readonly boardIndex?: number;
   readonly priceDecimals: number;
   /** The board's widest price precision, so every row's decimal point lines up (see
    * `PriceCell`'s `alignDecimals`). */
@@ -1024,55 +1010,22 @@ function StockListRow({
   tabStop = true,
   onRowFocus,
   sessionTrend,
+  boardIndex = 0,
 }: StockListRowProps) {
   const { symbol, name, referencePrice } = definition;
 
   // A hot symbol can tick dozens of times/sec even after `TickDispatcher`'s per-frame
   // coalescing (that cap is a data-correctness contract, not a readability one — see
-  // `src/display/throttle.ts`). This row must repaint at most once per
-  // `DISPLAY_REFRESH_INTERVAL_MS`, using the same leading+trailing `createThrottle`
-  // `StockDetail.tsx` already uses for the equivalent problem (its `throttledApplyTick`)
-  // — wrapping the store-subscription callback itself, rather than a hand-rolled gate
-  // plus a second, independently scheduled fallback timer.
-  //
-  // An earlier version of this file used exactly that hand-rolled shape: a shared
-  // `lastRenderAtRef` gate plus a `setInterval` anchored at component *mount* time, on
-  // the theory that a fixed periodic tick would guarantee "a repaint at least once per
-  // window" even during a continuous burst. In practice the mount-relative schedule is
-  // essentially never aligned with the arbitrary moment a real tick lands and updates
-  // the gate, so the interval's very next firing after an accepted render almost always
-  // landed inside that same render's window and was itself suppressed by the gate —
-  // catch-up only succeeded on the *second* interval firing, close to 2x
-  // `DISPLAY_REFRESH_INTERVAL_MS` late, not the "within one window" the old comment here
-  // claimed.
-  //
-  // `createThrottle` doesn't have that problem: its trailing-edge `setTimeout` is always
-  // scheduled relative to the *leading call's own timestamp* (see `src/display/
-  // throttle.ts`), not a fixed external schedule, so a burst of store notifications
-  // inside one window reliably produces exactly one trailing catch-up repaint no later
-  // than one window after the leading one. A fresh `Throttled` is created once per
-  // subscription — i.e. once per mount, since a row's `symbol` never changes in place
-  // (rows are keyed by symbol; a symbol swap unmounts/remounts rather than re-parenting)
-  // — mirroring how `StockDetail.tsx` scopes its own throttle instance to one effect's
-  // lifetime, and `.cancel()` runs in this same subscription's cleanup so no trailing
-  // call can ever fire after this row (or its subscription) is gone.
-  //
-  // The `selected` row (its detail pane open beside it) is throttled like every other
-  // row: `createThrottle` aligns every instance's windows to the same wall-clock slots,
-  // so this row and `StockDetail`'s header flush the same burst on the same beat and
-  // show the same price, rather than one leading the other for most of a window.
-  const subscribe = useCallback(
-    (onStoreChange: () => void) => {
-      const throttledStoreChange = createThrottle(onStoreChange, DISPLAY_REFRESH_INTERVAL_MS);
-      const unsubscribe = subscribeSymbol(symbol, throttledStoreChange);
-      return () => {
-        throttledStoreChange.cancel();
-        unsubscribe();
-      };
-    },
-    [symbol],
-  );
-  const view = useSyncExternalStore(subscribe, () => getSymbolSnapshot(symbol));
+  // `src/display/throttle.ts`). This row shows its symbol's paced view
+  // (`src/display/pacedViews.ts`), which advances at most once per
+  // `DISPLAY_REFRESH_INTERVAL_MS` on wall-clock-aligned slots, so the selected row and
+  // `StockDetail`'s header flush the same burst on the same beat. Pacing the view, not
+  // just the notification, is what keeps a re-render from elsewhere (a click, a sort)
+  // from painting prices early.
+  // Paced, not live: a render between beats (a click, a sort) shows what the last beat
+  // painted — see `src/display/pacedViews.ts`.
+  const subscribe = useCallback((onStoreChange: () => void) => subscribePacedSymbol(symbol, onStoreChange), [symbol]);
+  const view = useSyncExternalStore(subscribe, () => getPacedSymbolSnapshot(symbol));
 
   // Test-support only: a per-row render counter surfaced as a data attribute so
   // `StockList.render-isolation.test.tsx` can assert exactly one extra render for the
@@ -1086,10 +1039,6 @@ function StockListRow({
   const changePercent = view?.changePercent;
   const volumeLabel = view ? view.volume.toLocaleString('en-US') : '—';
   const valueLabel = view ? formatCompact(tradedValue(definition, view), { fixedFraction: true }) : '—';
-  const lastUpdateLabel = view ? formatRelativeTime(view.lastUpdate, Date.now()) : '—';
-  // "just now" on the delayed stream means "arrived just now", not "traded just now";
-  // the amber clock keeps that from reading as live (the delayed banner says by how much).
-  const lastUpdateDelayed = view?.stream === 'DELAYED';
 
   // Decorative sparkline history — bounded, committed post-render (see module doc for
   // why this mirrors PriceCell's flash-tracking shape rather than mutating during
@@ -1119,7 +1068,7 @@ function StockListRow({
   const baseAriaLabel =
     changePercent === undefined
       ? `${symbol}, ${String(price)}`
-      : `${symbol}, ${String(price)}, ${directionWord} ${Math.abs(changePercent).toFixed(2)}%`;
+      : `${symbol}, ${String(price)}, ${directionWord} ${formatPercentFigure(changePercent, { magnitude: true })}%`;
   // The header's StreamBadge says which stream the whole board is on; a row visited in
   // isolation by a screen reader repeats it, so a delayed price is never read as live.
   // Change amount and volume follow once a tick or snapshot has arrived — the same
@@ -1148,12 +1097,13 @@ function StockListRow({
       // `.tckr-stocklist__row--selected` (one class) under real CSS specificity
       // rules. That relationship survives here because Tailwind gives a pseudo-class
       // variant genuinely higher specificity, not just later source order.
-      className={`cursor-pointer [transition:background-color_120ms_ease,box-shadow_120ms_ease] fine-hover:bg-[color-mix(in_oklab,var(--tckr-color-text)_6%,transparent)] focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2${
+      className={`cursor-pointer [transition:background-color_120ms_ease,box-shadow_120ms_ease] fine-hover:bg-[color-mix(in_oklab,var(--tckr-color-text)_6%,transparent)] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-accent focus-visible:-outline-offset-2${
         selected ? ' bg-[color-mix(in_oklab,var(--tckr-color-up)_12%,transparent)] shadow-[inset_3px_0_0_var(--tckr-color-up)]' : ''
       }`}
       tabIndex={tabStop ? 0 : -1}
       aria-label={rowAriaLabel}
       aria-selected={selected}
+      style={{ '--tckr-tick-delay': tickDelay(boardIndex) } as CSSProperties}
       data-symbol={symbol}
       data-render-count={renderCountRef.current}
       onClick={() => onActivate(symbol)}
@@ -1209,9 +1159,9 @@ function StockListRow({
           <span className="font-mono tabular-nums text-text-muted">—</span>
         ) : (
           <span
-            className={`font-mono tabular-nums inline-block align-middle px-2 py-0.5 leading-5 rounded-[5px] [transition:background-color_200ms_ease] ${changeDeltaClass}`}
+            className={`font-mono tabular-nums inline-block align-middle px-2 py-0.5 leading-5 rounded-[5px] [transition:background-color_600ms_var(--tckr-ease-out),color_600ms_var(--tckr-ease-out)] [transition-delay:var(--tckr-tick-delay,0ms)] ${changeDeltaClass}`}
           >
-            {formatSignedPercent(changePercent)}
+            <TickingText text={formatSignedPercent(changePercent)} direction={changePercent < 0 ? 'down' : 'up'} />
           </span>
         )}
       </td>
@@ -1220,18 +1170,6 @@ function StockListRow({
       ) : null}
       {columns.has('value') ? (
         <td className={`${CELL_BASE} text-right font-mono tabular-nums max-[640px]:hidden`}>{valueLabel}</td>
-      ) : null}
-      {columns.has('lastUpdate') ? (
-        <td className={`${CELL_BASE} text-left max-[640px]:hidden`}>
-          {lastUpdateDelayed ? (
-            <span className="inline-flex items-center gap-1.5 text-warning">
-              <ClockIcon size={11} className="flex-none" />
-              {lastUpdateLabel}
-            </span>
-          ) : (
-            lastUpdateLabel
-          )}
-        </td>
       ) : null}
     </tr>
   );
@@ -1286,7 +1224,7 @@ function heroWrapClass(split: boolean): string {
 }
 
 const PILL_BASE =
-  'text-caption px-3 py-[7px] rounded-full border cursor-pointer [transition:background-color_150ms_ease,color_150ms_ease,border-color_150ms_ease,transform_120ms_ease-out] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2';
+  'text-caption px-3 py-[7px] rounded-full border cursor-pointer [transition:background-color_150ms_ease,color_150ms_ease,border-color_150ms_ease,transform_120ms_ease-out] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-accent focus-visible:outline-offset-2';
 const PILL_ACTIVE = 'bg-text text-surface border-text font-semibold';
 const PILL_INACTIVE = 'bg-transparent text-text-muted border-border font-medium';
 
@@ -1304,7 +1242,7 @@ function tableWrapClass(stale: boolean): string {
 }
 
 const SORT_BUTTON_CLASS =
-  'appearance-none bg-transparent border-none m-0 p-0 outline-none text-inherit [text-transform:inherit] cursor-pointer font-semibold inline-flex items-center gap-0.5 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2';
+  'appearance-none bg-transparent border-none m-0 p-0 outline-none text-inherit [text-transform:inherit] cursor-pointer font-semibold inline-flex items-center gap-0.5 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-accent focus-visible:outline-offset-2';
 
 const KBD_CLASS = 'font-mono text-label border border-border rounded px-1.5 py-px bg-surface-raised';
 
@@ -1341,7 +1279,7 @@ function BoardKeyboardHelp({ detailOpen }: { detailOpen: boolean }) {
 }
 
 const EMPTY_ACTION_BUTTON_BASE =
-  'font-semibold text-caption px-3.5 py-[9px] rounded-[7px] cursor-pointer [transition:transform_120ms_ease-out,opacity_150ms_ease] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2';
+  'font-semibold text-caption px-3.5 py-[9px] rounded-[7px] cursor-pointer [transition:transform_120ms_ease-out,opacity_150ms_ease] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-accent focus-visible:outline-offset-2';
 
 export function StockList() {
   // Every navigation from this page opens or closes the split pane, so every one goes
@@ -1369,32 +1307,16 @@ export function StockList() {
   const selectedSymbol = detailMatch?.params.symbol ?? null;
   const isNarrowViewport = useNarrowViewport();
 
-  // Top Gainer / Top Loser / Most Active — same imperative-poll discipline as
-  // `TickerTape`/the active-sort-preset resort below (see module doc). Only runs
-  // once the universe is loaded; re-picks on the board's re-rank cadence
-  // (`RANK_REFRESH_INTERVAL_MS`), while each card's figures repaint at the price cadence.
-  const [heroTick, forceHeroRecompute] = useReducer((n: number) => n + 1, 0);
-  useEffect(() => {
-    if (!universe) {
-      return;
-    }
-    const id = setInterval(() => forceHeroRecompute(), RANK_REFRESH_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, [universe]);
-  // `heroTick` is intentionally in this array even though the body never reads it —
-  // bumping it is exactly what forces this memo to recompute on the interval above.
-  const heroPicks = useMemo(() => (universe ? pickHeroes(universe) : []), [universe, heroTick]);
 
   // `sorted` below reads live snapshot values *imperatively*, only when it recomputes
   // (see module doc: resorting on every tick would reintroduce the whole-table
   // re-render this page exists to avoid, and would make rows jump under the cursor).
   // Left alone, that means an active preset (e.g. "Most active") can show a stale,
   // increasingly-misleading ranking indefinitely between sort clicks/searches, even as
-  // every individual row keeps visibly repainting. `resortTick` forces one extra
-  // recompute per `RANK_REFRESH_INTERVAL_MS` — half the price cadence, since rows moving
-  // under the pointer cost more attention than a number changing in place — so the
-  // ranking can go stale for at most one window, never indefinitely, without resorting
-  // on every tick. Mirrors
+  // every individual row keeps visibly repainting. `resortTick` re-ranks on the price
+  // beat itself (`subscribeBeat`), in the same commit as the figures it ranks by, so a
+  // sorted board never shows an order its own numbers contradict (a falling row on top
+  // of "Gainers"), without resorting on every tick. Mirrors
   // `useConnectionBanner`'s reconnecting-interval: only runs while there is something
   // to keep fresh (`sortState !== null`), and is keyed off that boolean rather than the
   // `SortState` object itself so switching between sort columns doesn't restart the
@@ -1403,10 +1325,9 @@ export function StockList() {
   const hasActiveSort = sortState !== null;
   useEffect(() => {
     if (!hasActiveSort) {
-      return;
+      return undefined;
     }
-    const id = setInterval(() => forceResort(), RANK_REFRESH_INTERVAL_MS);
-    return () => clearInterval(id);
+    return subscribeBeat(forceResort);
   }, [hasActiveSort]);
 
   useEffect(() => {
@@ -1616,10 +1537,11 @@ export function StockList() {
         event.preventDefault();
         next.focus();
         // With the detail open, the pane follows the focused row (master-detail), so
-        // ↑/↓ steps through instruments without an Enter per symbol.
+        // ↑/↓ steps through instruments without an Enter per symbol. It replaces the
+        // history entry, so Back closes the pane rather than replaying every row passed.
         const nextSymbol = next.dataset.symbol;
         if (selectedSymbol !== null && nextSymbol && nextSymbol !== selectedSymbol) {
-          navigate(symbolPath(nextSymbol));
+          navigate(symbolPath(nextSymbol), { replace: true });
         }
       }
     },
@@ -1720,7 +1642,7 @@ export function StockList() {
   // mechanism instead of the split-pane using it and the viewport case keeping
   // the old CSS-only `display: none` one.
   const narrow = isSplit || isNarrowViewport;
-  const columns = visibleColumns(narrow, marketStatus.state === 'closed');
+  const columns = visibleColumns(narrow);
   const columnKeys: ReadonlySet<ColumnKey> = new Set(columns.map((column) => column.key));
   // The one row that is a Tab stop: whichever row last had focus, else the open
   // symbol's row, else the first row — always one that is actually rendered.
@@ -1754,6 +1676,66 @@ export function StockList() {
       ))}
     </div>
   );
+  // The sortable headers are one Tab stop (the sorted column, else Symbol, which is never
+  // hidden), not eight between the search field and the rows; ←/→/Home/End move along
+  // them, the way ↑/↓ move along the rows.
+  const sortedColumnSpec = sortState ? COLUMNS.find((column) => column.key === sortState.column) : undefined;
+  const headerTabStop = sortedColumnSpec && !sortedColumnSpec.hideNarrow ? sortedColumnSpec.key : 'symbol';
+  const handleHeaderKeyDown = (event: KeyboardEvent<HTMLTableRowElement>) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') {
+      return;
+    }
+    const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button')).filter(
+      // Headers the narrow layout hides (`max-[640px]:hidden`) are skipped.
+      (button) => getComputedStyle(button.closest('th') ?? button).display !== 'none',
+    );
+    const index = buttons.indexOf(event.target as HTMLButtonElement);
+    if (index === -1) {
+      return;
+    }
+    const next =
+      event.key === 'Home'
+        ? buttons[0]
+        : event.key === 'End'
+          ? buttons[buttons.length - 1]
+          : buttons[index + (event.key === 'ArrowRight' ? 1 : -1)];
+    if (next) {
+      event.preventDefault();
+      next.focus();
+    }
+  };
+
+  // Search is the fastest way to a symbol, so it hands off to the board directly: Enter
+  // opens the exact ticker typed (or else the first match in the board's order), and ↓
+  // moves focus onto the first row, where ↑/↓/Enter take over.
+  const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'ArrowDown') {
+      const first = tbodyRef.current?.querySelector<HTMLTableRowElement>('tr[data-symbol]');
+      if (first) {
+        event.preventDefault();
+        first.focus();
+      }
+      return;
+    }
+    const query = rawQuery.trim().toLowerCase();
+    if (event.key !== 'Enter' || !universe || query === '') {
+      return;
+    }
+    // The board may still be showing the previous query (it's debounced); match what
+    // was typed, not what has rendered.
+    const matches =
+      rawQuery === debouncedQuery
+        ? sorted
+        : universe.filter((def) => def.symbol.toLowerCase().includes(query) || def.name.toLowerCase().includes(query));
+    const target = matches.find((def) => def.symbol.toLowerCase() === query) ?? matches[0];
+    if (target) {
+      event.preventDefault();
+      if (target.symbol !== selectedSymbol) {
+        navigate(symbolPath(target.symbol));
+      }
+    }
+  };
+
   const searchField = (
     <label className={SEARCH_WRAP_CLASS} htmlFor="tckr-stocklist-search">
       <SearchIcon size={14} className="text-text-muted" />
@@ -1767,12 +1749,13 @@ export function StockList() {
         placeholder="Search symbol or name"
         value={rawQuery}
         onChange={(event) => setRawQuery(event.target.value)}
+        onKeyDown={handleSearchKeyDown}
       />
       {rawQuery !== '' ? (
         <button
           type="button"
           aria-label="Clear search"
-          className="flex-none -my-1 p-1 rounded-full text-text-muted cursor-pointer fine-hover:text-text focus-visible:outline-2 focus-visible:outline-accent"
+          className="flex-none -my-1 p-1 rounded-full text-text-muted cursor-pointer fine-hover:text-text focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-accent"
           onClick={() => {
             clearSearch();
             searchInputRef.current?.focus();
@@ -1829,7 +1812,7 @@ export function StockList() {
 
       <div className={heroWrapClass(isSplit)}>
         <HeroCards
-          picks={heroPicks}
+          universe={universe}
           priceDecimalsBySymbol={priceDecimalsBySymbol}
           onActivate={handleRowActivate}
           sessionTrends={sessionTrends}
@@ -1916,10 +1899,12 @@ export function StockList() {
                     {searching ? `${sorted.length} of ${universe.length} · ` : ''}
                     {describeOrder(sortState)}
                   </span>
+                  <span data-testid="board-change-basis"> · change vs previous close</span>
                   {/* A ranked board moves on its own; say how often, so a row changing
                       place isn't read as a glitch. Only while prices are moving. */}
+                  {marketStatus.state === 'open' && !isStale ? <BoardUpdatedAt delayed={viewerStream === 'DELAYED'} /> : null}
                   {sortState !== null && marketStatus.state === 'open' && !isStale ? (
-                    <span data-testid="board-rerank"> · re-ranked every {RANK_REFRESH_INTERVAL_MS / 1000}s</span>
+                    <span data-testid="board-rerank"> · re-ranked every {DISPLAY_REFRESH_INTERVAL_MS / 1000}s</span>
                   ) : null}
                 </caption>
                 <colgroup>
@@ -1931,7 +1916,7 @@ export function StockList() {
                   ))}
                 </colgroup>
                 <thead>
-                  <tr>
+                  <tr onKeyDown={handleHeaderKeyDown}>
                     {columns.map((column) => (
                       <th
                         key={column.key}
@@ -1948,7 +1933,12 @@ export function StockList() {
                         }
                       >
                         {column.sortable ? (
-                          <button type="button" className={SORT_BUTTON_CLASS} onClick={() => handleSort(column.key as SortColumn)}>
+                          <button
+                            type="button"
+                            className={SORT_BUTTON_CLASS}
+                            tabIndex={column.key === headerTabStop ? 0 : -1}
+                            onClick={() => handleSort(column.key as SortColumn)}
+                          >
                             {column.label}
                             {column.unit ? (
                               <>
@@ -1972,8 +1962,7 @@ export function StockList() {
                         colSpan={columns.length}
                         className="text-center text-text-muted px-4 py-11 whitespace-normal animate-fade-in"
                       >
-                        <div className="font-mono text-caption tracking-[0.04em]">0 of {universe.length}</div>
-                        <div className="mt-3 font-semibold text-title text-text">
+                        <div className="font-semibold text-title text-text">
                           {/* The query the list was filtered by, not the one still being
                               typed: the count and suggestions above use the same. */}
                           No instruments match &ldquo;{debouncedQuery.trim()}&rdquo;
@@ -2015,9 +2004,10 @@ export function StockList() {
                       </td>
                     </tr>
                   ) : (
-                    sorted.map((def) => (
+                    sorted.map((def, index) => (
                       <StockListRow
                         key={def.symbol}
+                        boardIndex={index}
                         definition={def}
                         priceDecimals={priceDecimalsBySymbol.get(def.symbol) ?? 2}
                         alignDecimals={boardPriceDecimals}

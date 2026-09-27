@@ -13,9 +13,11 @@
  *    before its first tick). De-emphasised text, never a spinner, never suppressed to
  *    `0.00`, and never flashes.
  *  - transient flash: whenever `value` changes from the previously rendered value
- *    (tracked in a `ref`, never `useState`/`setTimeout`), the cell briefly tints its
- *    background and pulses a directional arrow. The animation is CSS, keyed on the new
- *    value via React `key` so it restarts on every change — this component schedules no
+ *    (tracked in a `ref`, never `useState`/`setTimeout`), the digits that changed roll
+ *    into place (`RollingText`), the figure lights in its signal colour and settles back,
+ *    and a directional arrow pulses. Nothing is painted behind the digits. The animation
+ *    is CSS, keyed on the new value via React `key` so it restarts on every change — this
+ *    component schedules no
  *    render of its own to start or stop it (README.md design decision #4 applies to the
  *    render *path*; this is the render *cost* of a value change staying at zero).
  *  - `indicateSign`: persistent colour + arrow using the shared "delta" convention
@@ -38,6 +40,15 @@
  */
 import { useEffect, useRef, type ReactNode } from 'react';
 import { compare, format, toDecimal, type DecimalString } from '../contracts/decimal.ts';
+import { hasSettled, isLanding, RollingText } from './RollingText.tsx';
+
+interface Landing {
+  readonly value: DecimalString;
+  readonly previous: DecimalString;
+  readonly direction: 'up' | 'down' | null;
+  /** `performance.now()` when it started; it ends `LANDING_WINDOW_MS` later. */
+  readonly at: number;
+}
 
 const ZERO: DecimalString = toDecimal('0');
 
@@ -91,22 +102,33 @@ export function PriceCell({
   alignDecimals,
   flashGlyph = true,
 }: PriceCellProps): ReactNode {
-  const previousRef = useRef<DecimalString | null>(null);
-  const previous = previousRef.current;
+  const previousRef = useRef<{ readonly value: DecimalString; readonly since: number } | null>(null);
+  const previous = previousRef.current?.value ?? null;
+  // The change currently landing. Kept across re-renders that don't change `value`
+  // (a board row re-renders every second for its "Last update" clock), so an unrelated
+  // render never cuts a landing short; a new value replaces it and restarts it. Once it
+  // has played it is dropped, so moving the row can't replay it (`LANDING_WINDOW_MS`).
+  const landingRef = useRef<Landing | null>(null);
 
-  let flashDirection: 'up' | 'down' | null = null;
-  if (!muted && previous !== null && previous !== value) {
+  let landing: Landing | null = null;
+  if (!muted && previous !== null && previous !== value && hasSettled(previousRef.current!.since)) {
+    let direction: 'up' | 'down' | null;
     if (flashDirectionOverride !== undefined) {
-      flashDirection = flashDirectionOverride;
+      direction = flashDirectionOverride;
     } else {
       const cmp = compare(value, previous);
-      flashDirection = cmp === 1 ? 'up' : cmp === -1 ? 'down' : null;
+      direction = cmp === 1 ? 'up' : cmp === -1 ? 'down' : null;
     }
+    landing = { value, previous, direction, at: performance.now() };
+  } else if (!muted && landingRef.current?.value === value && isLanding(landingRef.current.at)) {
+    landing = landingRef.current;
   }
+  const flashDirection = landing?.direction ?? null;
 
   useEffect(() => {
-    previousRef.current = value;
-  }, [value]);
+    previousRef.current = { value, since: performance.now() };
+    landingRef.current = landing;
+  }, [value, landing]);
 
   const formatOpts: { decimals?: number; sign?: boolean } = {};
   if (decimals !== undefined) {
@@ -136,15 +158,13 @@ export function PriceCell({
     .filter(Boolean)
     .join(' ');
 
-  // When `indicateSign` already carries a permanent arrow via `signClass`, the flash
-  // itself stays background-only so the two arrows never overlap. The arrow variant
-  // applies the delta convention's colour to the `::before` content only (via
-  // `before:text-*`), not to the whole flash span — matching the original
-  // `::before { color: ... }` rule.
+  // The flash tints the digits themselves and lets them settle back to their resting
+  // colour; nothing is painted behind them. Where `indicateSign` already carries a
+  // permanent arrow and colour, the flash adds neither, so the two never overlap. The
+  // arrow variant colours the `::before` glyph only.
   const flashClassName = flashDirection
     ? [
-        'inline-block rounded-[3px] px-0.5 -mx-0.5',
-        flashDirection === 'up' ? 'animate-price-flash-up' : 'animate-price-flash-down',
+        indicateSign ? '' : flashDirection === 'up' ? 'animate-price-flash-up' : 'animate-price-flash-down',
         indicateSign || !flashGlyph
           ? ''
           : flashDirection === 'up'
@@ -164,8 +184,12 @@ export function PriceCell({
 
   return (
     <span className={wrapperClassName} aria-label={ariaLabel} data-muted={muted}>
-      <span key={value} className={flashClassName}>
-        {formatted}
+      <span key={value} className={flashClassName || undefined}>
+        <RollingText
+          text={formatted}
+          previous={landing ? format(landing.previous, formatOpts) : null}
+          direction={flashDirection ?? 'up'}
+        />
       </span>
       {padCh > 0 ? <span aria-hidden="true" className="inline-block" style={{ width: `${padCh}ch` }} /> : null}
     </span>

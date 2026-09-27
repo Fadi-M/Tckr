@@ -1,20 +1,12 @@
 /**
- * `StockList.display-throttle.test.tsx` — code-review fix (PR #3). `StockListRow`'s
- * display-refresh throttle used to be a hand-rolled `lastRenderAtRef` gate plus a
- * `setInterval` anchored at component *mount* time, which had a real bug: the mount-
- * relative interval schedule is essentially never aligned with the arbitrary moment a
- * real tick updates the gate, so the interval's very next firing after an accepted
- * render almost always landed inside that same render's window and was itself
- * suppressed — catch-up only succeeded on the *second* interval firing, close to 2x
- * `DISPLAY_REFRESH_INTERVAL_MS` late, not the "within one window" the old code's own
- * comment claimed. `StockListRow` now reuses `createThrottle` (`src/display/
- * throttle.ts`, the same utility `StockDetail.tsx` already uses) directly on the store
- * subscription, whose trailing-edge `setTimeout` fires at the end of the leading call's
- * own (wall-clock-aligned) window — a correct "within one window" guarantee.
+ * `StockList.display-throttle.test.tsx` — a row paints at most once per beat, on the
+ * page's one wall-clock beat (`src/display/pacedViews.ts`), and always the latest tick.
  *
- * This mirrors `StockDetail.display-throttle.test.tsx`'s pattern (`vi.advanceTimersByTime`),
- * adapted to `StockListRow`'s per-row `data-render-count` test hook (see
- * `StockList.render-isolation.test.tsx`) instead of counting `PriceCell` calls.
+ * History: the row once had a mount-anchored interval (catch-up landed ~2 windows
+ * late), then a leading+trailing `createThrottle` on its store subscription. The
+ * leading edge painted a quiet symbol's first tick mid-beat, ahead of the board's order
+ * and the hero picks, which were on clocks of their own; and the snapshot was still read
+ * live on unrelated renders. Now nothing paints between beats.
  */
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -47,12 +39,10 @@ describe('StockListRow display-refresh throttle', () => {
     vi.useRealTimers();
   });
 
-  it('a burst of ticks inside one window paints a leading repaint, then a trailing catch-up within exactly one window — never two', async () => {
+  it('a burst of ticks paints nothing until the next beat, then exactly once, with the latest tick', async () => {
     const universeSymbols = loadUniverseFixture();
     // A real `MarketDataSource` primes the store's universe itself before any tick can
     // be accepted (store.ts's "real universe, not whatever the wire claims" guard).
-    // This fake source is a plain object, not a real source instance, so the test
-    // primes it explicitly to match that contract.
     primeUniverse(universeSymbols);
     mockGetSharedSource.mockReturnValue(makeFakeSource(universeSymbols).source);
 
@@ -68,33 +58,21 @@ describe('StockListRow display-refresh throttle', () => {
 
     const before = renderCountFor('COMI');
 
-    // A burst well within one throttle window — simulating a hot symbol's tape. The
-    // leading tick paints immediately; the rest are collapsed by the throttle. The
-    // leading tick gets its own `act` so its paint commits before the rest arrive —
-    // inside one `act`, React would render once at the end, already showing the last
-    // tick, and the trailing catch-up below would have nothing new to paint.
+    // A hot symbol's burst, including its very first tick: none of it paints mid-beat.
     act(() => {
-      applyTick(tickFixture({ s: 'COMI', p: toDecimal('85.00'), id: 'evt-burst-0' }));
-    });
-    const afterLeading = renderCountFor('COMI');
-    expect(afterLeading).toBe(before + 1);
-
-    act(() => {
-      for (let i = 1; i < 20; i += 1) {
+      for (let i = 0; i < 20; i += 1) {
         applyTick(tickFixture({ s: 'COMI', p: toDecimal((85 + i * 0.01).toFixed(2)), id: `evt-burst-${i}` }));
       }
     });
-    expect(renderCountFor('COMI')).toBe(afterLeading);
+    expect(renderCountFor('COMI')).toBe(before);
 
-    // Advancing exactly one window must flush the trailing catch-up now — not require a
-    // second window the way the old mount-anchored-interval bug did.
+    // The next beat is never more than one window away.
     await act(async () => {
       await vi.advanceTimersByTimeAsync(DISPLAY_REFRESH_INTERVAL_MS);
     });
-    const afterTrailing = renderCountFor('COMI');
-    expect(afterTrailing).toBe(afterLeading + 1);
+    expect(renderCountFor('COMI')).toBe(before + 1);
 
-    // The trailing paint shows the *latest* tick of the burst, never a mid-burst value.
+    // The beat shows the *latest* tick of the burst, never a mid-burst value.
     const comiRow = screen.getAllByRole('row').find((candidate) => candidate.getAttribute('data-symbol') === 'COMI');
     expect(comiRow?.textContent).toContain('85.19');
   });

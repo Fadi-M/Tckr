@@ -48,7 +48,7 @@
  * ---------------------------------------------------------------------------------
  * This page used to render a closed badge next to the symbol identity and pass a
  * `marketOpen` boolean into `PriceChart`. Both are gone as of this redesign (the page
- * still reads `useMarketStatus`, but only to pick the chart's initial range) — a deliberate product decision, not an
+ * still reads `useMarketStatus`, but only to describe the chart ranges and the as-of line) — a deliberate product decision, not an
  * oversight, matching the design import (which has no such indicator anywhere on the
  * detail screen). Product has signed off on this removal. This creates a known,
  * accepted asymmetry with `StockList.tsx`, whose `MarketClosedBanner` is unchanged —
@@ -67,18 +67,22 @@ import { compare, percentChange, subtract, toDecimal, type DecimalString } from 
 import { formatCairoClock, formatCairoDateShort } from '../data/marketCalendar.ts';
 import { describeRange, pointsInRange, RANGE_KEYS, type RangeKey } from './chartRanges.ts';
 import { DETAIL_HEADING_ID } from './pageAnchors.ts';
+import { closestInstruments } from './closestInstruments.ts';
+import { symbolPath } from './routes.ts';
 import type { Snapshot, SymbolDefinition } from '../contracts/rest.ts';
 import type { IsoUtc, Stream, Tick } from '../contracts/messages.ts';
 import { DELTA_TONE_CLASSES } from '../components/deltaTone.ts';
-import { CloseIcon } from '../components/icons.tsx';
+import { ArrowLeftIcon, CloseIcon } from '../components/icons.tsx';
 import { PriceCell } from '../components/PriceCell.tsx';
+import { TickingText } from '../components/RollingText.tsx';
 import { streamDelay } from '../components/streamDelay.ts';
 import { useMarketStatus } from '../components/useMarketStatus.ts';
 import { isHeld, useConnectionState } from '../components/useConnectionState.ts';
 import { HeldTag } from '../components/HeldTag.tsx';
 import { useViewTransitionNavigate } from '../components/useViewTransitionNavigate.ts';
 import { PriceChart, type ChartHistoryPoint } from '../chart/PriceChart.tsx';
-import { createThrottle, DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
+import { flushPacedSymbol, subscribeBeat } from '../display/pacedViews.ts';
+import { formatPercentFigure } from '../display/percent.ts';
 
 /* Card/stat glass values below are taken directly from the design import
    ("Tckr.MarketWatch Frosted Glass Revamp/Tckr Market Watch.dc.html") rather than
@@ -106,14 +110,6 @@ import { createThrottle, DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle
 
 const ZERO_DECIMAL = toDecimal('0');
 const FALLBACK_TICK_SIZE = toDecimal('0.01');
-
-/** Signed, 2-decimal percentage text (e.g. "+1.24", "-0.30", "0.00"). Uses
- * `Intl.NumberFormat` rather than any float-parsing/rounding global. */
-const percentFormatter = new Intl.NumberFormat('en-US', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-  signDisplay: 'exceptZero',
-});
 
 /** The exchange's own Cairo market time (EGX), regardless of the viewer's own
  * timezone — never local receipt time, and never UTC either (an earlier revision of
@@ -143,7 +139,8 @@ function deltaDirection(change: DecimalString): 'up' | 'down' | null {
 // property (a neutral-state `bg-surface-raised` and an up/down `bg-[color-mix(...)]`
 // both present on one element would leave Tailwind's generated-CSS source order,
 // not the className string's order, deciding which background wins).
-const DELTA_PILL_BASE_CLASSES = 'inline-flex items-center font-mono text-body font-semibold py-1.5 px-3 rounded-full tabular-nums';
+const DELTA_PILL_BASE_CLASSES =
+  'inline-flex items-center font-mono text-body font-semibold py-1.5 px-3 rounded-full tabular-nums [transition:background-color_600ms_var(--tckr-ease-out),color_600ms_var(--tckr-ease-out)]';
 
 /** Full className for the Change/Change% pill — base layout classes plus whichever
  * colour variant `deltaDirection` selects (falling back to the neutral/zero-change
@@ -163,11 +160,93 @@ function deltaGlyph(change: DecimalString): JSX.Element | null {
 }
 
 /** One of the session figures under the detail card: a tracked label over a value. */
-function StatTile({ label, children }: { label: string; children: ReactNode }) {
+/** The session's move from its own open, under the Open tile: the page's headline Change
+ * is from the previous close (EGX convention), and this is the other number a trader
+ * asks for — how today has gone since the bell. Sign and ▲/▼ carry the direction, the
+ * tone colours it. */
+function SinceOpen({ open, price }: { open: DecimalString; price: DecimalString }): JSX.Element {
+  const move = subtract(price, open);
+  const direction = compare(move, ZERO_DECIMAL);
+  const tone = direction > 0 ? 'text-up' : direction < 0 ? 'text-down' : 'text-text-muted';
+  const glyph = direction > 0 ? '▲ ' : direction < 0 ? '▼ ' : '';
+  return (
+    <span className={tone}>
+      {glyph}
+      {formatPercentFigure(percentChange(open, price))}% since open
+    </span>
+  );
+}
+
+const RANGE_STORAGE_KEY = 'tckr.chartRange';
+
+/** The chart range the viewer last chose, else SESSION. Browser storage is a per-viewer
+ * convenience here and can be missing or throw (private mode, blocked storage). */
+function storedRange(): RangeKey {
+  try {
+    const stored = window.localStorage.getItem(RANGE_STORAGE_KEY);
+    return RANGE_KEYS.find((key) => key === stored) ?? 'SESSION';
+  } catch {
+    return 'SESSION';
+  }
+}
+
+function storeRange(key: RangeKey): void {
+  try {
+    window.localStorage.setItem(RANGE_STORAGE_KEY, key);
+  } catch {
+    // Not remembered; the choice still applies to this page.
+  }
+}
+
+/** The chart's height. Side by side with the board (desktop), the detail column is the
+ * viewport's height and the chart takes what the header, figures and stat tiles leave,
+ * between 340 and 600px, instead of sitting at 340 above empty glass. Stacked (phones,
+ * narrow windows) the page scrolls, so it keeps 340. */
+const CHART_MIN_HEIGHT = 340;
+const CHART_MAX_HEIGHT = 600;
+/** Everything in the viewport that isn't the chart, beside the board: the app header,
+ * the price panel's own rows and padding, the stat tiles and the gaps between them. */
+const CHART_CHROME_HEIGHT = 380;
+const SPLIT_QUERY = '(min-width: 801px)';
+
+function chartHeightFor(viewportHeight: number, split: boolean): number {
+  if (!split) {
+    return CHART_MIN_HEIGHT;
+  }
+  return Math.round(Math.min(CHART_MAX_HEIGHT, Math.max(CHART_MIN_HEIGHT, viewportHeight - CHART_CHROME_HEIGHT)));
+}
+
+function useChartHeight(): number {
+  const read = (): number =>
+    typeof window.matchMedia === 'function'
+      ? chartHeightFor(window.innerHeight, window.matchMedia(SPLIT_QUERY).matches)
+      : CHART_MIN_HEIGHT;
+  const [height, setHeight] = useState(read);
+  useEffect(() => {
+    const update = (): void => setHeight(read());
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return height;
+}
+
+/** A session figure the page doesn't have yet. Never the current price standing in for
+ * it: an Open, High or Low that is really the last trade is a made-up number. */
+function NoFigure(): JSX.Element {
+  return (
+    <span className="text-text-muted" aria-label="not available yet">
+      —
+    </span>
+  );
+}
+
+function StatTile({ label, children, note }: { label: string; children: ReactNode; note?: ReactNode }) {
   return (
     <div className="bg-glass-stat border border-glass-border-stat backdrop-blur-[20px] rounded-2xl py-[13px] px-[15px] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
       <span className="block font-mono text-label tracking-[0.14em] uppercase text-text-muted">{label}</span>
       <span className="block mt-[5px] font-mono text-title font-semibold tabular-nums">{children}</span>
+      {note ? <span className="block mt-1 font-mono text-caption tabular-nums text-text-muted">{note}</span> : null}
     </div>
   );
 }
@@ -202,7 +281,7 @@ function deltaClassName(change: DecimalString): string {
 // re-declared explicitly here instead (mirrors `ThemeToggle`'s own `all: unset`
 // conversion elsewhere in this migration).
 const RANGE_PILL_BASE_CLASSES =
-  'appearance-none cursor-pointer font-mono text-caption font-semibold py-[7px] px-3.5 rounded-full border outline-none focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2';
+  'appearance-none cursor-pointer font-mono text-caption font-semibold py-[7px] px-3.5 rounded-full border outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-accent focus-visible:outline-offset-2';
 const RANGE_PILL_VARIANT_CLASSES = {
   active: 'bg-text text-surface border-text',
   inactive: 'bg-surface-raised text-text-muted border-border',
@@ -228,16 +307,28 @@ interface DetailQuote {
 
 interface OhlcExtras {
   readonly open: DecimalString;
+  /** What Change is measured from: the previous close when the snapshot carries it
+   * (`Snapshot.previousClose`, EGX convention), else the session open. */
+  readonly baseline: DecimalString;
+  readonly baselineIsPreviousClose: boolean;
   readonly high: DecimalString;
   readonly low: DecimalString;
   readonly exchangeTimestamp: IsoUtc;
 }
 
+/** The change baseline a snapshot implies — see `OhlcExtras.baseline`. */
+function snapshotBaseline(snapshot: Snapshot): DecimalString {
+  return snapshot.previousClose ?? snapshot.open;
+}
+
 function quoteFromSnapshot(snapshot: Snapshot): DetailQuote {
+  // Recomputed from the baseline rather than taken from `snapshot.change`, which the
+  // contract defines as "since the open".
+  const baseline = snapshotBaseline(snapshot);
   return {
     price: snapshot.price,
-    change: snapshot.change,
-    changePercentText: snapshot.changePercent,
+    change: subtract(snapshot.price, baseline),
+    changePercentText: formatPercentFigure(percentChange(baseline, snapshot.price)),
     volume: snapshot.volume,
     exchangeTimestamp: snapshot.exchangeTimestamp,
     stream: snapshot.stream,
@@ -269,7 +360,7 @@ function mergeTickIntoQuote(
   }
   const effectiveBaseline = baseline ?? tick.p;
   const change = subtract(tick.p, effectiveBaseline);
-  const changePercentText = percentFormatter.format(percentChange(effectiveBaseline, tick.p));
+  const changePercentText = formatPercentFigure(percentChange(effectiveBaseline, tick.p));
   return {
     price: tick.p,
     change,
@@ -281,6 +372,10 @@ function mergeTickIntoQuote(
 }
 
 type Phase = 'loading' | 'ready' | 'not-found';
+
+/** The detail panel's glass — the price panel, and the not-found state in its place. */
+const DETAIL_PANEL_CLASS =
+  'relative flex flex-col py-[22px] px-6 rounded-[22px] bg-glass-card border border-glass-border-card backdrop-blur-[26px] backdrop-saturate-[160%] shadow-float animate-detail-reveal motion-reduce:animate-none reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none';
 
 /** The price panel's edge while the stream is held — the board card's amber treatment. */
 const DETAIL_HELD_EDGE =
@@ -305,21 +400,27 @@ export function StockDetail({ symbol }: { symbol: string }) {
   // they open next (same reasoning as `sortState` surviving a search on the list
   // page).
   //
-  // The *initial* range depends on the session: during continuous trading the last 60
-  // seconds is the interesting window, but outside it (closed, pre-open) that window
-  // is empty or flat — a "2 ticks" line that reads as a dead feed — so the chart opens
-  // on the whole completed SESSION instead.
+  // The first range is the whole SESSION, open or closed: opening a symbol asks "how is
+  // today going", and 60S at a 10s beat is six points of zig-zag. Whatever range the
+  // user picks is remembered for the next symbol and the next visit (`storedRange`).
   const marketStatus = useMarketStatus();
   // The pane sticks beside the board, often long after the page's connection banner has
   // scrolled away, so it marks held prices itself (see `useConnectionState`).
   const held = isHeld(useConnectionState().state);
   const closeDetail = useViewTransitionNavigate();
-  const [range, setRange] = useState<RangeKey>(() => (marketStatus.state === 'open' ? '60S' : 'SESSION'));
+  const [range, setRangeState] = useState<RangeKey>(storedRange);
+  const setRange = (key: RangeKey): void => {
+    setRangeState(key);
+    storeRange(key);
+  };
+  const chartHeight = useChartHeight();
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [quote, setQuote] = useState<DetailQuote | undefined>(undefined);
   const [extras, setExtras] = useState<OhlcExtras | undefined>(undefined);
   const [universeDef, setUniverseDef] = useState<SymbolDefinition | undefined>(undefined);
+  // "Did you mean" for a symbol that isn't in the universe, once the universe is known.
+  const [suggestions, setSuggestions] = useState<readonly SymbolDefinition[]>([]);
   // `undefined` while the session-history fetch is in flight; an array (possibly empty)
   // once it has settled, one way or another. `PriceChart` is only ever rendered once
   // this is an array — see the render below — so a given `PriceChart` instance always
@@ -400,7 +501,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
       if (cancelled || snapshot.symbol !== symbol || phaseRef.current === 'not-found') {
         return;
       }
-      baselineRef.current = snapshot.open;
+      baselineRef.current = snapshotBaseline(snapshot);
       // The snapshot's `volume` is the new absolute baseline; anything accumulated
       // before it is now folded into that baseline, so the running accumulator restarts.
       volumeBaselineRef.current = snapshot.volume;
@@ -411,6 +512,8 @@ export function StockDetail({ symbol }: { symbol: string }) {
         }
         return {
           open: snapshot.open,
+          baseline: snapshotBaseline(snapshot),
+          baselineIsPreviousClose: snapshot.previousClose !== undefined,
           high: snapshot.high,
           low: snapshot.low,
           exchangeTimestamp: snapshot.exchangeTimestamp,
@@ -434,11 +537,27 @@ export function StockDetail({ symbol }: { symbol: string }) {
     // cadence as the list page — see `src/display/throttle.ts`. The queued-tick-before-
     // ready path above is intentionally NOT throttled: that one tick is a correctness
     // path (paint it the moment the snapshot renders), not a live-streaming burst.
-    const throttledApplyTick = createThrottle((tick: Tick) => {
+    //
+    // The paint waits for the page's one beat (`subscribeBeat`, `src/display/
+    // pacedViews.ts`) rather than a throttle of its own, so this header, the symbol's
+    // board row and the board's order all change in the same commit; a leading-edge
+    // throttle here used to repaint the header mid-beat, ahead of its own row.
+    let pendingTick: Tick | undefined;
+    const throttledApplyTick = (tick: Tick): void => {
+      if (!pendingTick || tick.t >= pendingTick.t) {
+        pendingTick = tick;
+      }
+    };
+    const unsubBeat = subscribeBeat(() => {
+      const tick = pendingTick;
+      if (!tick || cancelled) {
+        return;
+      }
+      pendingTick = undefined;
       setQuote((prev) =>
         mergeTickIntoQuote(prev, tick, baselineRef.current, volumeBaselineRef.current + volumeSinceBaselineRef.current),
       );
-    }, DISPLAY_REFRESH_INTERVAL_MS);
+    });
 
     const unsubSnapshotPush = source.on.snapshot(ingestSnapshot);
     const unsubTick = source.on.tick((tick) => {
@@ -477,6 +596,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
       // which `phase === 'loading' || !quote`'s existing "Loading…" branch already
       // renders correctly while that state is cleared.
       queuedTickRef.current = undefined;
+      pendingTick = undefined;
       baselineRef.current = undefined;
       volumeBaselineRef.current = 0;
       volumeSinceBaselineRef.current = 0;
@@ -525,6 +645,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
         }
         const def = universe.symbols.find((candidate) => candidate.symbol === symbol);
         if (!def) {
+          setSuggestions(closestInstruments(symbol, universe.symbols));
           markNotFound();
           return;
         }
@@ -537,7 +658,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
 
     return () => {
       cancelled = true;
-      throttledApplyTick.cancel();
+      unsubBeat();
       unsubSnapshotPush();
       unsubTick();
       unsubError();
@@ -568,6 +689,26 @@ export function StockDetail({ symbol }: { symbol: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, symbol]);
 
+  // Opening a symbol shows its latest (snapshot, a queued tick, then the throttle's
+  // leading edge), not the board's last beat; its board row and highlight card catch up
+  // to each quote this pane commits instead of showing the previous beat beside it
+  // (`src/display/pacedViews.ts`). Two frames later, so `TickDispatcher`'s per-frame
+  // store write for the same tick has landed. On a beat the row is already there, so
+  // this is a no-op.
+  useEffect(() => {
+    if (phase !== 'ready' || !quote) {
+      return undefined;
+    }
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => flushPacedSymbol(symbol));
+    });
+    return () => {
+      cancelAnimationFrame(outer);
+      cancelAnimationFrame(inner);
+    };
+  }, [phase, quote, symbol]);
+
   // The exact value `PriceChart` samples for its live point — see this file's module
   // doc for why this must be the same value as the header, not an independent read of
   // the store. Depending on `quote`'s own identity (not its individual fields) is safe
@@ -597,10 +738,38 @@ export function StockDetail({ symbol }: { symbol: string }) {
 
   if (phase === 'not-found') {
     return (
-      <div className="flex flex-col gap-3 text-text" data-testid="stock-detail-not-found">
-        <p>&ldquo;{symbol}&rdquo; is not a symbol in the tradeable universe.</p>
-        <p>
-          <Link to="/">← back to the list</Link>
+      <div className={`${DETAIL_PANEL_CLASS} gap-3 text-text`} data-testid="stock-detail-not-found">
+        <h2 id={DETAIL_HEADING_ID} tabIndex={-1} className="font-semibold text-title outline-none">
+          No EGX instrument called &ldquo;<span className="font-mono">{symbol}</span>&rdquo;
+        </h2>
+        {suggestions.length > 0 ? (
+          <>
+            <p className="text-small text-text-muted">Did you mean</p>
+            <div className="flex gap-2 flex-wrap">
+              {suggestions.map((def) => (
+                <Link
+                  key={def.symbol}
+                  to={symbolPath(def.symbol)}
+                  className="inline-flex items-baseline gap-2 rounded-[7px] border border-border px-3.5 py-2 text-caption no-underline text-text fine-hover:bg-[color-mix(in_oklab,var(--tckr-color-text)_6%,transparent)] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-accent focus-visible:outline-offset-2 active:scale-[0.96] [transition:background-color_150ms_ease,transform_120ms_ease-out]"
+                >
+                  <span className="font-mono font-semibold">{def.symbol}</span>
+                  <span className="text-text-muted">{def.name}</span>
+                </Link>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="text-small text-text-muted">Check the ticker, or find it on the board.</p>
+        )}
+        {/* Phones already have "All instruments" in the row above the pane. */}
+        <p className="max-[800px]:hidden">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-caption text-text-muted no-underline fine-hover:text-text focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-accent focus-visible:outline-offset-2 rounded-[4px]"
+          >
+            <ArrowLeftIcon size={14} />
+            All instruments
+          </Link>
         </p>
       </div>
     );
@@ -612,7 +781,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
   return (
     <div className="flex flex-col gap-3">
       <div
-        className={`relative flex flex-col gap-4 py-[22px] px-6 rounded-[22px] bg-glass-card border border-glass-border-card backdrop-blur-[26px] backdrop-saturate-[160%] shadow-float animate-detail-reveal motion-reduce:animate-none reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none [transition:border-color_250ms_ease,outline-color_250ms_ease]${held ? ` ${DETAIL_HELD_EDGE}` : ''}`}
+        className={`${DETAIL_PANEL_CLASS} gap-4 [transition:border-color_250ms_ease,outline-color_250ms_ease]${held ? ` ${DETAIL_HELD_EDGE}` : ''}`}
         data-held={held || undefined}
       >
         <div className="flex items-start justify-between gap-5 flex-wrap">
@@ -655,7 +824,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
                       <PriceCell value={quote.change} sign flashGlyph={false} />
                     </span>
                     <span className={deltaClassName(quote.change)} data-testid="stock-detail-change-percent">
-                      {quote.changePercentText}%
+                      <TickingText text={`${quote.changePercentText}%`} direction={deltaDirection(quote.change) ?? 'up'} />
                     </span>
                   </span>
                 </div>
@@ -723,11 +892,13 @@ export function StockDetail({ symbol }: { symbol: string }) {
             history={rangedHistory}
             livePrice={livePrice}
             rangeLabel={chartRange.label}
-            // Change on this page is measured from the session open, so that is the
-            // line a move is read against. SESSION only: on the 60S/5M windows the
-            // open can sit far outside the recent range and would flatten the line.
-            referencePrice={range === 'SESSION' ? extras?.open : undefined}
-            referenceLabel="Open"
+            height={chartHeight}
+            // Change on this page is measured from the previous close (else the open),
+            // so that is the line a move is read against. SESSION only: on the 60S/5M
+            // windows it can sit far outside the recent range and would flatten the line.
+            referencePrice={range === 'SESSION' ? extras?.baseline : undefined}
+            referenceLabel={extras?.baselineIsPreviousClose === false ? 'Open' : 'Prev'}
+            referenceDescription={extras?.baselineIsPreviousClose === false ? 'open' : 'previous close'}
             // Same up/down/unchanged the Change pills show: green, red, or ink.
             direction={quote ? deltaDirection(quote.change) : null}
           />
@@ -740,14 +911,14 @@ export function StockDetail({ symbol }: { symbol: string }) {
           data-testid="stock-detail-footer"
         >
           <div className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2.5">
-            <StatTile label="Open">
-              <PriceCell value={extras?.open ?? quote.price} flashGlyph={false} />
+            <StatTile label="Open" note={extras?.baselineIsPreviousClose ? <SinceOpen open={extras.open} price={quote.price} /> : undefined}>
+              {extras ? <PriceCell value={extras.open} flashGlyph={false} /> : <NoFigure />}
             </StatTile>
             <StatTile label="High">
-              <PriceCell value={extras?.high ?? quote.price} flashGlyph={false} />
+              {extras ? <PriceCell value={extras.high} flashGlyph={false} /> : <NoFigure />}
             </StatTile>
             <StatTile label="Low">
-              <PriceCell value={extras?.low ?? quote.price} flashGlyph={false} />
+              {extras ? <PriceCell value={extras.low} flashGlyph={false} /> : <NoFigure />}
             </StatTile>
             <StatTile label="Volume">{new Intl.NumberFormat('en-US').format(quote.volume)}</StatTile>
           </div>

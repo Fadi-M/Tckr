@@ -11,6 +11,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { toDecimal } from '../../contracts/decimal.ts';
 import type { IsoUtc } from '../../contracts/messages.ts';
 import { applyTick, primeUniverse, resetStore } from '../../data/store.ts';
+import { beatNowForTests } from '../../display/pacedViews.ts';
 import { loadUniverseFixture, makeFakeSource, tickFixture } from './testSupport.ts';
 
 const { mockGetSharedSource } = vi.hoisted(() => ({ mockGetSharedSource: vi.fn() }));
@@ -49,8 +50,6 @@ describe('StockList table precision', () => {
     for (const label of ['Price', 'Change', 'Change %', 'Volume', 'Value EGP']) {
       expect(header(label).className).toContain('text-right');
     }
-    // (Last update is live-only, so whether it renders depends on the clock; its
-    // alignment is covered in StockList.market-closed.test.tsx.)
     for (const label of ['Symbol', 'Name']) {
       expect(header(label).className).toContain('text-left');
     }
@@ -61,6 +60,7 @@ describe('StockList table precision', () => {
     // COMI's reference price is 85.10; 85.104 is +0.0047%, which rounds to 0.00%.
     act(() => {
       applyTick(tickFixture({ s: 'COMI', p: toDecimal('85.104') }));
+      beatNowForTests();
     });
     const row = screen.getByRole('row', { name: /^COMI, 85\.104, unchanged 0\.00%, change \+0\.00, volume [\d,]+$/ });
     const chip = Array.from(row.querySelectorAll('span')).find((el) => el.textContent === '0.00%');

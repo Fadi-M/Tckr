@@ -145,6 +145,9 @@ export interface PriceChartProps {
   readonly referencePrice?: DecimalString | undefined;
   /** Label for the reference line's tag, e.g. `'Open'`. */
   readonly referenceLabel?: string;
+  /** How the reference is named in the chart's accessible name (the tag's label can be
+   * abbreviated to fit the axis, e.g. "Prev"). Defaults to `referenceLabel`. */
+  readonly referenceDescription?: string;
   /**
    * The session's direction (the sign of the page's Change, i.e. last price vs. open):
    * colours the line, its area fill, the last-price tag and the cursor dot — Exchange Green up, Brick
@@ -176,6 +179,16 @@ const LINE_TOKEN: Record<LineDirection, string> = {
 const DEFAULT_CAPACITY = 4200;
 const DEFAULT_HEIGHT = 340;
 const DEFAULT_WIDTH = 400;
+/** How long a new sample takes to draw in, and the ring its landing plays on the
+ * line's end. Long enough to read as travel, short against the 10s cadence. */
+const LANDING_TWEEN_MS = 720;
+const LANDING_RING_MS = 1100;
+/** `--tckr-ease-out`, for the Web Animations on the line's end. */
+const EASE_OUT = 'cubic-bezier(0.23, 1, 0.32, 1)';
+/** How long after a wall-clock paint slot opens the chart samples, so it reads the
+ * price the header has just painted rather than the one before it. */
+const SAMPLE_AFTER_PAINT_MS = 120;
+
 /** Below this plot width the line draws finer (see the series `width`). */
 const NARROW_PLOT_PX = 480;
 // Axis labels are canvas text, so the font is spelled out rather than inherited; the
@@ -290,12 +303,15 @@ export function PriceChart({
   rangeLabel = 'Session',
   referencePrice,
   referenceLabel = 'Open',
+  referenceDescription,
   direction,
 }: PriceChartProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const colorsRef = useRef<ChartColors | null>(null);
   const plotRef = useRef<uPlot | null>(null);
   const bufferRef = useRef<RingBuffer | null>(null);
+  /** Stops a new sample mid-draw-in (see `sampleAndDraw`); set by the mount effect. */
+  const settleRef = useRef<(() => void) | null>(null);
 
   // Read via refs inside the mount effect (below) rather than as effect dependencies:
   // per the brief, only a `symbol` change may recreate the uPlot instance. tickSize,
@@ -412,8 +428,9 @@ export function PriceChart({
         readout.hidden = true;
         return;
       }
-      readoutTime.textContent = formatClockTime(t);
-      readoutPrice.textContent = formatYAxisLabel(v, tickSizeRef.current);
+      const inFlight = landing !== null && idx === (u.data[0]?.length ?? 0) - 1;
+      readoutTime.textContent = formatClockTime(inFlight ? landing!.t : t);
+      readoutPrice.textContent = formatYAxisLabel(inFlight ? landing!.v : v, tickSizeRef.current);
       readout.hidden = false;
       const plotWidth = u.over.clientWidth;
       const halfWidth = readout.offsetWidth / 2;
@@ -426,9 +443,31 @@ export function PriceChart({
       readout.style.transform = 'translateX(-50%)';
     };
 
+    // While a new sample is drawing in (see `sampleAndDraw`), the plotted last point is
+    // in flight between the previous price and the new one. Only its position is in
+    // flight: every number shown as text (the last-price tag, the readout) reads the
+    // real sample from here, so the chart never prints a price that was not traded.
+    let landing: { t: number; v: number } | null = null;
+
+    // The line's live end: a dot in the line colour that rides the last point, and
+    // rings once when a new price lands on it.
+    const head = document.createElement('span');
+    head.setAttribute('aria-hidden', 'true');
+    head.dataset.testid = 'price-chart-head';
+    head.hidden = true;
+    head.className =
+      'absolute size-[7px] -translate-1/2 rounded-full bg-[var(--tckr-chart-line)] shadow-[0_0_0_2px_var(--tckr-color-surface)] pointer-events-none';
+    const headRing = document.createElement('span');
+    headRing.className = 'absolute inset-0 rounded-full bg-[var(--tckr-chart-line)] opacity-0';
+    head.append(headRing);
+
     const lastValue = (u: uPlot): number | null => {
       const values = u.data[1] ?? [];
       return values.length > 0 ? (values[values.length - 1] ?? null) : null;
+    };
+    const lastTime = (u: uPlot): number | null => {
+      const times = u.data[0] ?? [];
+      return times.length > 0 ? (times[times.length - 1] ?? null) : null;
     };
     const tagPositions = (u: uPlot): { last: number | null; ref: number | null } => {
       const last = lastValue(u);
@@ -443,8 +482,16 @@ export function PriceChart({
         lastTag.hidden = true;
       } else {
         lastTag.hidden = false;
-        lastTag.textContent = formatYAxisLabel(last, tickSizeRef.current);
+        lastTag.textContent = formatYAxisLabel(landing?.v ?? last, tickSizeRef.current);
         lastTag.style.top = `${positions.last}px`;
+      }
+      const headT = lastTime(u);
+      if (last === null || headT === null || positions.last === null) {
+        head.hidden = true;
+      } else {
+        head.hidden = false;
+        head.style.left = `${u.valToPos(headT, 'x')}px`;
+        head.style.top = `${u.valToPos(last, 'y')}px`;
       }
 
       const ref = referencePriceRef.current;
@@ -523,6 +570,11 @@ export function PriceChart({
             ticks: { show: false },
             values: (u, splits) => {
               const { last, ref } = tagPositions(u);
+              // On a narrow plot the two tags already give the scale two exact anchors;
+              // axis labels between them only crowd a ~90px strip of a ~250px chart.
+              if (last !== null && ref !== null && u.bbox.width / uPlot.pxRatio < NARROW_PLOT_PX) {
+                return splits.map(() => '');
+              }
               return splits.map((v) =>
                 isUnderAxisTag(u.valToPos(v, 'y'), [last, ref]) ? '' : formatYAxisLabel(v, tickSizeRef.current),
               );
@@ -542,7 +594,7 @@ export function PriceChart({
       container,
     );
     plotRef.current = plot;
-    plot.over.append(lastTag, referenceTag, readout);
+    plot.over.append(head, lastTag, referenceTag, readout);
 
     // Seed the buffer with the full session history *before* anything live — `history`
     // is fetched once by the parent page (task 06) and gates this component's own
@@ -615,6 +667,31 @@ export function PriceChart({
       recomputeStats(current);
     };
 
+    let tweenFrame = 0;
+    const settle = (): void => {
+      if (tweenFrame !== 0) {
+        cancelAnimationFrame(tweenFrame);
+        tweenFrame = 0;
+      }
+      landing = null;
+    };
+    settleRef.current = settle;
+
+    const ringHead = (direction: 1 | -1): void => {
+      headRing.animate(
+        [
+          { opacity: 0.45, transform: 'scale(1)' },
+          { opacity: 0, transform: 'scale(3.6)' },
+        ],
+        { duration: LANDING_RING_MS, easing: EASE_OUT },
+      );
+      head.animate(
+        // `transform` composes with the dot's own centring `translate`.
+        [{ transform: `translateY(${direction * -3}px) scale(1.35)` }, { transform: 'none' }],
+        { duration: LANDING_TWEEN_MS, easing: EASE_OUT },
+      );
+    };
+
     // Takes exactly one sample of `livePriceRef`'s *current* value and appends it —
     // never a queue of every notification since the last sample (see module doc for
     // why: a bounded buffer sized for "N recent samples" cannot also hold "every raw
@@ -623,23 +700,117 @@ export function PriceChart({
     // otherwise capture stale) is what guarantees this always sees whatever
     // `StockDetail` is *currently* displaying, no matter when this interval happens to
     // fire relative to that page's own render/throttle cadence.
-    function sampleLatest(): void {
+    //
+    // The new sample then draws in rather than appearing: over `LANDING_TWEEN_MS` the
+    // line's end travels from the previous sample to the new one while both axes glide
+    // from the range they show to the range that fits the new data, so the line extends
+    // and the frame eases around it, instead of the whole plot being re-drawn at a new
+    // scale in one frame. The point that falls off a full buffer rides out past the
+    // left edge on the same glide. Every frame is plain uPlot data and scales; the real
+    // buffer is committed (and auto-ranged, exactly as before) once it lands.
+    function sampleAndDraw(): void {
       const view = livePriceRef.current;
-      if (!view) {
+      const activePlot = plotRef.current;
+      if (!activePlot) {
         return;
       }
-      buffer.push(view.t, toPlotValue(view.p));
+      settle();
+      if (!view) {
+        redraw();
+        return;
+      }
+      const n = buffer.length;
+      const { min: x0Min, max: x0Max } = activePlot.scales?.x ?? {};
+      const { min: y0Min, max: y0Max } = activePlot.scales?.y ?? {};
+      const canTween =
+        n > 0 &&
+        typeof requestAnimationFrame === 'function' &&
+        typeof window.matchMedia === 'function' &&
+        !window.matchMedia('(prefers-reduced-motion: reduce)').matches &&
+        document.visibilityState === 'visible' &&
+        x0Min != null &&
+        x0Max != null &&
+        y0Min != null &&
+        y0Max != null;
+
+      // The plotted series as it stands (before the push, which may evict the oldest).
+      const fromTimes = canTween ? buffer.times.slice(0, n) : null;
+      const fromValues = canTween ? buffer.values.slice(0, n) : null;
+
+      const t1 = view.t;
+      const v1 = toPlotValue(view.p);
+      buffer.push(t1, v1);
+
+      if (!canTween || !fromTimes || !fromValues || x0Min == null || x0Max == null || y0Min == null || y0Max == null) {
+        redraw();
+        return;
+      }
+      recomputeStats(buffer);
+
+      const count = buffer.length;
+      let lo = Infinity;
+      let hi = -Infinity;
+      for (let i = 0; i < count; i++) {
+        const v = buffer.values[i]!;
+        if (v < lo) lo = v;
+        if (v > hi) hi = v;
+      }
+      const [toYMin, toYMax] = chartYRange(lo, hi, referenceValue(), toPlotValue(tickSizeRef.current));
+      const toXMin = buffer.times[0]!;
+      const toXMax = buffer.times[count - 1]!;
+      const x0 = [x0Min, x0Max] as const;
+      const y0 = [y0Min, y0Max] as const;
+      const t0 = fromTimes[n - 1]!;
+      const v0 = fromValues[n - 1]!;
+
+      const times = new Float64Array(n + 1);
+      const values = new Float64Array(n + 1);
+      times.set(fromTimes);
+      values.set(fromValues);
+      landing = { t: t1, v: v1 };
+
+      const started = performance.now();
+      const step = (now: number): void => {
+        const p = Math.min(1, (now - started) / LANDING_TWEEN_MS);
+        const e = 1 - Math.pow(1 - p, 4);
+        const lerp = (a: number, b: number): number => a + (b - a) * e;
+        if (p >= 1) {
+          tweenFrame = 0;
+          landing = null;
+          redraw();
+          if (v1 !== v0) {
+            ringHead(v1 > v0 ? 1 : -1);
+          }
+          return;
+        }
+        times[n] = lerp(t0, t1);
+        values[n] = lerp(v0, v1);
+        activePlot.batch(() => {
+          activePlot.setData([times, values], false);
+          activePlot.setScale('x', { min: lerp(x0[0], toXMin), max: lerp(x0[1], toXMax) });
+          activePlot.setScale('y', { min: lerp(y0[0], toYMin), max: lerp(y0[1], toYMax) });
+        });
+        tweenFrame = requestAnimationFrame(step);
+      };
+      tweenFrame = requestAnimationFrame(step);
     }
 
     // The chart already painted once, synchronously, from `history`/`seed` above. From
     // here on it takes one fresh sample and repaints on a fixed cadence — never on tick
     // arrival — so the line only ever grows, in the same, predictable 10s steps as
     // every other visible price on the page, no matter how bursty the underlying tape
-    // is.
-    const intervalId = setInterval(() => {
-      sampleLatest();
-      redraw();
-    }, DISPLAY_REFRESH_INTERVAL_MS);
+    // is. The cadence is phased to the page's wall-clock paint slots
+    // (`src/display/throttle.ts`), a beat after the header repaints, so the header's
+    // price changing and the line reaching it read as one event, not two.
+    let intervalId: ReturnType<typeof setInterval> | undefined;
+    const now = Date.now();
+    const toPhase =
+      ((SAMPLE_AFTER_PAINT_MS - (now % DISPLAY_REFRESH_INTERVAL_MS)) % DISPLAY_REFRESH_INTERVAL_MS + DISPLAY_REFRESH_INTERVAL_MS) %
+        DISPLAY_REFRESH_INTERVAL_MS || DISPLAY_REFRESH_INTERVAL_MS;
+    const phaseId = setTimeout(() => {
+      sampleAndDraw();
+      intervalId = setInterval(sampleAndDraw, DISPLAY_REFRESH_INTERVAL_MS);
+    }, toPhase);
 
     let resizeObserver: ResizeObserver | undefined;
     if (typeof ResizeObserver !== 'undefined') {
@@ -658,7 +829,10 @@ export function PriceChart({
 
     return () => {
       resizeObserver?.disconnect();
+      clearTimeout(phaseId);
       clearInterval(intervalId);
+      settle();
+      settleRef.current = null;
       plot.destroy();
       plotRef.current = null;
       bufferRef.current = null;
@@ -737,6 +911,7 @@ export function PriceChart({
       if (!buffer) {
         return;
       }
+      settleRef.current?.();
       buffer.clear();
       // `resetScales` left at its default (`true`) — see the `redraw()` function's
       // comment above for why a blanket `false` here previously froze the y-axis at a
@@ -773,7 +948,7 @@ export function PriceChart({
           // the chart's substance, not just its existence.
           aria-label={
             stats
-              ? `Price chart for ${symbol}, ${rangeLabel}: high ${formatYAxisLabel(stats.high, tickSize)}, low ${formatYAxisLabel(stats.low, tickSize)}${referencePrice === undefined ? '' : `, ${referenceLabel.toLowerCase()} ${format(referencePrice, { decimals: decimalsForTickSize(tickSize) })}`}`
+              ? `Price chart for ${symbol}, ${rangeLabel}: high ${formatYAxisLabel(stats.high, tickSize)}, low ${formatYAxisLabel(stats.low, tickSize)}${referencePrice === undefined ? '' : `, ${(referenceDescription ?? referenceLabel).toLowerCase()} ${format(referencePrice, { decimals: decimalsForTickSize(tickSize) })}`}`
               : `Price chart for ${symbol}, waiting for ticks`
           }
         />

@@ -29,7 +29,14 @@ import { runViewTransition } from './viewTransition.ts';
 
 const COMMIT_TIMEOUT_MS = 400;
 
-export function useViewTransitionNavigate(): (to: string) => void {
+/** `replace` swaps the current history entry instead of adding one — for navigation that
+ * follows focus (arrowing through the board with a symbol open), where Back should leave
+ * the pane, not replay every symbol passed through. */
+export interface ViewTransitionNavigateOptions {
+  readonly replace?: boolean;
+}
+
+export function useViewTransitionNavigate(): (to: string, options?: ViewTransitionNavigateOptions) => void {
   const navigate = useNavigate();
   const location = useLocation();
   const resolveScope = useTransitionScope();
@@ -41,14 +48,14 @@ export function useViewTransitionNavigate(): (to: string) => void {
   }, [location.key]);
 
   return useCallback(
-    (to: string) => {
+    (to: string, options?: ViewTransitionNavigateOptions) => {
       runViewTransition(
         resolveScope(),
         () =>
           new Promise<void>((resolve) => {
             resolveCommitted.current = resolve;
             setTimeout(resolve, COMMIT_TIMEOUT_MS);
-            navigate(to);
+            navigate(to, { replace: options?.replace ?? false });
           }),
       );
     },

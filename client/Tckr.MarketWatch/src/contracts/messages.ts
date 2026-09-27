@@ -225,6 +225,7 @@ function parseSnapshot(value: unknown, context: string): Snapshot {
     change: requirePrice(value, 'change', context),
     changePercent: requireString(value, 'changePercent', context),
     open: requirePrice(value, 'open', context),
+    ...(value['previousClose'] === undefined ? {} : { previousClose: requirePrice(value, 'previousClose', context) }),
     high: requirePrice(value, 'high', context),
     low: requirePrice(value, 'low', context),
     volume: requireNumber(value, 'volume', context),

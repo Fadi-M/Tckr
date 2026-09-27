@@ -85,12 +85,6 @@
   --text-display: 3.25rem; /* 52px — detail hero price, the one number the page exists to show */
   --text-display--line-height: 1;
 
-  /* PriceCell's transient flash — see PriceCell.tsx's original module doc: keyed by
-     React `key` so it restarts on every value change, purely presentational. */
-  --animate-price-flash-up: tckr-price-flash-up-bg 500ms var(--tckr-ease-out);
-  --animate-price-flash-down: tckr-price-flash-down-bg 500ms var(--tckr-ease-out);
-  --animate-price-flash-arrow: tckr-price-flash-arrow 500ms var(--tckr-ease-out);
-
   /* StockList's empty-state fade and connection/market banners' entrance. */
   --animate-fade-in: tckr-fade-in 200ms ease-out;
   --animate-banner-in: tckr-banner-in 220ms var(--tckr-ease-out);
@@ -103,27 +97,54 @@
   /* StockDetail's card/stats entrance reveal. */
   --animate-detail-reveal: tckr-detail-reveal 220ms var(--tckr-ease-out);
 
-  @keyframes tckr-price-flash-up-bg {
+  /* Only `from` is given for the tints: the figure animates back to whatever colour it
+     rests at (ink, or muted), so the flash never has to know it. */
+  @keyframes tckr-tick-tint-up {
     from {
-      background-color: color-mix(in oklab, var(--tckr-color-up) 28%, transparent);
-    }
-    to {
-      background-color: transparent;
+      color: var(--tckr-color-up);
     }
   }
-  @keyframes tckr-price-flash-down-bg {
+  @keyframes tckr-tick-tint-down {
     from {
-      background-color: color-mix(in oklab, var(--tckr-color-down) 28%, transparent);
+      color: var(--tckr-color-down);
     }
+  }
+  @keyframes tckr-tick-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(0.5em);
+      filter: blur(2px);
+    }
+  }
+  @keyframes tckr-tick-in-down {
+    from {
+      opacity: 0;
+      transform: translateY(-0.5em);
+      filter: blur(2px);
+    }
+  }
+  @keyframes tckr-tick-out-up {
     to {
-      background-color: transparent;
+      opacity: 0;
+      transform: translateY(-0.5em);
+      filter: blur(2px);
+    }
+  }
+  @keyframes tckr-tick-out-down {
+    to {
+      opacity: 0;
+      transform: translateY(0.5em);
+      filter: blur(2px);
     }
   }
   @keyframes tckr-price-flash-arrow {
     from {
+      opacity: 0;
+    }
+    12% {
       opacity: 1;
     }
-    60% {
+    55% {
       opacity: 1;
     }
     to {
@@ -255,4 +276,22 @@
 }
 .tckr-theme-transition::view-transition-group(*) {
   animation-duration: 280ms;
+}
+
+@theme inline {
+  /* PriceCell's transient flash — see PriceCell.tsx's module doc: keyed by React `key`
+     so it restarts on every value change, purely presentational. A change lands as
+     motion and light on the digits themselves, never as a slab painted behind them:
+     the changed tail rolls in (RollingText), the figure lights in its signal colour and
+     settles back to ink, and the board's arrow fades in and out. Every piece waits
+     `--tckr-tick-delay` (the board staggers its rows by it) and fills backwards, so
+     the old digits hold until their row's turn. `inline` so the delay variable is
+     read on each element (a row), not once at the root where it isn't set. */
+  --animate-price-flash-up: tckr-tick-tint-up 1400ms var(--tckr-ease-out) var(--tckr-tick-delay, 0ms) both;
+  --animate-price-flash-down: tckr-tick-tint-down 1400ms var(--tckr-ease-out) var(--tckr-tick-delay, 0ms) both;
+  --animate-price-flash-arrow: tckr-price-flash-arrow 1600ms var(--tckr-ease-out) var(--tckr-tick-delay, 0ms) both;
+  --animate-tick-in-up: tckr-tick-in-up 420ms var(--tckr-ease-out) var(--tckr-tick-delay, 0ms) both;
+  --animate-tick-in-down: tckr-tick-in-down 420ms var(--tckr-ease-out) var(--tckr-tick-delay, 0ms) both;
+  --animate-tick-out-up: tckr-tick-out-up 280ms var(--tckr-ease-out) var(--tckr-tick-delay, 0ms) both;
+  --animate-tick-out-down: tckr-tick-out-down 280ms var(--tckr-ease-out) var(--tckr-tick-delay, 0ms) both;
 }

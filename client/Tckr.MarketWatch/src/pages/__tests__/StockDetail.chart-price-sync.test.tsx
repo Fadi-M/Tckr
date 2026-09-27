@@ -18,6 +18,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { toDecimal } from '../../contracts/decimal.ts';
 import type { IsoUtc } from '../../contracts/messages.ts';
 import { resetStore } from '../../data/store.ts';
+import { beatNowForTests } from '../../display/pacedViews.ts';
 import { createFakeSource, snapshotFixture, tickFixture } from './testSupport.ts';
 
 vi.mock('uplot', () => {
@@ -98,10 +99,11 @@ describe('StockDetail keeps the price header and the chart in sync', () => {
     let lastCall = vi.mocked(PriceChart).mock.calls.at(-1)!;
     expect(lastCall[0].livePrice?.p).toBe(toDecimal('84.50'));
 
-    // A post-ready tick updates both the header and the chart's prop together, in the
-    // same render — never one without the other.
+    // A post-ready tick, once the beat paints it, updates both the header and the
+    // chart's prop together, in the same render — never one without the other.
     act(() => {
       emitTick(tickFixture({ p: toDecimal('85.75'), t: '2026-09-12T10:30:35.000Z' as IsoUtc, id: 'evt-x' }));
+      beatNowForTests();
     });
     await act(async () => {
       await Promise.resolve();

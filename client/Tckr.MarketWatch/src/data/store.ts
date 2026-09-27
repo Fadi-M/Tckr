@@ -190,14 +190,17 @@ export function applySnapshot(snapshot: Snapshot, now: number = Date.now()): voi
     return;
   }
   const name = existing.name;
-  meta.set(snapshot.symbol, { name, referencePrice: existing.referencePrice, baseline: snapshot.open });
+  // Change is measured from the previous close (EGX convention) when the snapshot
+  // carries it, else from the session open — see `Snapshot.previousClose`.
+  const baseline = snapshot.previousClose ?? snapshot.open;
+  meta.set(snapshot.symbol, { name, referencePrice: existing.referencePrice, baseline });
   const record = recordFor(snapshot.symbol);
   record.view = {
     symbol: snapshot.symbol,
     name,
     price: snapshot.price,
-    change: snapshot.change,
-    changePercent: percentChange(snapshot.open, snapshot.price),
+    change: subtract(snapshot.price, baseline),
+    changePercent: percentChange(baseline, snapshot.price),
     volume: snapshot.volume,
     lastUpdate: now,
     stream: snapshot.stream,

@@ -2,10 +2,10 @@
  * `StockDetail.display-throttle.test.tsx` — "Tckr First Run" design pass follow-up.
  * `StockDetail` reads `source.on.tick` directly, uncoalesced (module doc in
  * `../StockDetail.tsx`) — a hot symbol can burst far more ticks/sec than a human can
- * read as discrete price changes. This asserts the fix: once the page is `ready`, a
- * burst of ticks inside one `DISPLAY_REFRESH_INTERVAL_MS` window paints at most twice
- * (the leading tick, then one trailing catch-up), and the value shown after the window
- * is the *latest* tick, never one from the middle of the burst.
+ * read as discrete price changes. Once the page is `ready`, a burst of ticks paints
+ * nothing until the page's next beat (`src/display/pacedViews.ts`, never more than one
+ * `DISPLAY_REFRESH_INTERVAL_MS` away) and then paints once, with the *latest* tick —
+ * on the same beat as the symbol's board row, never mid-beat ahead of it.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
@@ -81,7 +81,7 @@ beforeEach(() => {
 });
 
 describe('StockDetail display refresh throttling', () => {
-  it('paints a burst of live ticks at most twice per window, ending on the latest tick', async () => {
+  it('paints a burst of live ticks once, on the next beat, with the latest tick', async () => {
     vi.useFakeTimers();
     const { source, emitTick } = createFakeSource();
     vi.mocked(getSharedSource).mockReturnValue(source);
@@ -109,26 +109,24 @@ describe('StockDetail display refresh throttling', () => {
       }
     });
 
-    // Leading tick painted immediately; the other 39 are suppressed until the window
-    // elapses — never one render per tick.
-    const pricesAfterLeading = vi
+    // Nothing paints mid-beat — not even the first tick of the burst.
+    const pricesMidBeat = vi
       .mocked(PriceCell)
       .mock.calls.map((call) => String(call[0]?.value ?? ''))
       .filter((v) => v.startsWith('85.'));
-    expect(pricesAfterLeading.length).toBeLessThan(burstSize);
-    expect(screen.getByTestId('stock-detail-price').textContent).toContain('85.00');
+    expect(pricesMidBeat).toEqual([]);
+    expect(screen.getByTestId('stock-detail-price').textContent).toContain('84.50');
 
-    // Flush the trailing edge: exactly one more paint, showing the *last* tick of the
-    // burst (85 + 39*0.01 = 85.39), never a mid-burst value.
+    // The beat paints once, showing the *last* tick of the burst (85 + 39*0.01 =
+    // 85.39), never a mid-burst value.
     await act(async () => {
       vi.advanceTimersByTime(DISPLAY_REFRESH_INTERVAL_MS);
     });
     expect(screen.getByTestId('stock-detail-price').textContent).toContain('85.39');
 
-    // Regression for the volume-accounting bug: even though only the leading and
-    // trailing ticks of the 40-tick burst ever reach `mergeTickIntoQuote` (everything
-    // in between is collapsed by the throttle), every tick's `q` (10 each) must still
-    // be counted — the display throttle must never be allowed to drop traded quantity.
+    // Regression for the volume-accounting bug: even though only the last tick of the
+    // 40-tick burst ever reaches `mergeTickIntoQuote` (everything before it is collapsed
+    // until the beat), every tick's `q` (10 each) must still be counted — the display throttle must never be allowed to drop traded quantity.
     const expectedVolume = 216637 + burstSize * 10;
     expect(screen.getByTestId('stock-detail-footer').textContent).toContain(
       new Intl.NumberFormat('en-US').format(expectedVolume),
