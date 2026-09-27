@@ -84,6 +84,7 @@ import { onStreamDiscard } from '../data/store.ts';
 import { DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
 import { useTheme } from '../theme/useTheme.ts';
 import { RingBuffer, toPlotValue } from './ringBuffer.ts';
+import { PRICE_AXIS_SIZE_PX, TIME_AXIS_SIZE_PX } from './chartGeometry.ts';
 import { decimalsForTickSize, formatClockTime, formatXAxisTick, formatYAxisLabel, timeAxisSplits, X_AXIS_INCREMENTS_MS } from './axes.ts';
 
 /** One point of session history, already converted to this component's own numeric/x
@@ -201,8 +202,7 @@ const PLOT_PADDING: [number, number, number, number] = [40, 6, 0, 30];
 // distance two tags keep apart and the clearance within which an axis label is left
 // blank rather than peeking out from under one.
 const AXIS_TAG_HEIGHT_PX = 18;
-// Wide enough for the longest tag ("Open 466.25" in 11px Plex Mono plus its padding).
-const PRICE_AXIS_SIZE_PX = 92;
+
 // The area fill's strength, as a share of its colour.
 const FILL_TINT = '14%';
 
@@ -547,7 +547,7 @@ export function PriceChart({
             side: 2,
             stroke: muted,
             font: AXIS_FONT,
-            size: 28,
+            size: TIME_AXIS_SIZE_PX,
             gap: 8,
             space: 88,
             incrs: [...X_AXIS_INCREMENTS_MS],

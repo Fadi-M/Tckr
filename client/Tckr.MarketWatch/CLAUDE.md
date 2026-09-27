@@ -20,6 +20,13 @@ agent needs that the README doesn't already say.
 The standard scripts (`dev`, `typecheck`, `test`, `test:watch`, `build`, `preview`) are in
 `package.json`; run them from this directory.
 
+`npm run dev` goes through `scripts/dev.mjs`. `npm run dev:open` (12:00 Cairo) and
+`npm run dev:bell` (09:59:45 Cairo) run the app on a simulated clock during EGX trading
+hours. For any other Cairo time, use `npm run dev -- --market HH:MM[:SS]` (see README, "Testing during
+EGX trading hours"), and passes every other argument to Vite. Use it to check anything
+that only happens while the market is open (ticks, re-ranks, the opening bell, the
+close).
+
 Performance tests (`perf/frame-timing.spec.ts`, `perf/layout-400.spec.ts`) are **not** run
 in the normal test suite or CI — they need a real Chromium and a built app, and are run
 deliberately because frame timing is a noisy, environment-sensitive signal:
@@ -59,6 +66,15 @@ from the composition root (`main.tsx`) rather than resolving config itself.
 
 `StockDetail` (and therefore `uplot`) is lazy-loaded from `App.tsx` so the chart library is
 never in the initial bundle for users who only visit the list page.
+
+GSAP gets the same treatment: `src/motion/gsap.ts` is the only module that imports
+`gsap` (and registers its plugins), and it is only reached through `loadMotion()` /
+`useMotion()` in `src/motion/motion.ts`, which load it as a separate chunk (preloaded at
+idle from `main.tsx`). A static `import … from 'gsap'` anywhere else silently moves it
+into the entry chunk. `@gsap/react`'s `useGSAP` is deliberately not used for the same
+reason. `useMotion` does the same job. Motion tests use
+`src/motion/__tests__/motionTestSupport.ts` (`primeMotion`, then assert a moment's first
+frame synchronously; `finishMotion` for its end state).
 
 ### Directory map (non-obvious parts only)
 

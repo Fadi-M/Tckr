@@ -108,4 +108,27 @@ describe('useMarketStatus', () => {
     // The hook's last-rendered value is frozen at whatever it was before unmount.
     expect(result.current.state).toBe('closed');
   });
+
+  it('flips to open at the 10:00 open itself, not at the next 30s poll', () => {
+    // 15s before the open: the 30s poll would next run 15s after it.
+    vi.setSystemTime(OPEN_AT - 15_000);
+    const { result } = renderHook(() => useMarketStatus());
+    expect(result.current.state).toBe('closed');
+
+    act(() => {
+      vi.advanceTimersByTime(15_000 + 10);
+    });
+    expect(result.current.state).toBe('open');
+  });
+
+  it('flips to closed at the 14:30 close itself', () => {
+    vi.setSystemTime(CLOSE_AT - 5_000);
+    const { result } = renderHook(() => useMarketStatus());
+    expect(result.current.state).toBe('open');
+
+    act(() => {
+      vi.advanceTimersByTime(5_000 + 10);
+    });
+    expect(result.current.state).toBe('closed');
+  });
 });

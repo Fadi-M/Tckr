@@ -17,7 +17,9 @@ export interface TckrLogoProps {
 }
 
 /** The candlestick "T" on its own (58×72 viewBox; width = 0.8 × height), themed like
- * the lockup. Decorative (`aria-hidden`). Minimum height 16px per the logo spec. */
+ * the lockup. Decorative (`aria-hidden`). Minimum height 16px per the logo spec.
+ * `data-candle` names each part for `FormingCandle` (src/motion), which animates the
+ * geometry below rather than keeping a copy of it. */
 export function TckrMark({ height }: { readonly height: number }) {
   return (
     <svg
@@ -29,10 +31,10 @@ export function TckrMark({ height }: { readonly height: number }) {
       focusable="false"
       className="flex-none"
     >
-      <rect x="2" y="4" width="54" height="11" rx="5.5" fill="var(--tckr-logo-ink)" />
-      <rect x="27" y="15" width="4" height="10" fill="var(--tckr-logo-candle)" />
-      <rect x="17" y="25" width="24" height="34" rx="6" fill="var(--tckr-logo-candle)" />
-      <rect x="27" y="59" width="4" height="11" rx="2" fill="var(--tckr-logo-candle)" />
+      <rect data-candle="bar" x="2" y="4" width="54" height="11" rx="5.5" fill="var(--tckr-logo-ink)" />
+      <rect data-candle="wick-high" x="27" y="15" width="4" height="10" fill="var(--tckr-logo-candle)" />
+      <rect data-candle="body" x="17" y="25" width="24" height="34" rx="6" fill="var(--tckr-logo-candle)" />
+      <rect data-candle="wick-low" x="27" y="59" width="4" height="11" rx="2" fill="var(--tckr-logo-candle)" />
     </svg>
   );
 }
@@ -40,9 +42,10 @@ export function TckrMark({ height }: { readonly height: number }) {
 export function TckrLogo({ size = 24 }: TckrLogoProps) {
   const markHeight = Math.round(size * 1.15);
   return (
-    <span className="inline-flex items-end" style={{ gap: Math.max(1, Math.round(size * 0.06)) }}>
+    <span data-tckr-logo className="inline-flex items-end" style={{ gap: Math.max(1, Math.round(size * 0.06)) }}>
       <TckrMark height={markHeight} />
       <span
+        data-wordmark
         aria-hidden="true"
         className="font-mono font-semibold tracking-[-0.02em] leading-[0.92] text-[var(--tckr-logo-ink)]"
         style={{ fontSize: size }}

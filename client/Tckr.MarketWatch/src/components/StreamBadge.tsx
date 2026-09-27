@@ -13,10 +13,17 @@
  * (An earlier `StreamBadge` was deleted as dead code once nothing mounted it; this is
  * its replacement, restyled for the frosted-glass header. The mixed-stream discard it
  * once triggered now lives in the data layer — see `store.resetStream()`.)
+ *
+ * A mid-session flip is the one status change that asks for the eye: the pill rings
+ * once in its new colour (CSS), its word scrambles from the old stream's to the new
+ * one's (`ScrambleWord`), and its sign arrives — the clock's hands sweep a full turn
+ * into DELAYED, the live dot pops in for LIVE. Never on first paint.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getSharedSource } from '../data/config.ts';
 import type { Identity } from '../data/MarketDataSource.ts';
+import { ScrambleWord } from '../motion/ScrambleWord.tsx';
+import { useMotion } from '../motion/motion.ts';
 import { ClockIcon } from './icons.tsx';
 import { streamDelay } from './streamDelay.ts';
 import { useMarketStatus } from './useMarketStatus.ts';
@@ -31,7 +38,34 @@ export function StreamBadge() {
   // element on each change, which replays the one-shot ring pulse; zero (first paint)
   // gets no pulse.
   const [changeCount, setChangeCount] = useState(0);
+  // The stream the pill showed before the latest flip, so the new word can scramble
+  // out of the old one. Read from `shownStream` when the flip arrives.
+  const [flippedFrom, setFlippedFrom] = useState<Identity['stream'] | undefined>(undefined);
+  const shownStream = useRef<Identity['stream'] | undefined>(identity?.stream);
   const marketStatus = useMarketStatus();
+  const pillRef = useRef<HTMLSpanElement | null>(null);
+
+  useEffect(() => {
+    shownStream.current = identity?.stream;
+  }, [identity?.stream]);
+
+  // The flip's sign: keyed on the change count, so it plays once per real flip.
+  useMotion(
+    pillRef,
+    changeCount === 0
+      ? null
+      : ({ gsap }, root) => {
+          const hands = root.querySelector('svg path');
+          if (hands) {
+            gsap.fromTo(hands, { attr: { transform: 'rotate(-360 8 8)' } }, { attr: { transform: 'rotate(0 8 8)' }, duration: 0.9 });
+          }
+          const dot = root.querySelector('[data-live-dot]');
+          if (dot) {
+            gsap.from(dot, { scale: 0, duration: 0.5, ease: 'back.out(3)', delay: 0.12 });
+          }
+        },
+    [changeCount],
+  );
 
   useEffect(() => {
     const source = getSharedSource();
@@ -40,6 +74,7 @@ export function StreamBadge() {
     // entitlement change so the badge flips with the stream.
     const unsubStatus = source.on.status(() => setIdentity(source.identity()));
     const unsubEntitlement = source.on.entitlement(() => {
+      setFlippedFrom(shownStream.current);
       setIdentity(source.identity());
       setChangeCount((count) => count + 1);
     });
@@ -64,6 +99,7 @@ export function StreamBadge() {
       <span role="status" className="inline-flex">
         <span
           key={changeCount}
+          ref={pillRef}
           className={`${PILL_BASE} ${changeCount > 0 ? CHANGED_CLASS : ''} ${
             idle
               ? 'text-text-muted bg-glass border-glass-border'
@@ -78,8 +114,9 @@ export function StreamBadge() {
               : 'Live stream: prices arrive as they trade'
           }
         >
-          <span className={`w-1.5 h-1.5 rounded-full flex-none ${idle ? 'bg-text-muted' : 'bg-up'}`} aria-hidden="true" />
-          LIVE
+          <span className={`w-1.5 h-1.5 rounded-full flex-none ${idle ? 'bg-text-muted' : 'bg-up'}`} aria-hidden="true" data-live-dot />
+          <ScrambleWord text="LIVE" from={changeCount > 0 ? flippedFrom : undefined} />
+          <span className="sr-only">LIVE</span>
         </span>
       </span>
     );
@@ -93,6 +130,7 @@ export function StreamBadge() {
     <span role="status" className="inline-flex">
       <span
         key={changeCount}
+        ref={pillRef}
         className={`${PILL_BASE} ${changeCount > 0 ? CHANGED_CLASS : ''} text-warning bg-[color-mix(in_oklab,var(--tckr-color-warning)_16%,var(--tckr-glass-bg))] border-[color-mix(in_oklab,var(--tckr-color-warning)_32%,transparent)]`}
         data-testid="stream-badge"
         data-stream="DELAYED"
@@ -102,7 +140,8 @@ export function StreamBadge() {
         <span aria-hidden="true">
           {/* The duration stays on phones (it is the fact that matters); only the
               separator goes, so the header still fits on one row at 390px. */}
-          DELAYED<span className="max-[640px]:hidden"> ·</span> {delay.short}
+          <ScrambleWord text="DELAYED" from={changeCount > 0 ? flippedFrom : undefined} />
+          <span className="max-[640px]:hidden"> ·</span> {delay.short}
         </span>
         <span className="sr-only">{behind}</span>
       </span>

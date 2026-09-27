@@ -296,7 +296,7 @@ When two jobs share a step, weight and tone separate them rather than an in-betw
 - **Body** (400, 1rem, 1.5): table cells, company names beside a symbol, and the detail
   delta pills (mono 600).
 - **Small** (0.875rem): banner and note titles (600, Ink), the search input, empty-state
-  copy, and the chart's loading message. On coarse pointers the search input steps up
+  copy. On coarse pointers the search input steps up
   to Body (16px) so iOS doesn't zoom on focus.
 - **Caption** (0.75rem): every control label (filter, range and action pills), chart
   readouts, the "as of" line, hero-card company names, and banner/note detail lines
@@ -372,6 +372,11 @@ with nothing spanning the chart. The motion is a **view transition** over snapsh
 - The detail pane slides in 16px while fading over 420ms.
 
 Switching from one open symbol to another cross-fades the detail pane the same way.
+Inside the pane, content lands in reading order (GSAP, 320ms each, 40–50ms apart): the
+symbol and the range pills, then, once the first quote is in, the price row, the as-of
+line and the four stat tiles. It replays on a symbol switch, never on a range change or
+a tick. It runs inside the view transition's live "new" view, so it plays while the
+pane slides in.
 Every one of these transitions is **element-scoped** to `<main>`
 (`Element.startViewTransition`, provided through `TransitionScopeContext`): only the page
 content is snapshotted and animated, while the sticky header stays live, on top, and
@@ -521,8 +526,13 @@ server-assigned entitlement from `identity()`, never a client-side default:
 
 It renders nothing until the server has identified the stream. It is mounted on every
 screen, so a delayed price is never mistaken for a live one. When the entitlement flips
-mid-session, the pill plays one ring pulse in its own colour (900ms). That is the only
-status change in the product that asks for the eye. The change is also announced through
+mid-session, the pill plays one ring pulse in its own colour (900ms). Its word
+scrambles from the old stream's to the new one's through random mono capitals (600ms,
+`ScrambleWord`, already scrambled on the first painted frame, so an amber pill never
+paints "LIVE"). The sign arrives too: the clock's hands sweep a full turn into
+DELAYED, and the live dot pops in for LIVE. That is the only status change in the
+product that asks for the eye. The scrambling word is `aria-hidden`; screen readers
+hear only the new stream. The change is also announced through
 a persistent `role="status"` wrapper. It never pulses on first paint.
 
 ### Connection Pill (signature component)
@@ -578,14 +588,22 @@ Drawn SVG icons from `src/components/icons.tsx` (clock, retry, alert, search, ar
 All sit on a 16px grid with a 1.6 stroke, use `currentColor` and are `aria-hidden`.
 Unicode glyphs are never used as icons; ▲/▼ remain as direction text, not icons.
 
-### Moments (earned, never on first paint)
+### Moments (earned, never on first paint, except the daily greeting)
 Operate-mode delight lives at the moments that matter, not on routine clicks. Each one
 says something true and useful, then gets out of the way:
 - **Waiting:** the market-closed banner counts down to the bell, coarse on purpose
   ("in 1d 5h", "in 12m"), because it describes a wait rather than acting as a timer.
 - **The opening bell:** if the page is open when EGX opens, an "EGX is open" banner
   appears with the candlestick mark (Exchange Green tint, auto-dismisses after 8s).
-  It happens at most once a day.
+  It happens at most once a day. The mark forms the way a green candle does over a
+  session (`FormingCandle`): the lower wick dips below the open, the body rallies up
+  to the close, the upper wick tests the high, and the T's crossbar drops on with a
+  small overshoot (about 1.1s). The candle stays green and ends on the logo's exact
+  geometry.
+- **The closing bell:** if EGX closes while the page is open, each hero card's label
+  gains its session day ("TOP GAINER · THU") by scrambling in through mono capitals,
+  the three cards 90ms apart, marking that the picks are now a recap. A page opened on
+  a closed market just shows the day.
 - **Recovery:** after a dropped stream reconnects, a "Reconnected" confirmation shows
   for 4s, so recovery is confirmed rather than inferred from a warning that vanished.
 - **A search that finds nothing** suggests up to three closest instruments (edit
@@ -597,10 +615,58 @@ says something true and useful, then gets out of the way:
 Moment banners share the banner pill, with a 12% up tint and a quiet "Dismiss" text
 button.
 
+### The daily greeting (signature moment)
+The one moment allowed on first paint: once per Cairo day, on whichever URL the day
+starts, Tckr opens with "The Candle Prints" (`motion/Greeting.tsx`). It lasts about 3.5s.
+- **The field:** a full-viewport overlay of the page's own Frost gradient and the same
+  three glows (`FrostGlows`), dimmed as if the lights are still coming up. The glows
+  bloom to full strength using opacity only, never scale, because scaling a 70px blur
+  re-rasterises it every frame.
+- **The candle:** at hero scale (96px wordmark, 60px on phones) the mark forms exactly as
+  the opening bell's does: the low wick dips, the body rallies, the high wick pushes,
+  and the crossbar lands. A mint light (`--tckr-blob-a`, a plain radial gradient with no
+  filter) swells behind it through the rally and settles to an ember. "ckr" then
+  resolves in mono.
+- **The words:** a salutation for the hour in Cairo (Instrument Sans 500, Headline size)
+  rises word by word through a mask, coming into focus. Beneath it the market's true
+  state prints left to right in a tracked mono caption, beside a dot that is green only
+  while EGX trades: "EGX is trading · closes 14:30 Cairo", "Pre-open auction · trading
+  starts 10:00 Cairo", "EGX opens in 1h 12m", "EGX reopens Sun 10:00 Cairo". It never
+  names the stream. LIVE/DELAYED is the server's to say, and it may not have said it
+  yet.
+- **The hand-off:** one continuous movement from its first frame, about 1.15s. The
+  words lift away as the lockup sets off into the header logo's exact place (uniform
+  scale, anchored on the mark, landing to the pixel) and becomes it. The flight uses
+  `tckr-flight` (cubic-bezier(0.25, 0.1, 0.2, 1)): it is moving within 70ms and never
+  surges. An in-out curve such as `expo.inOut` sat still for about half a second and
+  then lurched, which read as lag. The field dissolves into the identical field
+  beneath, so only the content appears, while the page's panes (`data-greet-rise`)
+  settle up from 26px below. That rise is translation only: no scale, which would
+  re-raster their text every frame, and no opacity, because opacity on a pane's
+  ancestor changes what the glass blurs and the glass would snap when it returned.
+  Everything that moves is promoted (`will-change`) for exactly the hand-off, so the
+  field's three blurs are composited rather than repainted.
+- **Never in the way:** any key, click, tap or scroll plays the rest of the introduction
+  through in 0.45s and goes straight to the hand-off. It never cuts. The overlay is
+  `aria-hidden`, passes pointer input through once the hand-off starts, and the page
+  beneath stays live and accessible. If GSAP can't load, the overlay fades away on its
+  own after 4.5s.
+- **Reduced motion:** no flight and no movement. The finished lockup and the two lines
+  appear, hold for 1.3s, and fade.
+- **Once a day:** remembered per browser (`greetingSchedule.ts`). Where storage is
+  unavailable it is skipped rather than replayed on every load. In development,
+  `?greeting` replays it.
+
+While the board loads, the same candle forms and un-forms in a loop beside "Loading
+instruments…".
+
 ### Board re-rank motion (signature)
 When the row order changes, each row that moved glides from its old rank to its new one.
 That covers a preset or header sort, the per-beat re-rank of an active sort, and a search
-narrowing the list. The glide is a FLIP, transform only, 420ms with the system ease.
+narrowing the list. The glide is a FLIP (GSAP `Flip`), transform only, 420ms with the system ease. The
+"before" positions are where rows are on screen at the moment the order changes, so a
+re-rank that lands mid-glide (a sort click or a search keystroke) carries each row
+on from where it actually is, rather than snapping it back first.
 Rows are transparent over the glass, so a moving row carries a near-opaque surface
 through the flight and hands back to its own background as it lands. Rows newly in the
 list fade in (200ms). This is the product's authored motion: the market visibly
@@ -649,6 +715,32 @@ the digits themselves; nothing is ever painted behind them:
 A landing survives re-renders that don't change the value (a row re-renders every second
 for its clock). A change of symbol is never a change of value: the detail pane clears its
 figures in the same render as the switch, so nothing flashes.
+
+### Skeleton
+While the detail pane waits for its snapshot and history, each part is drawn as its
+own shape, where it will land and at its real size, so nothing moves when the data
+arrives (`components/Skeleton.tsx`, `chart/ChartSkeleton.tsx`):
+- **Price block:** a display-height slab for the price, two pill shapes for the change
+  pills, and a caption-height bar for the as-of line.
+- **Chart:** the chart's own frame at its own height. It has the hairline gridlines,
+  price-axis label shapes on the right and time-axis label shapes along the bottom,
+  placed from the live chart's axis sizes. It never draws a line, because a
+  placeholder curve would be a price history that didn't happen.
+- **Stat tiles:** the real tiles with their real labels (OPEN, HIGH, LOW, VOLUME), since
+  those are known before any figure. Only each value is a shape. The same tiles stay
+  when the quote lands, and only their values swap and stagger in.
+
+The same skeleton covers the moment before the detail pane's code has even arrived
+(a direct link to a symbol, or a click before the idle prefetch). It is the whole pane
+(`DetailPaneSkeleton`, `App`'s Suspense fallback): the real symbol from the URL, with
+every figure, the range pills, the close button and the chart as shapes. The controls
+are shapes because they can't work yet. The pane never shows "Loading…" text.
+
+A shape is Ink at 7% (14% under increased contrast). A band of light sweeps across it
+every 1.6s in the glass-edge highlight (`--tckr-glass-border-card`), so it reads as
+light crossing the pane rather than a grey slab. The sweep is transform-only and holds
+still under reduced motion. Skeletons are `aria-hidden`, and each region also says
+"Loading…" in screen-reader text. No digit ever appears in one.
 
 ### Sparkline (signature component)
 A 20-point inline SVG polyline with a 1.6px stroke coloured by direction (green, red or
@@ -730,12 +822,20 @@ is about 0.06× the wordmark size, and the two are bottom-aligned.
 - **Do** keep the Stream Badge on every screen. The live/delayed distinction is never
   implied by colour alone or left to one view (The Always-Visible Stream Rule).
 - **Do** draw icons from `icons.tsx`; never borrow a Unicode glyph as an icon.
+- **Do** build GSAP motion only in `src/motion` and reach GSAP only through
+  `loadMotion()` / `useMotion()`. It is a lazily loaded chunk. A static `import 'gsap'`
+  anywhere else pulls it into the entry bundle. Every GSAP moment is earned (never on
+  first paint), renders its finished state underneath, and is skipped under reduced
+  motion.
 - **Do** animate layout changes with a view transition or transform and opacity. Start
   every view transition through `runViewTransition` (`components/viewTransition.ts`),
   scoped to the smallest element that changes; navigation uses
   `useViewTransitionNavigate`. Never transition `width`, `height`, `max-height` or margins.
 
 ### Don't:
+- **Don't** tween a price's value: no count-ups, no scrambled figures, no GSAP tween on
+  anything holding a `DecimalString`. Every in-between frame would be a price that
+  never traded. Only positions, opacity, SVG geometry and labels move.
 - **Don't** put glass over a flat opaque surface or strip the Frost field and glows from a
   desktop page (The Glass-Needs-A-Field Rule).
 - **Don't** stack shadows or use them to express state. Card float and Table float are the

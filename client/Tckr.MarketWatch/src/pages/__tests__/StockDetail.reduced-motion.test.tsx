@@ -1,31 +1,18 @@
 /**
- * Regression test for the `prefers-reduced-motion` guard on the card / stats
- * entrance animation.
+ * The detail pane's arrival under `prefers-reduced-motion`.
  *
- * Post-Tailwind-migration, this is no longer an injected `<style>` tag with an
- * `@media (prefers-reduced-motion: reduce)` rule this test could grep for — the card
- * and stats containers instead carry Tailwind's `motion-reduce:animate-none` utility
- * class alongside their `animate-detail-reveal`/arbitrary-animation class, and the
- * actual media-query evaluation (whether that utility's declaration wins) happens in
- * the real browser's CSS engine, not in this component's code.
- *
- * jsdom does not implement `window.matchMedia` at all (see
- * `src/theme/__tests__/testSupport.ts`'s `stubMatchMedia` doc) and — more importantly
- * — does not evaluate real CSS, so it has no notion of which `@media` blocks apply or
- * which utility class "wins" a given viewer's media-query state. Stubbing
- * `matchMedia` here would therefore be theater: `StockDetail` never calls
- * `matchMedia` itself for this guard (unlike `theme.ts`'s system-preference
- * resolution, which genuinely branches on it at runtime), so a stub would not change
- * anything this component does or renders. What this test CAN honestly verify is the
- * one thing that actually matters for this guard to work at all in a real browser:
- * that the escape-hatch class is present, unconditionally, in the markup. This
- * mirrors the "acceptable" fallback the task brief calls out explicitly for exactly
- * this situation.
+ * Two mechanisms, two checks. The panel's glass fades up with a CSS animation, whose
+ * `motion-reduce:animate-none` escape hatch only a real browser's CSS engine evaluates,
+ * so the honest check is that the class is in the markup. The figures on it land with
+ * a GSAP stagger (`useMotion`), which decides in code through `prefersReducedMotion()`,
+ * so there the test stubs `matchMedia` and checks that nothing was ever set on them —
+ * with the unreduced case as the control, proving the check can fail.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { resetStore } from '../../data/store.ts';
+import { flushMotion, stubReducedMotion, unstubReducedMotion } from '../../motion/__tests__/motionTestSupport.ts';
 import { createFakeSource } from './testSupport.ts';
 
 vi.mock('uplot', () => {
@@ -56,36 +43,52 @@ vi.mock('../../data/config.ts', () => ({
 import { getSharedSource, resetSharedSource } from '../../data/config.ts';
 import { StockDetail } from '../StockDetail.tsx';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  unstubReducedMotion();
+});
 
 beforeEach(() => {
   resetStore();
   resetSharedSource();
 });
 
+async function renderReady() {
+  const { source } = createFakeSource();
+  vi.mocked(getSharedSource).mockReturnValue(source);
+  const view = render(
+    <MemoryRouter>
+      <StockDetail symbol="COMI" />
+    </MemoryRouter>,
+  );
+  // The stat tiles only render once `quote` is set.
+  await screen.findByTestId('stock-detail-footer');
+  await flushMotion();
+  return view;
+}
+
+function touchedByMotion(container: HTMLElement): Element[] {
+  return Array.from(container.querySelectorAll('[data-reveal]')).filter((el) => (el as HTMLElement).style.opacity !== '');
+}
+
 describe('StockDetail prefers-reduced-motion guard', () => {
-  it('gives both the card and the stats grid the motion-reduce:animate-none escape hatch', async () => {
-    const { source } = createFakeSource();
-    vi.mocked(getSharedSource).mockReturnValue(source);
-
-    const { container } = render(
-      <MemoryRouter>
-        <StockDetail symbol="COMI" />
-      </MemoryRouter>,
-    );
-
-    // Wait for the ready state so the stats grid (only rendered once `quote` is set)
-    // is on the page too, not just the card.
-    await screen.findByTestId('stock-detail-symbol');
-
-    // The card is the element carrying `animate-detail-reveal` — queried by that
-    // class rather than DOM position, since the wrapper nesting above it is an
-    // implementation detail this test shouldn't depend on.
+  it('gives the panel glass the motion-reduce:animate-none escape hatch', async () => {
+    const { container } = await renderReady();
     const card = container.querySelector('.animate-detail-reveal');
     expect(card).toBeTruthy();
     expect(card!.className).toContain('motion-reduce:animate-none');
+  });
 
-    const stats = await screen.findByTestId('stock-detail-footer');
-    expect(stats.className).toContain('motion-reduce:animate-none');
+  it('lands the figures with no motion at all under reduced motion', async () => {
+    stubReducedMotion(true);
+    const { container } = await renderReady();
+    expect(container.querySelectorAll('[data-reveal="figures"]').length).toBeGreaterThan(0);
+    expect(touchedByMotion(container)).toEqual([]);
+  });
+
+  it('staggers the figures in otherwise (the control for the check above)', async () => {
+    stubReducedMotion(false);
+    const { container } = await renderReady();
+    expect(touchedByMotion(container).length).toBeGreaterThan(0);
   });
 });
