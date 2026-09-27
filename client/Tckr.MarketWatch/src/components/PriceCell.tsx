@@ -74,6 +74,10 @@ export interface PriceCellProps {
    * never extra zeros, which would claim a precision the instrument doesn't trade at)
    * lines every decimal point up under a right-aligned header. */
   readonly alignDecimals?: number | undefined;
+  /** `false` keeps the transient flash to its background tint, with no ▲/▼ glyph —
+   * for cells whose direction is already said beside them (the detail header's change
+   * pills) or where a glyph would read as a claim about the value (a session High). */
+  readonly flashGlyph?: boolean;
 }
 
 export function PriceCell({
@@ -85,6 +89,7 @@ export function PriceCell({
   flashDirectionOverride,
   ariaLabel,
   alignDecimals,
+  flashGlyph = true,
 }: PriceCellProps): ReactNode {
   const previousRef = useRef<DecimalString | null>(null);
   const previous = previousRef.current;
@@ -140,7 +145,7 @@ export function PriceCell({
     ? [
         'inline-block rounded-[3px] px-0.5 -mx-0.5',
         flashDirection === 'up' ? 'animate-price-flash-up' : 'animate-price-flash-down',
-        indicateSign
+        indicateSign || !flashGlyph
           ? ''
           : flashDirection === 'up'
             ? "before:content-['▲_'] before:text-up before:animate-price-flash-arrow"

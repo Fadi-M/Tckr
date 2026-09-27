@@ -53,7 +53,7 @@ describe('StockDetail unknown symbol', () => {
     vi.mocked(getSharedSource).mockReturnValue(source);
 
     render(
-      <MemoryRouter initialEntries={['/symbols/NOPE']}>
+      <MemoryRouter initialEntries={['/EGX/symbols/NOPE']}>
         <StockDetail symbol="NOPE" />
       </MemoryRouter>,
     );

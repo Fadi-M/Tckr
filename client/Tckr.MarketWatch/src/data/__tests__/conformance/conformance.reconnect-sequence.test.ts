@@ -17,7 +17,7 @@ import { TckrGatewaySource } from '../../TckrGatewaySource.ts';
 import { FakeWebSocket } from '../../../test-support/FakeWebSocket.ts';
 import { baseGatewayConfig, jsonResponse } from './gatewayHarness.ts';
 
-/** Raw JSON body for `GET /symbols/{symbol}/snapshot` — deliberately untyped (`unknown`
+/** Raw JSON body for `GET /{market}/symbols/{symbol}/snapshot` — deliberately untyped (`unknown`
  * on the wire, validated by `TckrGatewaySource`'s own REST parser), not a `Snapshot`
  * literal, since this stands in for a REST response body, not an already-parsed value. */
 function snapshotBodyFor(symbol: string): unknown {
@@ -39,11 +39,11 @@ describe('gateway reconnect sequence', () => {
       });
 
       const fetchImpl = vi.fn((url: string) => {
-        if (url.endsWith('/symbols/COMI/snapshot')) {
+        if (url.endsWith('/EGX/symbols/COMI/snapshot')) {
           mark('snapshot:COMI');
           return Promise.resolve(jsonResponse(snapshotBodyFor('COMI')));
         }
-        if (url.endsWith('/symbols/CIB/snapshot')) {
+        if (url.endsWith('/EGX/symbols/CIB/snapshot')) {
           mark('snapshot:CIB');
           return Promise.resolve(jsonResponse(snapshotBodyFor('CIB')));
         }

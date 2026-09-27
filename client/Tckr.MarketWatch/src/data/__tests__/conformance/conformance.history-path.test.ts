@@ -1,5 +1,5 @@
 /**
- * `TckrGatewaySource.getHistory` — REST `GET /symbols/{symbol}/history`
+ * `TckrGatewaySource.getHistory` — REST `GET /{market}/symbols/{symbol}/history`
  * (client-contract.md). A plain, unauthenticated REST call (like `getSnapshot`/
  * `getUniverse` — see those methods, none of which check `#authenticated`), parsed
  * through the same "never trust JSON at the edge" boundary validation as every other
@@ -10,9 +10,9 @@ import { toDecimal } from '../../../contracts/decimal.ts';
 import { createHarness } from './gatewayHarness.ts';
 
 describe('gateway history-path conformance', () => {
-  it('fetches GET /symbols/{symbol}/history and resolves with the parsed, typed history', async () => {
+  it('fetches GET /EGX/symbols/{symbol}/history and resolves with the parsed, typed history', async () => {
     const harness = createHarness({
-      '/symbols/COMI/history': {
+      '/EGX/symbols/COMI/history': {
         v: 1,
         symbol: 'COMI',
         points: [
@@ -35,7 +35,7 @@ describe('gateway history-path conformance', () => {
   });
 
   it('resolves to an empty points array for a symbol with no history yet', async () => {
-    const harness = createHarness({ '/symbols/NEWCO/history': { v: 1, symbol: 'NEWCO', points: [] } });
+    const harness = createHarness({ '/EGX/symbols/NEWCO/history': { v: 1, symbol: 'NEWCO', points: [] } });
 
     const history = await harness.source.getHistory('NEWCO');
 
@@ -43,11 +43,11 @@ describe('gateway history-path conformance', () => {
   });
 
   it('URL-encodes the symbol in the request path', async () => {
-    const harness = createHarness({ '/symbols/FOO%2FBAR/history': { v: 1, symbol: 'FOO/BAR', points: [] } });
+    const harness = createHarness({ '/EGX/symbols/FOO%2FBAR/history': { v: 1, symbol: 'FOO/BAR', points: [] } });
 
     await harness.source.getHistory('FOO/BAR');
 
-    expect(harness.fetchImpl).toHaveBeenCalledWith(expect.stringContaining('/symbols/FOO%2FBAR/history'));
+    expect(harness.fetchImpl).toHaveBeenCalledWith(expect.stringContaining('/EGX/symbols/FOO%2FBAR/history'));
   });
 
   it('throws on a non-ok HTTP response', async () => {
@@ -56,13 +56,13 @@ describe('gateway history-path conformance', () => {
   });
 
   it('rejects a malformed body (missing "points" array)', async () => {
-    const harness = createHarness({ '/symbols/COMI/history': { v: 1, symbol: 'COMI' } });
+    const harness = createHarness({ '/EGX/symbols/COMI/history': { v: 1, symbol: 'COMI' } });
     await expect(harness.source.getHistory('COMI')).rejects.toThrow(/expected array field "points"/);
   });
 
   it('rejects a point with an invalid decimal price', async () => {
     const harness = createHarness({
-      '/symbols/COMI/history': { v: 1, symbol: 'COMI', points: [{ t: '2026-09-12T07:00:03.000Z', p: 'not-a-price' }] },
+      '/EGX/symbols/COMI/history': { v: 1, symbol: 'COMI', points: [{ t: '2026-09-12T07:00:03.000Z', p: 'not-a-price' }] },
     });
     await expect(harness.source.getHistory('COMI')).rejects.toThrow(/invalid decimal price/);
   });

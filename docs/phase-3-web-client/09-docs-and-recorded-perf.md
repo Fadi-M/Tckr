@@ -77,7 +77,7 @@ scenario 8).
 - Serves the built app (`npm run build && npm run preview`), simulated source, seeded.
 - Drives the hot symbol at **3,750 ticks/sec** — 15% of a 25,000/sec tape, matching the
   measured 14.4% top-1 share in `benchmarks/phase-2/results.md` §3.
-- Opens `/symbols/COMI` (the head symbol) with the chart mounted and the list reachable.
+- Opens `/EGX/symbols/COMI` (the head symbol) with the chart mounted and the list reachable.
 - Measures over a **60-second** window, after a 10-second warm-up: frame timestamps via
   `requestAnimationFrame`, plus `performance.measure` around the flush path.
 - Reports: frames rendered, mean/p50/p95/p99 frame interval, longest frame, fps, ticks

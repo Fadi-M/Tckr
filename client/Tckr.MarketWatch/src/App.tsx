@@ -20,14 +20,14 @@
  *
  * Route targets — nested, not sibling, routes (Frosted Glass Revamp split-pane
  * layout): `/` renders task 04's `StockList` as a persistent *layout* route, and
- * `/symbols/:symbol` is a *child* route rendered into `StockList`'s own `<Outlet />`
+ * `/EGX/symbols/:symbol` is a *child* route rendered into `StockList`'s own `<Outlet />`
  * (via `StockDetailRoute`, which reads the `symbol` route param with `useParams` and
  * passes it straight through). Nesting them this way — rather than two sibling
  * `<Route>`s, which is what this file had before the revamp — means React Router
  * does not unmount/remount `StockList` when a symbol is opened or closed: the list's
  * search text, sort state, and subscriptions all survive, and only the detail pane
  * (behind `StockDetail`'s own lazy import, still code-split from `uplot`) slides in
- * or out beside it. `StockList` reads `useMatch('/symbols/:symbol')` itself to know
+ * or out beside it. `StockList` reads `useMatch(SYMBOL_ROUTE_PATTERN)` itself to know
  * whether a detail pane is open, for the split grid layout — see that file.
  *
  * ---------------------------------------------------------------------------------
@@ -51,6 +51,7 @@ import { useViewTransitionNavigate } from './components/useViewTransitionNavigat
 import { ThemeToggle } from './components/ThemeToggle';
 import { StockList } from './pages/StockList';
 import { BOARD_ID } from './pages/pageAnchors';
+import { LEGACY_SYMBOL_ROUTE_PATTERN, SYMBOL_ROUTE, symbolPath } from './pages/routes';
 
 // Lazy-loaded so the chart library (`uplot`), only needed on the per-symbol
 // detail page, is not fetched by users who only ever visit the list page at
@@ -125,6 +126,12 @@ function AppHeader({ statusSlot, badgeSlot }: AppHeaderProps) {
   );
 }
 
+/** `/symbols/COMI` (before routes were market-scoped) → `/EGX/symbols/COMI`. */
+function LegacySymbolRedirect() {
+  const { symbol } = useParams<{ symbol: string }>();
+  return <Navigate to={symbol ? symbolPath(symbol) : '/'} replace />;
+}
+
 function StockDetailRoute() {
   const { symbol } = useParams<{ symbol: string }>();
   const StockDetail = loadedStockDetail ?? LazyStockDetail;
@@ -178,8 +185,9 @@ export function App({ statusSlot, badgeSlot }: AppProps) {
         <main ref={mainRef} className="flex-1 w-full p-4 max-[640px]:p-3 [view-transition-scope:all]">
           <Routes>
             <Route path="/" element={<StockList />}>
-              <Route path="symbols/:symbol" element={<StockDetailRoute />} />
+              <Route path={SYMBOL_ROUTE} element={<StockDetailRoute />} />
             </Route>
+            <Route path={LEGACY_SYMBOL_ROUTE_PATTERN} element={<LegacySymbolRedirect />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

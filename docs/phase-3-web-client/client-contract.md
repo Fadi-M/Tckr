@@ -6,6 +6,10 @@
 > that the gateway is built to a contract rather than the contract being back-derived
 > from an implementation.
 >
+> **Amended 2026-09-27, still v1:** the symbol REST endpoints moved under a market
+> segment (`/{market}/symbols…`, §2) ahead of multi-market support. No gateway had
+> shipped, so no deployed client or server was on the old paths.
+>
 > Parent: [`README.md`](README.md) · [`../MASTER CONTEXT.md`](../MASTER%20CONTEXT.md) ·
 > requirements: [`../requirements.md`](../requirements.md)
 
@@ -40,7 +44,12 @@ ignore unknown fields rather than fail on them.
 
 ## 2. REST
 
-### `GET /symbols`
+Every symbol endpoint is scoped to a market: `{market}` is the exchange code, and `EGX` is
+the only market served today. A ticker is only unique within its exchange, so the market
+is part of the path from v1 rather than retrofitted when a second market arrives. An
+unknown `{market}` is `404`. `GET /health` is not market-scoped.
+
+### `GET /{market}/symbols`
 
 The tradeable universe. Static enough to cache for the session; not a market-data feed.
 
@@ -61,7 +70,7 @@ The tradeable universe. Static enough to cache for the session; not a market-dat
 symbol universe is fictional and its own file says so; a client that renders this feed
 **must** surface that flag to the user (see [ADR 006](../decisions/006-client-data-source-contract.md)).
 
-### `GET /symbols/{symbol}/snapshot`
+### `GET /{market}/symbols/{symbol}/snapshot`
 
 Current state for one symbol, used to paint a screen before the stream arrives and to
 recover after a reconnect (DS-3).
@@ -89,7 +98,7 @@ recover after a reconnect (DS-3).
 DELAYED caller gets the snapshot as of 15 minutes ago and `snapshotAge` (milliseconds)
 describes freshness relative to *that* stream, not to live time.
 
-### `GET /symbols/{symbol}/history`
+### `GET /{market}/symbols/{symbol}/history`
 
 Every price sample recorded for `symbol` since the session began, oldest first — lets a
 client that opens a symbol mid-session (e.g. at noon, for a session that opened at 9:30)
@@ -109,7 +118,7 @@ arrive after it starts watching.
 
 `points` is sampled at a server-defined cadence (not every tick) and may be empty for a
 symbol with no samples yet (e.g. it just started trading). This endpoint is additive to
-`GET /symbols/{symbol}/snapshot`, not a replacement for it — a client still calls
+`GET /{market}/symbols/{symbol}/snapshot`, not a replacement for it — a client still calls
 `snapshot` for the current OHLC/change figures and `history` only to seed a chart.
 
 ### `GET /health`
@@ -188,7 +197,7 @@ Short keys are intentional: at fan-out volumes the envelope is a meaningful shar
 bytes. Every other message type uses long, readable names because none of them are hot.
 
 **`snapshot`** — sent unprompted after a resubscribe so a reconnecting client can repaint
-without a REST round-trip. Same body as `GET /symbols/{symbol}/snapshot`, wrapped with
+without a REST round-trip. Same body as `GET /{market}/symbols/{symbol}/snapshot`, wrapped with
 `"type": "snapshot"`.
 
 **`heartbeat`** — `{ "v": 1, "type": "heartbeat", "serverTime": "…" }` every

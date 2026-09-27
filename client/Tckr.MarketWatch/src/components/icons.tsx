@@ -91,6 +91,22 @@ export function ArrowLeftIcon(props: IconProps) {
   );
 }
 
+export function ChevronLeftIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M10 3.5 5.5 8l4.5 4.5" />
+    </Icon>
+  );
+}
+
+export function ChevronRightIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M6 3.5 10.5 8 6 12.5" />
+    </Icon>
+  );
+}
+
 export function SunIcon(props: IconProps) {
   return (
     <Icon {...props}>

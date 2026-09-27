@@ -52,7 +52,7 @@ beforeEach(() => {
 });
 
 describe('StockDetail renders every price through PriceCell', () => {
-  it('routes price, change, open, high, low and tick size through the PriceCell component', async () => {
+  it('routes price, change, open, high and low through the PriceCell component', async () => {
     const { source } = createFakeSource();
     vi.mocked(getSharedSource).mockReturnValue(source);
 
@@ -73,15 +73,14 @@ describe('StockDetail renders every price through PriceCell', () => {
 
     const renderedValues = vi.mocked(PriceCell).mock.calls.map((call) => String(call[0]?.value ?? ''));
 
-    // Every DecimalString value shown on the page — price, change, open, high, low,
-    // tick size — must have gone through PriceCell (by component, not by string).
+    // Every DecimalString value shown on the page — price, change, open, high, low —
+    // must have gone through PriceCell (by component, not by string).
     expect(renderedValues).toContain('84.50'); // price
     expect(renderedValues).toContain('0.13'); // change
     expect(renderedValues).toContain('84.37'); // open
     expect(renderedValues).toContain('84.60'); // high
     expect(renderedValues).toContain('84.10'); // low
-    expect(renderedValues).toContain('0.05'); // tick size
 
-    expect(vi.mocked(PriceCell).mock.calls.length).toBeGreaterThanOrEqual(6);
+    expect(vi.mocked(PriceCell).mock.calls.length).toBeGreaterThanOrEqual(5);
   });
 });

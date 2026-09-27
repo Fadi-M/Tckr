@@ -193,39 +193,41 @@ export function ConnectionStatus() {
       }`}
       data-state={state.kind}
       data-idle={idle || undefined}
-      role="status"
       title={idle ? `Connected to the feed. ${idleReason}.` : undefined}
     >
       <span
         className={`w-1.5 h-1.5 rounded-full flex-none transition-[background-color] duration-[250ms] ${idle ? CONNECTED_IDLE_DOT_CLASS : DOT_STATE_CLASSES[state.kind]}`}
         data-state={state.kind}
+        data-testid="connection-status-dot"
         aria-hidden="true"
       />
-      {/* This is a status region, so every text change is announced. The elapsed time
-          and the retry countdown change every second: they are shown, but hidden from
-          assistive tech, which hears only the state itself ("Connected", "Reconnecting,
-          attempt 2"). */}
+      {/* What sighted users read, including the elapsed time and the retry countdown,
+          which change every second. Hidden from assistive tech: the status region beside
+          it holds only the state itself, so its text changes only when the state does
+          (a live region whose hidden children re-render can still be re-announced). */}
       {state.kind === 'connected' ? (
         // Same text as `describeState`, split so the elapsed time can drop on phones,
         // where the header has to fit the logo, stream badge, this pill and the theme
         // toggle on one row.
-        <span data-testid="connection-status">
+        <span data-testid="connection-status" aria-hidden="true">
           Connected
-          <span className="max-[640px]:hidden" aria-hidden="true">
+          <span className="max-[640px]:hidden">
             {' '}
             · {elapsedText}
           </span>
         </span>
-      ) : state.kind === 'reconnecting' ? (
-        <>
-          <span data-testid="connection-status" aria-hidden="true">
-            {describeState(state, remainingSecs, elapsedText)}
-          </span>
-          <span className="sr-only">Reconnecting, attempt {state.attempt}</span>
-        </>
       ) : (
-        <span data-testid="connection-status">{describeState(state, remainingSecs, elapsedText)}</span>
+        <span data-testid="connection-status" aria-hidden="true">
+          {describeState(state, remainingSecs, elapsedText)}
+        </span>
       )}
+      <span className="sr-only" role="status">
+        {state.kind === 'connected'
+          ? 'Connected'
+          : state.kind === 'reconnecting'
+            ? `Reconnecting, attempt ${state.attempt}`
+            : describeState(state, 0, '')}
+      </span>
     </span>
   );
 }

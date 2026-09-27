@@ -1,5 +1,5 @@
 /**
- * REST `GET /symbols/{symbol}/snapshot` and an unprompted WS `snapshot` push
+ * REST `GET /{market}/symbols/{symbol}/snapshot` and an unprompted WS `snapshot` push
  * (client-contract.md §3.3) reach the UI through the same handler with the same shape.
  * `TckrGatewaySource.#ingestSnapshot` is the shared handler (true `#`-private, so it
  * cannot be spied on directly — by design, see `conformance.surface.test.ts`); this
@@ -32,7 +32,7 @@ describe('gateway snapshot-path conformance', () => {
     resetStore();
     primeComi();
     const restBody = { ...FIXTURES['snapshot-live'].snapshot, symbol: 'COMI' };
-    const harness = createHarness({ '/symbols/COMI/snapshot': restBody });
+    const harness = createHarness({ '/EGX/symbols/COMI/snapshot': restBody });
     await connectAndAuthenticate(harness);
 
     const pushed: Snapshot[] = [];
@@ -65,7 +65,7 @@ describe('gateway snapshot-path conformance', () => {
     resetStore();
     primeComi();
     const restBody = { ...FIXTURES['snapshot-live'].snapshot, symbol: 'COMI' };
-    const restHarness = createHarness({ '/symbols/COMI/snapshot': restBody });
+    const restHarness = createHarness({ '/EGX/symbols/COMI/snapshot': restBody });
     await connectAndAuthenticate(restHarness);
     await restHarness.source.getSnapshot('COMI');
     const viaRest = getSymbolSnapshot('COMI');

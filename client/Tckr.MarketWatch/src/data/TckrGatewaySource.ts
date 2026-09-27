@@ -37,7 +37,7 @@ import type {
   Tick,
 } from '../contracts/messages.ts';
 import { toDecimal, type DecimalString } from '../contracts/decimal.ts';
-import type { HistoryPoint, Snapshot, SymbolDefinition, SymbolHistoryResponse, SymbolUniverseResponse } from '../contracts/rest.ts';
+import { SYMBOLS_PATH, type HistoryPoint, type Snapshot, type SymbolDefinition, type SymbolHistoryResponse, type SymbolUniverseResponse } from '../contracts/rest.ts';
 import { CloseCode } from '../contracts/closeCodes.ts';
 import type { ConnectionState, Identity, MarketDataSource } from './MarketDataSource.ts';
 import type { ClientConfig } from './config.ts';
@@ -146,8 +146,8 @@ function defaultCreateSocket(url: string): GatewaySocket {
 const defaultFetch: FetchLike = (url) => fetch(url) as unknown as Promise<FetchResponseLike>;
 
 // ---------------------------------------------------------------------------
-// REST body parsing — boundary validation for `GET /symbols` and
-// `GET /symbols/{symbol}/snapshot`, in the same "never trust JSON at the edge" spirit
+// REST body parsing — boundary validation for `GET /{market}/symbols` and
+// `GET /{market}/symbols/{symbol}/snapshot`, in the same "never trust JSON at the edge" spirit
 // as `contracts/messages.ts::parseServerMessage`. That module's own per-field
 // validators are not exported (task 01 owns `contracts/**`), so this is a small,
 // file-private duplicate — the same choice `SimulatedSource.ts` makes for its decimal
@@ -400,7 +400,7 @@ export class TckrGatewaySource implements MarketDataSource {
 
   async getSnapshot(symbol: string): Promise<Snapshot> {
     const base = httpBase(this.#config.gatewayUrl);
-    const res = await this.#fetchImpl(`${base}/symbols/${encodeURIComponent(symbol)}/snapshot`);
+    const res = await this.#fetchImpl(`${base}${SYMBOLS_PATH}/${encodeURIComponent(symbol)}/snapshot`);
     if (!res.ok) {
       throw new Error(`getSnapshot(${symbol}): HTTP ${res.status}`);
     }
@@ -410,14 +410,14 @@ export class TckrGatewaySource implements MarketDataSource {
     return snapshot;
   }
 
-  /** `GET /symbols/{symbol}/history` (client-contract.md) — every price sample
+  /** `GET /{market}/symbols/{symbol}/history` (client-contract.md) — every price sample
    * recorded for `symbol` since the session began, oldest first. Unlike `getSnapshot`,
    * this does not write into the shared store: history seeds a chart's own buffer
    * directly (see `PriceChart`'s `history` prop), it is not "the current view" that
    * `src/data/store.ts` tracks per symbol. */
   async getHistory(symbol: string): Promise<SymbolHistoryResponse> {
     const base = httpBase(this.#config.gatewayUrl);
-    const res = await this.#fetchImpl(`${base}/symbols/${encodeURIComponent(symbol)}/history`);
+    const res = await this.#fetchImpl(`${base}${SYMBOLS_PATH}/${encodeURIComponent(symbol)}/history`);
     if (!res.ok) {
       throw new Error(`getHistory(${symbol}): HTTP ${res.status}`);
     }
@@ -594,7 +594,7 @@ export class TckrGatewaySource implements MarketDataSource {
     this.#entitlementHandlers.forEach((h) => h(message));
   }
 
-  /** Shared by the REST `GET /symbols/{symbol}/snapshot` response and an unprompted
+  /** Shared by the REST `GET /{market}/symbols/{symbol}/snapshot` response and an unprompted
    * WS `snapshot` push (client-contract.md §3.3) — both write into the shared store
    * the same way; only the WS push also notifies `on.snapshot` subscribers, matching
    * `SimulatedSource`'s own `getSnapshot()` (which does not fire `on.snapshot` either,
@@ -806,7 +806,7 @@ export class TckrGatewaySource implements MarketDataSource {
 
   async #fetchUniverse(): Promise<SymbolUniverseResponse> {
     const base = httpBase(this.#config.gatewayUrl);
-    const res = await this.#fetchImpl(`${base}/symbols`);
+    const res = await this.#fetchImpl(`${base}${SYMBOLS_PATH}`);
     if (!res.ok) {
       throw new Error(`getUniverse(): HTTP ${res.status}`);
     }

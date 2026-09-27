@@ -105,9 +105,9 @@ Implements `MarketDataSource` (task 02) exactly. Behaviour, contract section by 
   `UNKNOWN_SYMBOL` error, not a silent drop.
 - **Ticks** — parsed via `parseServerMessage`, prices through `toDecimal`, pushed to the
   dispatcher. **No coalescing here** — that is the dispatcher's job and it is shared.
-- **Snapshot** — `GET /symbols/{symbol}/snapshot`; also accepts unprompted `snapshot`
+- **Snapshot** — `GET /EGX/symbols/{symbol}/snapshot`; also accepts unprompted `snapshot`
   frames after a resubscribe (contract §3.3) and routes both through the same handler.
-- **Universe** — `GET /symbols`, cached for the session.
+- **Universe** — `GET /EGX/symbols`, cached for the session.
 - **Heartbeat** — tracks `heartbeatIntervalMs`; two misses → local close `4408` (task 07's
   rule).
 - **Close** — consults `shouldReconnect(code)` and `nextDelay(attempt, …)` from

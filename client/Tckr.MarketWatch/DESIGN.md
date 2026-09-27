@@ -259,8 +259,10 @@ accessible names end in ", delayed stream". The detail says it once more, inline
 
 **The Color-Plus-Signal Rule.** No price direction is shown by colour alone. Change
 cells lead with ▲/▼. Change-percent chips and delta pills always print an explicit
-+ or − sign. The price flash fades in an arrow beside the tint. This is a product
-requirement, not a style preference.
++ or − sign. On the board, the price flash fades in an arrow beside the tint. In the
+detail pane the flash is tint only, because the change pills beside the price already carry
+the direction, and an arrow on a session High or Low would read as a claim about the value.
+This is a product requirement, not a style preference.
 
 **The Tinted Status Rule.** A status surface mixes its signal colour into the glass,
 never into a solid fill: 16% into `--tckr-glass-bg` for connection pills and banners,
@@ -312,7 +314,7 @@ When two jobs share a step, weight and tone separate them rather than an in-betw
 ### Named Rules
 **The Mono-Is-For-Machines Rule.** Anything a machine produced or a user compares
 digit by digit is IBM Plex Mono with `tabular-nums`: prices, symbols, volumes,
-percentages, timestamps, tick and lot sizes. Anything a person wrote is Instrument Sans.
+percentages, timestamps. Anything a person wrote is Instrument Sans.
 The two never trade places.
 
 **The Tracked-Label Rule.** Small mono labels are always tracked wide (0.08–0.14em) and set
@@ -356,7 +358,9 @@ then the instrument table in one glass card. The table is a dense board:
 Opening a symbol turns the page into a **split pane** without remounting the list. The
 hero cards leave the layout, the list narrows to a fixed 380px column showing only
 Symbol / Price / Change %, and the detail pane appears beside it, all in a single
-layout change. The motion is a **view transition** over snapshots of three named regions:
+layout change. The search field and the order presets move into the top of the list
+column, over the list they act on, so the detail pane starts at the top of its own column
+with nothing spanning the chart. The motion is a **view transition** over snapshots of three named regions:
 - The list morphs to its column over 420ms. It is clipped from the right edge, never
   stretched.
 - The hero cards fade out over 200ms.
@@ -371,14 +375,15 @@ its region names never leak into a document-wide transition.
 
 No layout property is ever animated. Under reduced motion, or in browsers without
 element-scoped view transitions, the change is instant. The detail pane stacks the identity + price panel
-(with range pills, a × close button and the chart, 340px tall) above two groups at two
-weights: the session figures as four stat tiles (Open, High, Low, Volume; auto-fit, min
-120px), and the instrument's fixed trading rules as a quiet mono caption line beneath
-them ("LOT SIZE 100 · TICK SIZE 0.05"). The two change pills wrap as one unit, so on a
-narrow pane the move sits beneath the price as one fact rather than splitting.
+(with range pills, a × close button and the chart, 340px tall) above the session figures
+as four stat tiles (Open, High, Low, Volume; auto-fit, min 120px). The two change pills
+sit vertically centred on the price and wrap as one unit, so on a narrow pane the move
+sits beneath the price as one fact rather than splitting.
 
 Breakpoints:
-- **800px:** the split pane stacks, and the list column hides while a detail is open.
+- **800px:** the split pane stacks, and the list column hides while a detail is open. A
+  row above the detail keeps "← All instruments" plus previous/next symbol pills
+  ("‹ ORAS", "SWDY ›"), which step through the board's current order.
 - **640px:** the header stacks into two rows, page padding drops to 12px, the background
   glows are removed, hero cards stack, and the table sheds Session trend, Name, Change, Volume,
   Value and Last update, down to Symbol / Price / Change %.
@@ -464,7 +469,7 @@ chip text, or neutral Paper Raised when flat. Only the shape differs by context.
 - **Delta pill (detail):** full pill, Body-size mono 600, no border. The change-amount pill leads
   with a small ▲/▼, like the board's Change column; the percent pill carries its sign.
 - **Stat tile labels:** uppercase tracked Label (0.14em), the same voice as the table
-  headers: OPEN, HIGH, LOW, VOLUME, LOT SIZE, TICK SIZE.
+  headers: OPEN, HIGH, LOW, VOLUME.
 - **Hero badge:** full pill, Label-size mono 600, the same up/down tint. Most Active ranks by
   traded value, as EGX reports activity, and shows it in a neutral badge ("EGP 25.16M").
 
@@ -486,9 +491,11 @@ chip text, or neutral Paper Raised when flat. Only the shape differs by context.
 - **Focus:** `focus-within` draws the 2px accent outline, offset 2px, around the whole pill.
 
 ### Navigation
-There is no nav chrome beyond the logo, which links home. In the split view an
-"← All instruments" pill leads the filter row, and rows open a symbol on click, Enter or
-Space.
+There is no nav chrome beyond the logo, which links home. A symbol's URL is scoped to its
+market, `/EGX/symbols/COMI` (`pages/routes.ts`), so a second exchange can be added without
+changing any existing link; the old `/symbols/COMI` form redirects. Rows open a symbol on click,
+Enter or Space; on desktop the pane closes with its × or Esc. On a phone's detail view,
+"← All instruments" and previous/next pills sit above the pane.
 
 ### Stream Badge (signature component)
 The header's first pill, and the product's most important status. It shows the
@@ -514,12 +521,35 @@ tinted per state:
 - **Connecting or reconnecting:** amber.
 - **Closed:** red.
 
-The elapsed time drops below 640px so the header stays one row.
+The elapsed time drops below 640px so the header stays one row. Screen readers hear only the
+state ("Connected", "Reconnecting, attempt 2") from a separate status region; the ticking
+elapsed time and countdown are visual only.
 
 Its big sibling, the connection banner, is a full-width glass pill that drops in (220ms,
 from −6px) with a drawn icon, a title, a Slate detail line and an Ink action button. The
 market banner uses the same pill. It says "Market closed", or "Pre-open auction" from
 09:30 to 10:00 Cairo.
+
+### Held state (stream down)
+While the stream is reconnecting or closed, every price on screen is the last one received.
+The prices keep full contrast, since they are what the user is judging, and are marked
+where they sit:
+- **HELD tag:** a mono label chip, amber at the fault strength of The Tinted Status Rule
+  (16% tint, 32% border, Session Amber text).
+- **Board:** the table card's edge turns amber (45% border plus a 20% 1px ring) and its
+  caption leads with HELD and "since 12:31:05", the moment the stream stopped.
+- **Detail:** the price panel takes the same edge, and its as-of line leads with HELD and
+  ends "stream down, price not moving".
+- **Banner:** the connection banner sticks under the header (75px), so a user scrolled
+  deep into the board can still retry. In desktop split view it scrolls normally, since
+  the pane sticks at that offset and carries its own HELD line.
+
+### Refresh cadence
+Prices (rows, hero figures, the detail header and the chart's live sample) repaint every
+10 seconds. Paints are aligned to the wall clock, so the open symbol's row and its detail
+header always change on the same beat. The order (re-ranking a sorted board, re-picking
+the hero cards) settles every 20 seconds, and while trading, a sorted board's caption says
+so ("re-ranked every 20s").
 
 ### Icons
 Drawn SVG icons from `src/components/icons.tsx` (clock, retry, alert, search, arrow-left).
@@ -547,7 +577,7 @@ button.
 
 ### Board re-rank motion (signature)
 When the row order changes, each row that moved glides from its old rank to its new one.
-That covers a preset or header sort, the 30-second re-rank of an active sort, and a search
+That covers a preset or header sort, the 20-second re-rank of an active sort, and a search
 narrowing the list. The glide is a FLIP, transform only, 420ms with the system ease.
 Rows are transparent over the glass, so a moving row carries a near-opaque surface
 through the flight and hands back to its own background as it lands. Rows newly in the
@@ -577,7 +607,9 @@ get the same model as the table's description. In split view the collapsed hero 
 Every displayed price or signed decimal goes through Price Cell. It is mono and tabular,
 and a no-data state renders as a Slate "—" rather than a fake zero. On each
 change it replays a 500ms ease-out flash: a 28% signal-colour tint behind the digits
-(3px radius) with an arrow that holds, then fades.
+(3px radius) with an arrow that holds, then fades (tint only where the cell opts out of
+the glyph, as in the detail pane). A change of symbol is never a change of value: the
+detail pane clears its figures in the same render as the switch, so nothing flashes.
 
 ### Sparkline (signature component)
 A 20-point inline SVG polyline with a 1.6px stroke coloured by direction (green, red or
@@ -589,13 +621,14 @@ shape from first paint rather than starting flat.
 
 ### Price Chart
 A uPlot line drawn straight onto the detail panel's glass, clipped to a 16px radius (no
-separate chart card): a 2.5px line over a 14% area fill, and 1px hairline
+separate chart card): a 2.5px line (1.5px when the plot is under 480px wide, where a
+session's samples would otherwise overlap into a band) over a 14% area fill, and 1px hairline
 horizontal gridlines. A sparse Cairo-time axis runs along the bottom (`HH:MM` for
 SESSION, `HH:MM:SS` for 60S/5M), always labelling both ends of the plotted span (10:00
 and 14:30, even on a phone) with interior steps only where they fit, and a price axis sits on the right, both in 11px Plex
 Mono in the muted token with no tick marks. Two tags hang off the plot onto the price
 axis: the last plotted price, filled in the line colour, and on SESSION the session open
-(the baseline the page's change figures use), "Open 85.10" on Paper Raised, marking a
+(the baseline the page's change figures use), "Open 85.10" on Paper Raised with a hairline border, marking a
 dashed muted line across the plot. On the axis, never inside the plot, so the line can't
 run through them; when the two would overlap, the Open tag steps one tag-height aside, and
 axis labels under a tag are left blank. The y range always includes the open. The area under
@@ -605,6 +638,10 @@ fills the frame like a crash. The only corner chip names the slice of time plott
 once closed, the ranges end at the session's close and read as a recap ("Final 60s · Thu
 24 Sep", "Thu 24 Sep session · 10:00–14:30"). The session high and low live in the stat
 tiles.
+
+Hovering the plot shows a crosshair and a readout chip that follows it above the line
+(below it near the top edge): the sample's Cairo time in Slate and its price at tick-size
+precision in Ink, on Paper with a hairline border and Card float.
 
 **The Session-Direction Line Rule.** The line, its whole area fill, the last-price tag and
 the cursor dot take the session's direction, the same sign as the Change pills beside it: Exchange
@@ -651,6 +688,7 @@ is about 0.06× the wordmark size, and the two are bottom-aligned.
 - **Don't** use a sharp (0px) corner or a border thicker than 1px.
 - **Don't** colour the logo candle red or coral, or add "Market Watch" text to the lockup
   (The Always-Green Candle Rule).
-- **Don't** recolour the price chart's line by direction. It is always the accent.
+- **Don't** colour the price chart's line per segment or per tick. It takes the session's
+  direction as one colour (The Session-Direction Line Rule).
 - **Don't** reintroduce the retired Night Terminal patterns: dark-only default, Roboto
   Mono/Archivo, the marquee ticker tape, or the permanent simulated-data banner.

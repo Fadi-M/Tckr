@@ -10,6 +10,13 @@
 import type { DecimalString } from './decimal.ts';
 import type { IsoUtc, Stream } from './messages.ts';
 
+/** The market every symbol endpoint (and page URL) is scoped to — client-contract.md §2's
+ * `{market}` path segment. EGX is the only market served today. */
+export const MARKET = 'EGX';
+
+/** `/{market}/symbols` — the base path of every symbol REST endpoint (§2). */
+export const SYMBOLS_PATH = `/${MARKET}/symbols`;
+
 export interface SymbolDefinition {
   readonly symbol: string;
   readonly name: string;
@@ -34,7 +41,7 @@ export interface HistoryPoint {
   readonly p: DecimalString;
 }
 
-/** `GET /symbols/{symbol}/history` (client-contract.md). Every price sample recorded
+/** `GET /{market}/symbols/{symbol}/history` (client-contract.md). Every price sample recorded
  * for `symbol` since the session began, oldest first — lets a client that opens a
  * symbol mid-session (e.g. at noon, for a session that opened at 9:30) render the full
  * session line immediately, instead of only the samples that happen to arrive after it

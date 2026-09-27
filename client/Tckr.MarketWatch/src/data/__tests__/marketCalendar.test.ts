@@ -184,6 +184,24 @@ describe('formatNextOpen', () => {
     }
   });
 
+  it('says "today" or "tomorrow" relative to the viewer\'s Cairo day when given one', () => {
+    // Sunday 03:46 Cairo: the open is later the same day.
+    const sundayNight = Date.UTC(2026, 8, 27, 0, 46, 0);
+    const sunday = getMarketStatus(sundayNight);
+    // Thursday 15:00 Cairo, after the close: the next open is Sunday, not tomorrow.
+    const thursdayAfternoon = Date.UTC(2026, 8, 24, 12, 0, 0);
+    const thursday = getMarketStatus(thursdayAfternoon);
+    // Monday 15:00 Cairo: the next open is Tuesday.
+    const mondayAfternoon = Date.UTC(2026, 8, 28, 12, 0, 0);
+    const monday = getMarketStatus(mondayAfternoon);
+    if (sunday.state !== 'closed' || thursday.state !== 'closed' || monday.state !== 'closed') {
+      throw new Error('expected all three instants to be outside continuous trading');
+    }
+    expect(formatNextOpen(sunday, sundayNight)).toBe('today 10:00');
+    expect(formatNextOpen(monday, mondayAfternoon)).toBe('tomorrow 10:00');
+    expect(formatNextOpen(thursday, thursdayAfternoon)).toBe('Sun 10:00');
+  });
+
   it('reflects the weekend-skipping nextOpenAt (reopens Sunday)', () => {
     // Friday: closed, reopens the following Sunday at 10:00.
     const status = getMarketStatus(Date.UTC(2026, 0, 16, 10, 0, 0));

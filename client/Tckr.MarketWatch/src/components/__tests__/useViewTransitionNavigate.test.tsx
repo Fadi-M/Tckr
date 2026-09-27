@@ -61,9 +61,9 @@ afterEach(() => {
 
 describe('useViewTransitionNavigate', () => {
   it.each([
-    ['opening a symbol', '/', '/symbols/COMI'],
-    ['switching symbols', '/symbols/COMI', '/symbols/CIB'],
-    ['closing the detail', '/symbols/COMI', '/'],
+    ['opening a symbol', '/', '/EGX/symbols/COMI'],
+    ['switching symbols', '/EGX/symbols/COMI', '/EGX/symbols/CIB'],
+    ['closing the detail', '/EGX/symbols/COMI', '/'],
   ])('animates %s on the scope element, not the document', (_label, from, to) => {
     render(
       <MemoryRouter initialEntries={[from]}>
@@ -84,8 +84,8 @@ describe('useViewTransitionNavigate', () => {
         <Probe />
       </MemoryRouter>,
     );
-    act(() => navigateTo('/symbols/COMI'));
+    act(() => navigateTo('/EGX/symbols/COMI'));
     expect(documentStart).toHaveBeenCalledTimes(1);
-    expect(currentPath).toBe('/symbols/COMI');
+    expect(currentPath).toBe('/EGX/symbols/COMI');
   });
 });

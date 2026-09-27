@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, render } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { resetStore } from '../../data/store.ts';
-import { cibDefinition, comiDefinition, createFakeSource, universeFixture } from './testSupport.ts';
+import { cibDefinition, comiDefinition, createFakeSource, snapshotFixture, universeFixture } from './testSupport.ts';
+import { toDecimal } from '../../contracts/decimal.ts';
 
 // Exposes the fake uPlot's constructor calls/instances to the test body, so a symbol
 // switch can be shown to destroy the old chart instance and construct a fresh one —
@@ -44,6 +45,13 @@ vi.mock('../../data/config.ts', () => ({
   })),
 }));
 
+// Transparent spy over the real PriceCell: records every value it is asked to render.
+vi.mock('../../components/PriceCell.tsx', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../components/PriceCell.tsx')>();
+  return { ...actual, PriceCell: vi.fn(actual.PriceCell) };
+});
+
+import { PriceCell } from '../../components/PriceCell.tsx';
 import { getSharedSource, resetSharedSource } from '../../data/config.ts';
 import { StockDetail } from '../StockDetail.tsx';
 
@@ -100,5 +108,48 @@ describe('StockDetail symbol switch', () => {
     // and a fresh one constructed — no COMI point survives into CIB's chart.
     expect(comiChart?.destroy).toHaveBeenCalledTimes(1);
     expect(fakeUplotConstructorSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('never renders the old symbol\'s figures under the new symbol', async () => {
+    // Distinct prices per symbol, so a stale carry-over would register as a change.
+    const { source } = createFakeSource({
+      universe: universeFixture({ symbols: [comiDefinition(), cibDefinition()] }),
+      snapshotImpl: (symbol) =>
+        Promise.resolve(snapshotFixture(symbol === 'CIB' ? { symbol, price: toDecimal('70.25') } : { symbol })),
+    });
+    vi.mocked(getSharedSource).mockReturnValue(source);
+
+    const { rerender, container } = render(
+      <MemoryRouter>
+        <StockDetail symbol="COMI" />
+      </MemoryRouter>,
+    );
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const comiPrice = screen.getByTestId('stock-detail-price').textContent;
+    vi.mocked(PriceCell).mockClear();
+
+    await act(async () => {
+      rerender(
+        <MemoryRouter>
+          <StockDetail symbol="CIB" />
+        </MemoryRouter>,
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Not one render under CIB may carry COMI's price: that stale render is what made
+    // the cells "move" to CIB's figures and flash ▲/▼ when they stayed mounted.
+    const renderedAfterSwitch = vi.mocked(PriceCell).mock.calls.map((call) => String(call[0].value));
+    expect(renderedAfterSwitch).not.toContain(comiPrice);
+
+    // CIB's price differs from COMI's, but the switch is not a tick: had COMI's figures
+    // stayed on screen under CIB for a commit, every PriceCell would now be mid-flash.
+    expect(screen.getByTestId('stock-detail-symbol').textContent).toBe('CIB');
+    expect(screen.getByTestId('stock-detail-price').textContent).toBe('70.25');
+    expect(container.querySelector('[class*="animate-price-flash"]')).toBeNull();
   });
 });

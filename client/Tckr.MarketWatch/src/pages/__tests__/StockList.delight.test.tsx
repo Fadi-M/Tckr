@@ -25,7 +25,7 @@ async function renderList() {
     <MemoryRouter initialEntries={['/']}>
       <Routes>
         <Route path="/" element={<StockList />}>
-          <Route path="symbols/:symbol" element={<div data-testid="detail-route">detail</div>} />
+          <Route path="EGX/symbols/:symbol" element={<div data-testid="detail-route">detail</div>} />
         </Route>
       </Routes>
     </MemoryRouter>,

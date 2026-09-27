@@ -121,10 +121,10 @@ function buildGatewayRig(): SourceRig {
   const universeBody = FIXTURES['symbols-universe'];
   const snapshotBody = { ...FIXTURES['snapshot-live'].snapshot, symbol: 'COMI' };
   const fetchImpl = vi.fn((url: string) => {
-    if (url.endsWith('/symbols/COMI/snapshot')) {
+    if (url.endsWith('/EGX/symbols/COMI/snapshot')) {
       return Promise.resolve(jsonResponse(snapshotBody));
     }
-    if (url.endsWith('/symbols')) {
+    if (url.endsWith('/EGX/symbols')) {
       return Promise.resolve(jsonResponse(universeBody));
     }
     return Promise.resolve(jsonResponse({ error: 'not found' }, false, 404));

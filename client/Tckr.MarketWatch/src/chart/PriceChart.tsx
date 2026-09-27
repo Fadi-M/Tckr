@@ -39,9 +39,9 @@
  * an earlier revision of this file read `src/data/store.ts`'s `getSymbolSnapshot`/
  * `subscribeSymbol` directly, on its own `setInterval`, completely independently of
  * `StockDetail`'s own displayed price (which is computed on `StockDetail`'s *own*,
- * separately-timed 30s throttle, merging the uncoalesced raw tick stream with its own
+ * separately-timed display throttle, merging the uncoalesced raw tick stream with its own
  * "newer wins" ordering rules — see that file's module doc for why it cannot simply
- * read the shared store either). Two independently-timed 30-second samplers reading the
+ * read the shared store either). Two independently-timed samplers reading the
  * same underlying tape through two different coalescing paths will, at any given
  * instant, very often land on *different* ticks — so the big price header and the
  * chart's rightmost plotted point would show two different numbers for the same symbol
@@ -84,7 +84,7 @@ import { onStreamDiscard } from '../data/store.ts';
 import { DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
 import { useTheme } from '../theme/useTheme.ts';
 import { RingBuffer, toPlotValue } from './ringBuffer.ts';
-import { decimalsForTickSize, formatXAxisTick, formatYAxisLabel, timeAxisSplits, X_AXIS_INCREMENTS_MS } from './axes.ts';
+import { decimalsForTickSize, formatClockTime, formatXAxisTick, formatYAxisLabel, timeAxisSplits, X_AXIS_INCREMENTS_MS } from './axes.ts';
 
 /** One point of session history, already converted to this component's own numeric/x
  * representation (`t`: epoch ms, matching `SymbolView.lastUpdate`'s convention) — the
@@ -118,7 +118,7 @@ export interface PriceChartProps {
    * now (its own `quote.price`/`quote.exchangeTimestamp`, converted the same way
    * `history` points are) — not an independently-sampled read of the store. Recomputed
    * by the parent on every render where its own displayed price changes; this
-   * component reads it live via a ref (`livePriceRef` below) on its own 30s sampling
+   * component reads it live via a ref (`livePriceRef` below) on its own 10s sampling
    * cadence, so the chart's plotted point and the page's big price header can never
    * show two different numbers for the same instant (see the module doc's "why
    * `livePrice` is a prop" section). `undefined` until the parent has a price to show.
@@ -131,7 +131,7 @@ export interface PriceChartProps {
    * `pages/chartRanges.ts`); this component does not know or care what a "range"
    * means, it only ever plots whatever `history`/`livePrice` it is given. Defaults to
    * `'Session'`. (The chip used to add a sample count, "541 ticks": those points are
-   * 30-second samples, not ticks, and the count told a trader nothing.)
+   * sampled points, not ticks, and the count told a trader nothing.)
    */
   readonly rangeLabel?: string;
   /**
@@ -176,6 +176,8 @@ const LINE_TOKEN: Record<LineDirection, string> = {
 const DEFAULT_CAPACITY = 4200;
 const DEFAULT_HEIGHT = 340;
 const DEFAULT_WIDTH = 400;
+/** Below this plot width the line draws finer (see the series `width`). */
+const NARROW_PLOT_PX = 480;
 // Axis labels are canvas text, so the font is spelled out rather than inherited; the
 // family matches every other number on the page (IBM Plex Mono, tabular by design).
 const AXIS_FONT = '500 11px "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
@@ -382,8 +384,47 @@ export function PriceChart({
     const referenceTag = document.createElement('span');
     referenceTag.setAttribute('aria-hidden', 'true');
     referenceTag.dataset.testid = 'price-chart-reference-tag';
+    // A hairline border (in place of the last tag's 1px vertical padding, so both tags
+    // keep one height): Paper Raised alone barely separates from the light glass.
     referenceTag.className =
-      'absolute left-full ml-1.5 -translate-y-1/2 font-mono text-caption tabular-nums px-1.5 py-px rounded-[5px] bg-surface-raised text-text-muted pointer-events-none whitespace-nowrap';
+      'absolute left-full ml-1.5 -translate-y-1/2 font-mono text-caption tabular-nums px-1.5 py-0 rounded-[5px] border border-border bg-surface-raised text-text-muted pointer-events-none whitespace-nowrap';
+
+    // The crosshair's readout: the hovered sample's Cairo time and price, in a chip that
+    // follows the cursor above the line (below it near the top edge), clamped inside the
+    // plot. Without it the crosshair drew a line and a dot but never said what they meant.
+    const readout = document.createElement('span');
+    readout.setAttribute('aria-hidden', 'true');
+    readout.dataset.testid = 'price-chart-readout';
+    readout.hidden = true;
+    readout.className =
+      'absolute z-[1] inline-flex items-baseline gap-1.5 font-mono text-caption tabular-nums px-2 py-[3px] rounded-[7px] bg-surface text-text border border-border shadow-float pointer-events-none whitespace-nowrap';
+    const readoutTime = document.createElement('span');
+    readoutTime.className = 'text-text-muted';
+    const readoutPrice = document.createElement('span');
+    readoutPrice.className = 'font-semibold';
+    readout.append(readoutTime, readoutPrice);
+
+    const updateReadout = (u: uPlot): void => {
+      const idx = u.cursor.idx;
+      const t = idx == null ? undefined : u.data[0]?.[idx];
+      const v = idx == null ? undefined : u.data[1]?.[idx];
+      if (t == null || v == null) {
+        readout.hidden = true;
+        return;
+      }
+      readoutTime.textContent = formatClockTime(t);
+      readoutPrice.textContent = formatYAxisLabel(v, tickSizeRef.current);
+      readout.hidden = false;
+      const plotWidth = u.over.clientWidth;
+      const halfWidth = readout.offsetWidth / 2;
+      const x = u.valToPos(t, 'x');
+      const y = u.valToPos(v, 'y');
+      const left = Math.min(Math.max(x, halfWidth), Math.max(halfWidth, plotWidth - halfWidth));
+      const above = y - readout.offsetHeight - 10;
+      readout.style.left = `${left}px`;
+      readout.style.top = `${above >= 0 ? above : y + 10}px`;
+      readout.style.transform = 'translateX(-50%)';
+    };
 
     const lastValue = (u: uPlot): number | null => {
       const values = u.data[1] ?? [];
@@ -442,7 +483,9 @@ export function PriceChart({
           {
             label: symbol,
             stroke: accent,
-            width: 2.5,
+            // A phone-width plot packs a whole session (~540 samples) into ~250px, so a
+            // 2.5px line overlaps itself into a solid band; a finer line keeps its shape.
+            width: (container.clientWidth || DEFAULT_WIDTH) < NARROW_PLOT_PX ? 1.5 : 2.5,
             // The whole area under the line, in a tint of the line's own colour: one
             // colour for the whole session, by its direction (see `direction`).
             fill: () => tint(accent()),
@@ -487,7 +530,7 @@ export function PriceChart({
           },
         ],
         legend: { show: false },
-        hooks: { draw: [drawOverlays] },
+        hooks: { draw: [drawOverlays], setCursor: [updateReadout] },
         cursor: {
           show: true,
           x: true,
@@ -499,7 +542,7 @@ export function PriceChart({
       container,
     );
     plotRef.current = plot;
-    plot.over.append(lastTag, referenceTag);
+    plot.over.append(lastTag, referenceTag, readout);
 
     // Seed the buffer with the full session history *before* anything live — `history`
     // is fetched once by the parent page (task 06) and gates this component's own
@@ -590,7 +633,7 @@ export function PriceChart({
 
     // The chart already painted once, synchronously, from `history`/`seed` above. From
     // here on it takes one fresh sample and repaints on a fixed cadence — never on tick
-    // arrival — so the line only ever grows, in the same, predictable 30s steps as
+    // arrival — so the line only ever grows, in the same, predictable 10s steps as
     // every other visible price on the page, no matter how bursty the underlying tape
     // is.
     const intervalId = setInterval(() => {

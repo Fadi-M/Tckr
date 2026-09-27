@@ -27,7 +27,7 @@ function renderAt(path: string) {
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/" element={<StockList />}>
-          <Route path="symbols/:symbol" element={<DetailStub />} />
+          <Route path="EGX/symbols/:symbol" element={<DetailStub />} />
         </Route>
       </Routes>
     </MemoryRouter>,
@@ -43,7 +43,7 @@ describe('StockList keyboard paths around the detail pane', () => {
   afterEach(cleanup);
 
   it('Escape closes the open detail and puts focus back on its row', async () => {
-    renderAt('/symbols/CIB');
+    renderAt('/EGX/symbols/CIB');
     await screen.findByTestId('detail-route');
     await screen.findAllByRole('row', { name: /^[A-Z]+,/ });
 
@@ -54,7 +54,7 @@ describe('StockList keyboard paths around the detail pane', () => {
   });
 
   it('Escape inside the search box leaves the detail open', async () => {
-    renderAt('/symbols/CIB');
+    renderAt('/EGX/symbols/CIB');
     await screen.findByTestId('detail-route');
 
     fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'Escape' });
@@ -63,7 +63,7 @@ describe('StockList keyboard paths around the detail pane', () => {
   });
 
   it('with the detail open, ArrowDown moves focus and the detail to the next row', async () => {
-    renderAt('/symbols/COMI');
+    renderAt('/EGX/symbols/COMI');
     await screen.findByTestId('detail-route');
     const rows = await screen.findAllByRole('row', { name: /^[A-Z]+,/ });
     const comiIndex = rows.findIndex((row) => row.getAttribute('data-symbol') === 'COMI');
@@ -74,6 +74,20 @@ describe('StockList keyboard paths around the detail pane', () => {
 
     expect(document.activeElement?.getAttribute('data-symbol')).toBe(nextSymbol);
     await waitFor(() => expect(screen.getByTestId('detail-route').textContent).toBe(nextSymbol));
+  });
+
+  it('the phone previous/next buttons step the detail through the board order', async () => {
+    renderAt('/EGX/symbols/COMI');
+    await screen.findByTestId('detail-route');
+    const rows = await screen.findAllByRole('row', { name: /^[A-Z]+,/ });
+    const symbols = rows.map((row) => row.getAttribute('data-symbol'));
+    const comiIndex = symbols.indexOf('COMI');
+
+    fireEvent.click(screen.getByRole('button', { name: `Next: ${symbols[comiIndex + 1]}` }));
+    await waitFor(() => expect(screen.getByTestId('detail-route').textContent).toBe(symbols[comiIndex + 1]));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous: COMI' }));
+    await waitFor(() => expect(screen.getByTestId('detail-route').textContent).toBe('COMI'));
   });
 
   it('with no detail open, ArrowDown only moves focus', async () => {
@@ -102,9 +116,9 @@ describe('StockList keyboard paths around the detail pane', () => {
   });
 
   it('describes the keyboard model to screen readers, including Escape once the detail is open', async () => {
-    renderAt('/symbols/COMI');
+    renderAt('/EGX/symbols/COMI');
     await screen.findByTestId('detail-route');
-    const table = screen.getByRole('table', { name: 'Instruments' });
+    const table = screen.getByRole('grid', { name: 'Instruments' });
     const help = document.getElementById(table.getAttribute('aria-describedby')!);
     expect(help?.textContent).toMatch(/Arrow keys move between instruments/);
     expect(help?.textContent).toMatch(/Escape closes them/);

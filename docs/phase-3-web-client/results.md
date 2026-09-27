@@ -51,7 +51,7 @@ stress load actively produces a misleading answer — see §3.3.
 
 - Built with `VITE_TCKR_SIM_RATE=25000 npm run build`, served by `npm run preview` on
   `:4173` (Playwright's own `webServer`, per `perf/playwright.config.ts`).
-- Navigates directly to `/symbols/COMI` (the head symbol; never visits `/` first).
+- Navigates directly to `/EGX/symbols/COMI` (the head symbol; never visits `/` first).
   `SimulatedSource.generateBatch()` always generates across the full 34-symbol universe
   at the configured rate regardless of subscription (`src/data/SimulatedSource.ts`); only
   `emit()` filters by what is subscribed before pushing into `TickDispatcher`/the store.
@@ -90,7 +90,7 @@ stress load actively produces a misleading answer — see §3.3.
 - Built with the **default** `VITE_TCKR_SIM_RATE` (2000/sec across the universe; COMI's
   ≈15% share is ≈300/sec) — see §3.3 for why the hot-load build is the wrong build for
   this check.
-- Viewport `400×800`. `StockList` (`/`) and `StockDetail`+chart (`/symbols/COMI`) are
+- Viewport `400×800`. `StockList` (`/`) and `StockDetail`+chart (`/EGX/symbols/COMI`) are
   each loaded and checked for horizontal overflow
   (`document.documentElement.scrollWidth <= clientWidth`).
 - Axis-label counting: an `addInitScript` wraps

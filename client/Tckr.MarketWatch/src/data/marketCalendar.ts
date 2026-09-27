@@ -273,10 +273,25 @@ export function formatCairoTimeShort(epochMs: number): string {
  * combining `CAIRO_WEEKDAY_SHORT_NAMES[getCairoParts(...).weekday]` with
  * `formatCairoTimeShort(...)` inline. Deliberately excludes the word "Cairo" — the two
  * call sites already say so themselves, in their own surrounding copy, and to differing
- * degrees ("... Cairo" vs "... Cairo time"). */
-export function formatNextOpen(status: Extract<MarketStatus, { state: 'closed' }>): string {
-  const weekday = CAIRO_WEEKDAY_SHORT_NAMES[getCairoParts(status.nextOpenAt).weekday];
-  return `${weekday} ${formatCairoTimeShort(status.nextOpenAt)}`;
+ * degrees ("... Cairo" vs "... Cairo time"). Pass `nowMs` to get "today"/"tomorrow" in
+ * place of the weekday when the open falls on either. */
+export function formatNextOpen(status: Extract<MarketStatus, { state: 'closed' }>, nowMs?: number): string {
+  const time = formatCairoTimeShort(status.nextOpenAt);
+  const open = getCairoParts(status.nextOpenAt);
+  if (nowMs !== undefined) {
+    // Relative to the viewer's Cairo day, so a Sunday-morning banner says "today", not
+    // "Sun" — which reads as next week's Sunday to someone who is already in it.
+    const today = getCairoParts(nowMs);
+    const tomorrow = getCairoParts(nowMs + 24 * 60 * 60 * 1000);
+    const sameDay = (a: CairoParts, b: CairoParts) => a.year === b.year && a.month === b.month && a.day === b.day;
+    if (sameDay(open, today)) {
+      return `today ${time}`;
+    }
+    if (sameDay(open, tomorrow)) {
+      return `tomorrow ${time}`;
+    }
+  }
+  return `${CAIRO_WEEKDAY_SHORT_NAMES[open.weekday]} ${time}`;
 }
 
 /** True during the pre-open auction: the market is `'closed'` for continuous trading,

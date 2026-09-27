@@ -125,7 +125,7 @@ test.describe('400px viewport', () => {
       };
     });
 
-    await page.goto('/symbols/COMI');
+    await page.goto('/EGX/symbols/COMI');
     await page.waitForSelector('.tckr-price-chart__canvas canvas', { timeout: 15_000 });
     // Let several ticks land and the chart settle into a steady redraw before sampling —
     // avoids the very first frame, where the ring buffer holds only the seed point and
