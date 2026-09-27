@@ -207,13 +207,16 @@ A cool, near-neutral light palette with three disciplined signal hues. All three
 darkened for AA contrast on light glass and re-tuned brighter for dark mode.
 
 ### Primary
-- **Exchange Green**: up moves, the connected pill and its dot, the selected table row's
-  3px inset bar and 12% tint, the chart line and its 14% area fill, and the focus-ring
+- **Exchange Green**: up moves, the connected pill, the LIVE badge and their dots (while EGX
+  trades; closed, all step down to neutral, since a green dot means "trades are moving" —
+  the badge keeps the word LIVE), the selected table
+  row's 3px inset bar and 12% tint, the chart line and its fill on an up session, and the focus-ring
   accent (`--tckr-color-accent`). In dark mode it becomes the mint `#3fd79c`. The logo's
   candle uses the same green, and in the logo it never changes with price direction.
 
 ### Secondary
-- **Brick Red**: down moves, the disconnected pill and banner, and close-code errors. In
+- **Brick Red**: down moves (including the chart line and its fill on a down session), the
+  disconnected pill and banner, and close-code errors. In
   dark mode it becomes coral `#f2705f`. It is never used for emphasis or decoration.
 
 ### Tertiary
@@ -246,7 +249,13 @@ darkened for AA contrast on light glass and re-tuned brighter for dark mode.
 ### Named Rules
 **The Always-Visible Stream Rule.** Which stream the user is on (LIVE or DELAYED) is shown
 in the header on every screen, from the server's `identity()` only. A status that matters
-this much is never a caption on one view.
+this much is never a caption on one view. On the DELAYED stream the page repeats it above
+every price it shows: a "Delayed prices · 15s behind" banner (9% amber tint, 24% border,
+lighter than the "stream dropped" warning, because it is an entitlement, not a fault) sits
+first in the banner stack, above the highlight cards, the board and the detail pane. Each
+highlight card's label and each row's last-update time carry an amber clock, and their
+accessible names end in ", delayed stream". The detail says it once more, inline, in its
+"as of" line. On phones the header badge keeps the duration ("DELAYED 15s").
 
 **The Color-Plus-Signal Rule.** No price direction is shown by colour alone. Change
 cells lead with ▲/▼. Change-percent chips and delta pills always print an explicit
@@ -317,11 +326,29 @@ in Slate; they name a value and never compete with it.
 The app has a sticky glass header (logo left; connection pill and theme toggle right) over
 a single page with 16px padding. The list page reads top to bottom: status banners
 (pill-shaped, full width), then three hero cards (Top Gainer / Top Loser / Most Active)
-in an auto-fit grid (min 220px), then a row of filter pills with a flexible search field,
+in an auto-fit grid (min 220px; below 640px a swipeable row, the next card peeking in,
+so the board starts on the first screen; while EGX is closed each card's label names the
+session's weekday, "TOP GAINER · THU"), then a row of order pills (Exchange order, the
+lit default and the way back from any sort; Most active; Gainers; Losers) with a
+flexible search field,
 then the instrument table in one glass card. The table is a dense board:
 - **Row height:** about 40px (8px × 12px cell padding around a 24px line), 44px on touch.
-- **Alignment:** numeric columns (Price, Change, Change %, Volume) right-align both their
-  figures and their headers.
+- **Caption:** the table's `<caption>` says what order it is in: "Exchange order" by
+  default (the feed's own listing), a preset's name and what it ranks by, or "Sorted by
+  Price, highest first" (numeric headers sort highest-first on the first click). While a
+  search filters the board it leads with the count, "2 of 34 · Exchange order", and a
+  polite live region announces it.
+- **Decimal alignment:** EGX tick sizes differ by price band, so Price and Change mix
+  precisions (`246.3`, `85.60`, `6.129`). Narrower values are padded with blank `ch`
+  width (never extra zeros), so every decimal point lines up.
+- **Alignment:** numeric columns (Price, Change, Change %, Volume, Value) right-align both
+  their figures and their headers. Value's header carries its unit, "VALUE EGP".
+- **Value:** traded value this session in EGP (price × shares, exact decimal arithmetic),
+  compact with fixed two decimals so a column of them lines up ("25.16M", "18.60M").
+  Volume is shares; Value is money, and it is what Most active ranks by.
+- **Live-only columns:** Last update is shown only while EGX trades. Once closed, every
+  row would read the same, so the column is left out and the Market closed banner says it
+  once; the remaining columns rescale to fill the row.
 - **Overflow:** cells truncate with an ellipsis instead of wrapping.
 - **Right edge:** the table card ends flush with the search row. The split shell's 16px
   gap exists only while the detail pane is open.
@@ -335,16 +362,26 @@ layout change. The motion is a **view transition** over snapshots of three named
 - The hero cards fade out over 200ms.
 - The detail pane slides in 16px while fading over 420ms.
 
-No layout property is ever animated. Under reduced motion, or in browsers without view
-transitions, the change is instant. The detail pane stacks the identity + price panel
-(with range pills and chart, 340px tall) above a row of six stat tiles (auto-fit,
-min 120px).
+Switching from one open symbol to another cross-fades the detail pane the same way.
+Every one of these transitions is **element-scoped** to `<main>`
+(`Element.startViewTransition`, provided through `TransitionScopeContext`): only the page
+content is snapshotted and animated, while the sticky header stays live, on top, and
+frosted over whatever moves beneath it. `<main>` carries `view-transition-scope: all`, so
+its region names never leak into a document-wide transition.
+
+No layout property is ever animated. Under reduced motion, or in browsers without
+element-scoped view transitions, the change is instant. The detail pane stacks the identity + price panel
+(with range pills, a × close button and the chart, 340px tall) above two groups at two
+weights: the session figures as four stat tiles (Open, High, Low, Volume; auto-fit, min
+120px), and the instrument's fixed trading rules as a quiet mono caption line beneath
+them ("LOT SIZE 100 · TICK SIZE 0.05"). The two change pills wrap as one unit, so on a
+narrow pane the move sits beneath the price as one fact rather than splitting.
 
 Breakpoints:
 - **800px:** the split pane stacks, and the list column hides while a detail is open.
 - **640px:** the header stacks into two rows, page padding drops to 12px, the background
-  glows are removed, hero cards stack, and the table sheds Trend, Name, Change, Volume
-  and Last update, down to Symbol / Price / Change %.
+  glows are removed, hero cards stack, and the table sheds Session trend, Name, Change, Volume,
+  Value and Last update, down to Symbol / Price / Change %.
 
 Spacing follows a small, repeated scale: 6px between pills, 10–12px inside controls and
 cells, 14px between stacked sections, 16px page gutters and pane gaps, and 22–24px inside
@@ -362,10 +399,10 @@ selected row's inset green bar and the connected pill's faint green glow, and bo
 signals rather than elevation.
 
 ### Shadow Vocabulary
-- **Card float** (`0 18px 40px -28px rgba(0,0,0,0.4)`): hero cards. The detail panel uses
-  the same shape tinted Ink (`rgba(20,24,31,0.4)`).
-- **Table float** (`0 18px 40px -30px rgba(0,0,0,0.4)`): the instrument table card, pulled
-  in slightly further because it is the largest surface.
+- **Float** (`--tckr-shadow-float`, the `shadow-float` utility): `0 10px 24px -16px
+  rgba(20,24,31,0.3)`, black at 0.55 in dark mode. One short, soft, pulled-in shadow for
+  every glass card (hero cards, the instrument table, the detail panel), so a pane lifts
+  off the field without a wide halo around its thin edge.
 - **Selected bar** (`inset 3px 0 0 var(--tckr-color-up)`): the open symbol's row.
 - **Live glow** (`0 4px 14px color-mix(in oklab, var(--tckr-color-up) 30%, transparent)`):
   the connected pill only.
@@ -386,7 +423,7 @@ importance:
 - 3px: the price-flash highlight.
 - 5px: change chips.
 - 6–7px: action buttons and chart readout chips.
-- 16px: stat tiles and the chart body.
+- 16px: stat tiles and the chart's clip.
 - 18px: the table card.
 - 20px: hero cards.
 - 22px: the detail panel.
@@ -409,18 +446,27 @@ inversion.
 - **Inactive / ghost:** transparent (filter pills) or Paper Raised (range pills), Slate
   label, 1px Hairline border, 500 weight.
 - **Hover / Focus:** hover only on fine pointers (`fine-hover`). Focus is a 2px accent
-  outline offset 2px (−2px inset on table rows). Press scales to 0.96 over 120ms ease-out.
+  outline offset 2px (−2px inset on table rows). The search field is the exception: an
+  accent border plus a soft 3px halo (`--tckr-field-focus-border` / `-halo`: full accent
+  and 24% in light, 70% and 12% in dark), because a 2px mint ring around a full-width pill
+  read as an alert in dark mode. It uses its own clear (×) button in
+  place of the browser's native one. Press scales to 0.96 over 120ms ease-out.
 
 ### Chips
-- **Change chip (table, list column):** 5px radius, a 24px-tall line, mono tabular, a 14%
-  tint of the signal colour with AA-darkened chip text on light, and an explicit +/−
-  sign. A move under 0.05% renders as a neutral Paper Raised "0.0%" with no sign,
-  because it rounds to zero and a coloured "-0.0%" would claim a direction the figure
-  can't show.
-- **Delta pill (detail):** full pill, Body-size mono 600, 20% tint and 35% border of the
-  signal colour, or neutral Paper Raised at zero change.
-- **Hero badge:** full pill, Label-size mono 600, the same up/down tint. Most Active shows a
-  neutral quantity badge.
+Every signed change (the board chip, the hero badge, the detail pills) shares one colour
+recipe (`components/deltaTone.ts`): a 20% tint of the signal colour behind the AA-checked
+chip text, or neutral Paper Raised when flat. Only the shape differs by context.
+- **Change chip (table, list column):** 5px radius, a 24px-tall line, mono tabular, and an
+  explicit +/− sign. Percentages carry two decimals everywhere (board, hero cards, detail), so one
+  move never reads as +0.6% in one place and +0.59% in another. A move under 0.005%
+  renders as a neutral Paper Raised "0.00%" with no sign, because it rounds to zero and
+  a coloured "-0.00%" would claim a direction the figure can't show.
+- **Delta pill (detail):** full pill, Body-size mono 600, no border. The change-amount pill leads
+  with a small ▲/▼, like the board's Change column; the percent pill carries its sign.
+- **Stat tile labels:** uppercase tracked Label (0.14em), the same voice as the table
+  headers: OPEN, HIGH, LOW, VOLUME, LOT SIZE, TICK SIZE.
+- **Hero badge:** full pill, Label-size mono 600, the same up/down tint. Most Active ranks by
+  traded value, as EGX reports activity, and shows it in a neutral badge ("EGP 25.16M").
 
 ### Cards / Containers
 - **Corner style:** 20px for hero cards, 22px for the detail panel, 18px for the table
@@ -516,8 +562,16 @@ cross-fades once (280ms). The toggle uses drawn sun and moon icons.
 
 ### Table keyboard model
 The instrument table is a single Tab stop (roving tabindex). ↑/↓ move between rows,
-Home/End jump to the ends, and Enter/Space open a row. In split view the collapsed hero
-cards are `inert`, and opening a symbol is announced politely to screen readers.
+Home/End jump to the ends, and Enter/Space open a row. With a detail open, the pane follows
+the focused row, and Escape (or the pane's own × button, or "All instruments") closes it.
+⌘K on Apple platforms, Ctrl+K elsewhere, and "/" focus the search; no page shortcut fires
+while typing in a field. "Skip to instruments" is the first Tab stop on every page, ahead
+of the logo, and lands on the board's current row. Focus is never dropped: if opening
+hides the focused row (phones), it moves to the detail's heading; if closing removes it,
+it returns to that symbol's row. While a row has keyboard focus, a glass legend floats at
+the bottom of the viewport with the keys (Esc only when a detail is open); screen readers
+get the same model as the table's description. In split view the collapsed hero cards are
+`inert`, and opening a symbol is announced politely to screen readers.
 
 ### Price Cell (signature component)
 Every displayed price or signed decimal goes through Price Cell. It is mono and tabular,
@@ -528,16 +582,38 @@ change it replays a 500ms ease-out flash: a 28% signal-colour tint behind the di
 ### Sparkline (signature component)
 A 20-point inline SVG polyline with a 1.6px stroke coloured by direction (green, red or
 Slate when flat). It has no axis and no fill, is decorative only, and never renders a
-number as text. It appears in the table's Session column (24px tall, 20 points) and in
+number as text. It appears in the table's Session trend column (24px tall, 20 points) and in
 hero cards (96 × 30px, 26 points). Both are seeded once from each symbol's session
 history, downsampled, with the live price as the last point, so they show the session's
 shape from first paint rather than starting flat.
 
 ### Price Chart
-A uPlot line in the glass chart body (16px radius): 2.5px Exchange Green line, 14% area
-fill, and 1px hairline gridlines with no tick labels. Mono readout chips sit in the
-corners (range · tick count, high, low; Paper background, 7px radius). The line never
-changes colour with direction.
+A uPlot line drawn straight onto the detail panel's glass, clipped to a 16px radius (no
+separate chart card): a 2.5px line over a 14% area fill, and 1px hairline
+horizontal gridlines. A sparse Cairo-time axis runs along the bottom (`HH:MM` for
+SESSION, `HH:MM:SS` for 60S/5M), always labelling both ends of the plotted span (10:00
+and 14:30, even on a phone) with interior steps only where they fit, and a price axis sits on the right, both in 11px Plex
+Mono in the muted token with no tick marks. Two tags hang off the plot onto the price
+axis: the last plotted price, filled in the line colour, and on SESSION the session open
+(the baseline the page's change figures use), "Open 85.10" on Paper Raised, marking a
+dashed muted line across the plot. On the axis, never inside the plot, so the line can't
+run through them; when the two would overlap, the Open tag steps one tag-height aside, and
+axis labels under a tag are left blank. The y range always includes the open. The area under
+the line is one 14% tint of the line's own colour, down to the frame, on every range. A quiet range is widened to at least 1% of the price, so a small wiggle never
+fills the frame like a crash. The only corner chip names the slice of time plotted
+(`pages/chartRanges.ts`): "Last 60s" / "Last 5m" / "Today since 10:00" while EGX trades;
+once closed, the ranges end at the session's close and read as a recap ("Final 60s · Thu
+24 Sep", "Thu 24 Sep session · 10:00–14:30"). The session high and low live in the stat
+tiles.
+
+**The Session-Direction Line Rule.** The line, its whole area fill, the last-price tag and
+the cursor dot take the session's direction, the same sign as the Change pills beside it: Exchange
+Green when up on the open, Brick Red when down, Ink when unchanged (or before the first
+quote). One colour for the whole series; it is never coloured per segment or per tick, and
+it switches in place when the price crosses the open. The ▲/▼ on the change pill and the
+dashed Open line carry the same fact without colour. Line,
+gridline and axis colours are re-read from the tokens on every theme switch, so the canvas
+follows light/dark in place.
 
 ### Logo
 The candlestick "T" plus "ckr" lockup (see Typography › Wordmark), themed through
@@ -562,8 +638,10 @@ is about 0.06× the wordmark size, and the two are bottom-aligned.
 - **Do** keep the Stream Badge on every screen. The live/delayed distinction is never
   implied by colour alone or left to one view (The Always-Visible Stream Rule).
 - **Do** draw icons from `icons.tsx`; never borrow a Unicode glyph as an icon.
-- **Do** animate layout changes with a view transition (`useViewTransitionNavigate`) or
-  transform and opacity. Never transition `width`, `height`, `max-height` or margins.
+- **Do** animate layout changes with a view transition or transform and opacity. Start
+  every view transition through `runViewTransition` (`components/viewTransition.ts`),
+  scoped to the smallest element that changes; navigation uses
+  `useViewTransitionNavigate`. Never transition `width`, `height`, `max-height` or margins.
 
 ### Don't:
 - **Don't** put glass over a flat opaque surface or strip the Frost field and glows from a

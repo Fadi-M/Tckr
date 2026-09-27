@@ -41,6 +41,11 @@ import { compare, format, toDecimal, type DecimalString } from '../contracts/dec
 
 const ZERO: DecimalString = toDecimal('0');
 
+function decimalPlacesIn(formatted: string): number {
+  const dot = formatted.lastIndexOf('.');
+  return dot === -1 ? 0 : formatted.length - dot - 1;
+}
+
 export interface PriceCellProps {
   /** The decimal value to render — a price, or any signed decimal quantity such as
    * Change. Never a JS `number`. */
@@ -63,6 +68,12 @@ export interface PriceCellProps {
   readonly flashDirectionOverride?: 'up' | 'down' | null | undefined;
   /** Accessible label override. Defaults to the formatted text itself. */
   readonly ariaLabel?: string;
+  /** Decimal places of the most precise value in this cell's column. EGX tick sizes
+   * differ by price band, so one column legitimately mixes `246.3` and `6.129`;
+   * padding narrower values with blank trailing width (`ch` of the tabular mono face,
+   * never extra zeros, which would claim a precision the instrument doesn't trade at)
+   * lines every decimal point up under a right-aligned header. */
+  readonly alignDecimals?: number | undefined;
 }
 
 export function PriceCell({
@@ -73,6 +84,7 @@ export function PriceCell({
   indicateSign = false,
   flashDirectionOverride,
   ariaLabel,
+  alignDecimals,
 }: PriceCellProps): ReactNode {
   const previousRef = useRef<DecimalString | null>(null);
   const previous = previousRef.current;
@@ -138,11 +150,19 @@ export function PriceCell({
         .join(' ')
     : undefined;
 
+  // Blank width, not text: nothing is added to the cell's text or accessible name.
+  const shownDecimals = decimalPlacesIn(formatted);
+  const padCh =
+    alignDecimals !== undefined && alignDecimals > shownDecimals
+      ? alignDecimals - shownDecimals + (shownDecimals === 0 ? 1 : 0)
+      : 0;
+
   return (
     <span className={wrapperClassName} aria-label={ariaLabel} data-muted={muted}>
       <span key={value} className={flashClassName}>
         {formatted}
       </span>
+      {padCh > 0 ? <span aria-hidden="true" className="inline-block" style={{ width: `${padCh}ch` }} /> : null}
     </span>
   );
 }

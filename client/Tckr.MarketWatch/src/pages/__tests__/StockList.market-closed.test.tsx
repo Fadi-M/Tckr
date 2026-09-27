@@ -68,4 +68,20 @@ describe('StockList market-closed banner', () => {
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.getByText(/market closed/i).closest('[role="status"]')).not.toBeNull();
   });
+
+  it('shows the live-only Last update column while EGX trades, left-aligned', async () => {
+    await renderListAt(MID_SESSION);
+    expect(screen.getByRole('columnheader', { name: /^Last update$/ }).className).toContain('text-left');
+  });
+
+  it('leaves out Last update once EGX has closed, rather than repeating "At close" on every row', async () => {
+    await renderListAt(AFTER_CLOSE);
+    expect(screen.queryByRole('columnheader', { name: /^Last update$/ })).toBeNull();
+    expect(screen.queryByText('At close')).toBeNull();
+    // The remaining columns still fill the row.
+    const widths = Array.from(document.querySelectorAll<HTMLTableColElement>('colgroup col')).map((col) =>
+      Number.parseFloat(col.style.width),
+    );
+    expect(widths.reduce((sum, width) => sum + width, 0)).toBeCloseTo(100, 5);
+  });
 });

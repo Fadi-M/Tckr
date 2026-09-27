@@ -60,17 +60,21 @@
  * removed code (see `StockDetail.market-closed.test.tsx`, deleted in the same
  * revamp) to restore verbatim.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { getSharedSource } from '../data/config.ts';
 import { compare, percentChange, subtract, toDecimal, type DecimalString } from '../contracts/decimal.ts';
-import { formatCairoClock } from '../data/marketCalendar.ts';
+import { formatCairoClock, formatCairoDateShort } from '../data/marketCalendar.ts';
+import { describeRange, pointsInRange, RANGE_KEYS, type RangeKey } from './chartRanges.ts';
+import { DETAIL_HEADING_ID } from './pageAnchors.ts';
 import type { Snapshot, SymbolDefinition } from '../contracts/rest.ts';
 import type { IsoUtc, Stream, Tick } from '../contracts/messages.ts';
-import { ClockIcon } from '../components/icons.tsx';
+import { DELTA_TONE_CLASSES } from '../components/deltaTone.ts';
+import { CloseIcon } from '../components/icons.tsx';
 import { PriceCell } from '../components/PriceCell.tsx';
 import { streamDelay } from '../components/streamDelay.ts';
 import { useMarketStatus } from '../components/useMarketStatus.ts';
+import { useViewTransitionNavigate } from '../components/useViewTransitionNavigate.ts';
 import { PriceChart, type ChartHistoryPoint } from '../chart/PriceChart.tsx';
 import { createThrottle, DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
 
@@ -137,32 +141,45 @@ function deltaDirection(change: DecimalString): 'up' | 'down' | null {
 // property (a neutral-state `bg-surface-raised` and an up/down `bg-[color-mix(...)]`
 // both present on one element would leave Tailwind's generated-CSS source order,
 // not the className string's order, deciding which background wins).
-const DELTA_PILL_BASE_CLASSES =
-  'inline-flex items-center font-mono text-body font-semibold py-1.5 px-3 rounded-full border tabular-nums';
-
-// Same "Delta" convention used app-wide (up = text-up, down = text-down), but this
-// pill's color-mix percentages (20%/35%) are specific to this design import rather
-// than the more common ones used elsewhere.
-const DELTA_PILL_VARIANT_CLASSES: Record<'up' | 'down' | 'neutral', string> = {
-  neutral: 'bg-surface-raised border-border',
-  up: 'text-up bg-[color-mix(in_oklab,var(--tckr-color-up)_20%,transparent)] border-[color-mix(in_oklab,var(--tckr-color-up)_35%,transparent)]',
-  down: 'text-down bg-[color-mix(in_oklab,var(--tckr-color-down)_20%,transparent)] border-[color-mix(in_oklab,var(--tckr-color-down)_35%,transparent)]',
-};
+const DELTA_PILL_BASE_CLASSES = 'inline-flex items-center font-mono text-body font-semibold py-1.5 px-3 rounded-full tabular-nums';
 
 /** Full className for the Change/Change% pill — base layout classes plus whichever
  * colour variant `deltaDirection` selects (falling back to the neutral/zero-change
  * variant). Replaces the old `tckr-delta--up`/`tckr-delta--down` modifier classes
  * that `.tckr-detail__delta-pill.tckr-delta--up`/`--down` keyed off of in the
  * pre-Tailwind CSS. */
+function deltaGlyph(change: DecimalString): JSX.Element | null {
+  const direction = deltaDirection(change);
+  if (direction === null) {
+    return null;
+  }
+  return (
+    <span aria-hidden="true" className="mr-1.5 text-[0.7em] align-[0.1em]">
+      {direction === 'up' ? '▲' : '▼'}
+    </span>
+  );
+}
+
+/** One of the session figures under the detail card: a tracked label over a value. */
+function StatTile({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="bg-glass-stat border border-glass-border-stat backdrop-blur-[20px] rounded-2xl py-[13px] px-[15px] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
+      <span className="block font-mono text-label tracking-[0.14em] uppercase text-text-muted">{label}</span>
+      <span className="block mt-[5px] font-mono text-title font-semibold tabular-nums">{children}</span>
+    </div>
+  );
+}
+
 function deltaClassName(change: DecimalString): string {
   const direction = deltaDirection(change);
-  return `${DELTA_PILL_BASE_CLASSES} ${DELTA_PILL_VARIANT_CLASSES[direction ?? 'neutral']}`;
+  return `${DELTA_PILL_BASE_CLASSES} ${DELTA_TONE_CLASSES[direction ?? 'flat']}`;
 }
 
 // ---------------------------------------------------------------------------------
 // Chart range selector (design import: the 60S/5M/SESSION pills on the detail
-// card). Filters the already-fetched `historyPoints` down to a trailing wall-clock
-// window rather than fetching a differently-scoped history per range — there is
+// card). What each range covers and how it is named lives in `chartRanges.ts`; this
+// page filters the already-fetched `historyPoints` down to that window rather than
+// fetching a differently-scoped history per range — there is
 // only one `getHistory()` call for the whole session (see the mount effect below),
 // and every range is a view onto that same data. Picking a narrower range does not
 // make the chart continuously re-slide the window as time passes (it snapshots
@@ -174,19 +191,6 @@ function deltaClassName(change: DecimalString): string {
 // existing mount-time seeding logic instead of adding a second, parallel "apply a
 // new history after mount" code path to an already-intricate component.
 // ---------------------------------------------------------------------------------
-
-type RangeKey = '60S' | '5M' | 'SESSION';
-const RANGE_KEYS: readonly RangeKey[] = ['60S', '5M', 'SESSION'];
-const RANGE_WINDOW_MS: Record<RangeKey, number | null> = {
-  '60S': 60_000,
-  '5M': 5 * 60_000,
-  SESSION: null,
-};
-const RANGE_LABELS: Record<RangeKey, string> = {
-  '60S': 'Last 60s',
-  '5M': 'Last 5m',
-  SESSION: 'Session',
-};
 
 // Base layout/type classes shared by every range pill, plus an active/inactive
 // colour variant computed separately — same "don't let two same-property utility
@@ -300,6 +304,7 @@ export function StockDetail({ symbol }: { symbol: string }) {
   // is empty or flat — a "2 ticks" line that reads as a dead feed — so the chart opens
   // on the whole completed SESSION instead.
   const marketStatus = useMarketStatus();
+  const closeDetail = useViewTransitionNavigate();
   const [range, setRange] = useState<RangeKey>(() => (marketStatus.state === 'open' ? '60S' : 'SESSION'));
 
   const [phase, setPhase] = useState<Phase>('loading');
@@ -559,23 +564,19 @@ export function StockDetail({ symbol }: { symbol: string }) {
     return { t: Date.parse(quote.exchangeTimestamp), p: quote.price };
   }, [quote]);
 
-  // The chart's data window for the active range pill — see the "Chart range
-  // selector" module doc. `windowMs === null` (SESSION) is the full, unfiltered
-  // `historyPoints`; otherwise only points within the trailing window survive.
-  // Recomputed on every render where `historyPoints`/`range` change, which is fine:
+  // The chart's data window and caption for the active range pill — see the "Chart
+  // range selector" module doc and `chartRanges.ts`. Recomputed on every render where `historyPoints`/`range` change, which is fine:
   // `PriceChart` only ever reads this once at mount (via the `key` below causing a
   // fresh mount per range), so a cheap recompute here does not cause extra chart work.
-  const rangedHistory = useMemo(() => {
-    if (historyPoints === undefined) {
-      return undefined;
-    }
-    const windowMs = RANGE_WINDOW_MS[range];
-    if (windowMs === null) {
-      return historyPoints;
-    }
-    const cutoff = Date.now() - windowMs;
-    return historyPoints.filter((point) => point.t >= cutoff);
-  }, [historyPoints, range]);
+  const chartRange = useMemo(() => describeRange(range, marketStatus, Date.now()), [range, marketStatus]);
+  const rangeDescriptions = useMemo(
+    () => new Map(RANGE_KEYS.map((key) => [key, describeRange(key, marketStatus, Date.now()).description])),
+    [marketStatus],
+  );
+  const rangedHistory = useMemo(
+    () => (historyPoints === undefined ? undefined : pointsInRange(historyPoints, chartRange)),
+    [historyPoints, chartRange],
+  );
 
   if (phase === 'not-found') {
     return (
@@ -593,16 +594,21 @@ export function StockDetail({ symbol }: { symbol: string }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-4 py-[22px] px-6 rounded-[22px] bg-glass-card border border-glass-border-card backdrop-blur-[26px] backdrop-saturate-[160%] shadow-[0_18px_40px_-28px_rgba(20,24,31,0.4)] animate-detail-reveal motion-reduce:animate-none reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
+      <div className="relative flex flex-col gap-4 py-[22px] px-6 rounded-[22px] bg-glass-card border border-glass-border-card backdrop-blur-[26px] backdrop-saturate-[160%] shadow-float animate-detail-reveal motion-reduce:animate-none reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
         <div className="flex items-start justify-between gap-5 flex-wrap">
-          <div>
+          <div className="max-[640px]:pr-11">
             <div className="flex items-baseline gap-3 flex-wrap">
-              <h1
-                className="font-mono font-semibold text-headline tracking-[0.01em]"
+              {/* h2: the page's h1 is the board ("Tckr Market Watch"); the open
+                  symbol is a section of it. Focusable (not tabbable) so StockList can
+                  move focus here when opening the detail hides the focused row. */}
+              <h2
+                id={DETAIL_HEADING_ID}
+                tabIndex={-1}
+                className="font-mono font-semibold text-headline tracking-[0.01em] outline-none"
                 data-testid="stock-detail-symbol"
               >
                 {symbol}
-              </h1>
+              </h2>
               <span className="text-body text-text-muted">{universeDef?.name ?? ''}</span>
             </div>
 
@@ -619,49 +625,65 @@ export function StockDetail({ symbol }: { symbol: string }) {
                   >
                     <PriceCell value={quote.price} flashDirectionOverride={deltaDirection(quote.change)} />
                   </span>
-                  <span className={deltaClassName(quote.change)} data-testid="stock-detail-change">
-                    <PriceCell value={quote.change} sign />
-                  </span>
-                  <span className={deltaClassName(quote.change)} data-testid="stock-detail-change-percent">
-                    {quote.changePercentText}%
+                  {/* ▲/▼ leads the pair, as it does on the board's Change column: the
+                      tint alone is colour-only (DESIGN.md, Color-Plus-Signal Rule). The
+                      two pills wrap as one unit, so on a narrow pane the move reads as
+                      one fact beneath the price instead of splitting across lines. */}
+                  <span className="inline-flex items-baseline gap-2 whitespace-nowrap">
+                    <span className={deltaClassName(quote.change)} data-testid="stock-detail-change">
+                      {deltaGlyph(quote.change)}
+                      <PriceCell value={quote.change} sign />
+                    </span>
+                    <span className={deltaClassName(quote.change)} data-testid="stock-detail-change-percent">
+                      {quote.changePercentText}%
+                    </span>
                   </span>
                 </div>
                 <p className="mt-2 font-mono text-caption text-text-muted" data-testid="stock-detail-asof">
-                  as of {formatExchangeTime(quote.exchangeTimestamp)} Cairo
+                  {/* Outside continuous trading the last trade can be days old, so the
+                      date is part of the fact; during the session the time alone is. */}
+                  as of{' '}
+                  {marketStatus.state === 'open'
+                    ? formatExchangeTime(quote.exchangeTimestamp)
+                    : `${formatCairoDateShort(Date.parse(quote.exchangeTimestamp))}, ${formatExchangeTime(quote.exchangeTimestamp)}`}{' '}
+                  Cairo
                   {quote.stream === 'DELAYED' ? ` · DELAYED ${delay.short}${delay.simulated ? ' (simulated)' : ''}` : null}
                 </p>
               </>
             )}
           </div>
 
-          <div className="flex gap-1.5 flex-none">
+          <div className="flex items-center gap-1.5 flex-none">
             {RANGE_KEYS.map((key) => (
               <button
                 key={key}
                 type="button"
                 className={rangePillClassName(range === key)}
                 aria-pressed={range === key}
+                // The visible label leads the accessible name (WCAG 2.5.3), so "click
+                // 60S" works for voice control; the description follows it.
+                aria-label={`${key}, ${rangeDescriptions.get(key) ?? ''}`}
+                title={rangeDescriptions.get(key)}
                 onClick={() => setRange(key)}
               >
                 {key}
               </button>
             ))}
+            {/* The pane's own way out, beside the controls it belongs to (Escape and the
+                list's "All instruments" pill do the same). Focus returns to the row. On a
+                phone the pills wrap under the price, so the close pins to the card's
+                top-right corner, where a sheet's close is expected. */}
+            <button
+              type="button"
+              className={`${RANGE_PILL_BASE_CLASSES} ${RANGE_PILL_VARIANT_CLASSES.inactive} ml-1.5 px-2! inline-flex items-center fine-hover:text-text max-[640px]:absolute max-[640px]:top-[18px] max-[640px]:right-[18px] max-[640px]:ml-0`}
+              aria-label={`Close ${symbol} details`}
+              title="Close (Esc)"
+              onClick={() => closeDetail('/')}
+            >
+              <CloseIcon size={14} />
+            </button>
           </div>
         </div>
-
-        {quote?.stream === 'DELAYED' ? (
-          <div className="mt-1 flex gap-2.5 py-3 px-3.5 rounded-[14px] bg-[color-mix(in_oklab,var(--tckr-color-warning)_9%,transparent)] border border-[color-mix(in_oklab,var(--tckr-color-warning)_24%,transparent)]">
-            <ClockIcon className="mt-px text-warning" />
-            <div>
-              <div className="font-semibold text-small">Delayed prices</div>
-              <div className="mt-[3px] text-caption text-text-muted leading-normal">
-                {delay.simulated
-                  ? `Every price here is ${delay.short} behind the exchange. This demo simulates the delay; a real delayed entitlement runs 15 minutes behind.`
-                  : `Every price here is ${delay.short} behind the exchange, per your entitlement.`}
-              </div>
-            </div>
-          </div>
-        ) : null}
 
         {rangedHistory === undefined ? (
           <p className="text-text-muted" data-testid="stock-detail-chart-loading">
@@ -674,52 +696,47 @@ export function StockDetail({ symbol }: { symbol: string }) {
             tickSize={tickSize}
             history={rangedHistory}
             livePrice={livePrice}
-            rangeLabel={RANGE_LABELS[range]}
+            rangeLabel={chartRange.label}
+            // Change on this page is measured from the session open, so that is the
+            // line a move is read against. SESSION only: on the 60S/5M windows the
+            // open can sit far outside the recent range and would flatten the line.
+            referencePrice={range === 'SESSION' ? extras?.open : undefined}
+            referenceLabel="Open"
+            // Same up/down/unchanged the Change pills show: green, red, or ink.
+            direction={quote ? deltaDirection(quote.change) : null}
           />
         )}
       </div>
 
       {quote ? (
         <div
-          className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2.5 animate-[tckr-detail-reveal_220ms_var(--tckr-ease-out)_40ms_backwards] motion-reduce:animate-none"
+          className="flex flex-col gap-2.5 animate-[tckr-detail-reveal_220ms_var(--tckr-ease-out)_40ms_backwards] motion-reduce:animate-none"
           data-testid="stock-detail-footer"
         >
-          <div className="bg-glass-stat border border-glass-border-stat backdrop-blur-[20px] rounded-2xl py-[13px] px-[15px] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
-            <span className="block font-mono text-label tracking-[0.14em] text-text-muted">Open</span>
-            <span className="block mt-[5px] font-mono text-title font-semibold tabular-nums">
+          {/* Two groups at two weights: today's session figures as tiles, the
+              instrument's fixed trading rules as a quiet line beneath them. */}
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2.5">
+            <StatTile label="Open">
               <PriceCell value={extras?.open ?? quote.price} />
-            </span>
-          </div>
-          <div className="bg-glass-stat border border-glass-border-stat backdrop-blur-[20px] rounded-2xl py-[13px] px-[15px] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
-            <span className="block font-mono text-label tracking-[0.14em] text-text-muted">High</span>
-            <span className="block mt-[5px] font-mono text-title font-semibold tabular-nums">
+            </StatTile>
+            <StatTile label="High">
               <PriceCell value={extras?.high ?? quote.price} />
-            </span>
-          </div>
-          <div className="bg-glass-stat border border-glass-border-stat backdrop-blur-[20px] rounded-2xl py-[13px] px-[15px] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
-            <span className="block font-mono text-label tracking-[0.14em] text-text-muted">Low</span>
-            <span className="block mt-[5px] font-mono text-title font-semibold tabular-nums">
+            </StatTile>
+            <StatTile label="Low">
               <PriceCell value={extras?.low ?? quote.price} />
-            </span>
+            </StatTile>
+            <StatTile label="Volume">{new Intl.NumberFormat('en-US').format(quote.volume)}</StatTile>
           </div>
-          <div className="bg-glass-stat border border-glass-border-stat backdrop-blur-[20px] rounded-2xl py-[13px] px-[15px] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
-            <span className="block font-mono text-label tracking-[0.14em] text-text-muted">Volume</span>
-            <span className="block mt-[5px] font-mono text-title font-semibold tabular-nums">
-              {new Intl.NumberFormat('en-US').format(quote.volume)}
-            </span>
-          </div>
-          <div className="bg-glass-stat border border-glass-border-stat backdrop-blur-[20px] rounded-2xl py-[13px] px-[15px] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
-            <span className="block font-mono text-label tracking-[0.14em] text-text-muted">Lot</span>
-            <span className="block mt-[5px] font-mono text-title font-semibold tabular-nums">
-              {universeDef?.lotSize ?? '—'}
-            </span>
-          </div>
-          <div className="bg-glass-stat border border-glass-border-stat backdrop-blur-[20px] rounded-2xl py-[13px] px-[15px] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
-            <span className="block font-mono text-label tracking-[0.14em] text-text-muted">Tick</span>
-            <span className="block mt-[5px] font-mono text-title font-semibold tabular-nums">
-              {universeDef ? <PriceCell value={universeDef.tickSize} /> : '—'}
-            </span>
-          </div>
+          <dl className="flex flex-wrap gap-x-5 gap-y-1 px-1 font-mono text-caption text-text-muted">
+            <div className="flex gap-2" title="Shares per trading lot: orders are placed in multiples of this">
+              <dt className="uppercase tracking-[0.14em]">Lot size</dt>
+              <dd className="text-text tabular-nums">{universeDef?.lotSize ?? '—'}</dd>
+            </div>
+            <div className="flex gap-2" title="Smallest step the price can move by">
+              <dt className="uppercase tracking-[0.14em]">Tick size</dt>
+              <dd className="text-text tabular-nums">{universeDef ? <PriceCell value={universeDef.tickSize} /> : '—'}</dd>
+            </div>
+          </dl>
         </div>
       ) : null}
     </div>

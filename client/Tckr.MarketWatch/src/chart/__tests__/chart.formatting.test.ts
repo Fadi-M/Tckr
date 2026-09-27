@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { toDecimal } from '../../contracts/decimal.ts';
-import { decimalsForTickSize, formatAxisPrice, formatClockTime, formatYAxisLabel } from '../axes.ts';
+import { decimalsForTickSize, formatAxisPrice, formatClockTime, formatXAxisTick, formatYAxisLabel, timeAxisSplits } from '../axes.ts';
 
 describe('axis price formatting', () => {
   it('renders 2 decimals for a 0.01 tick size', () => {
@@ -117,5 +117,27 @@ describe('a DecimalString price becomes a number only via toPlotValue', () => {
     }
 
     expect(offenders).toEqual([]);
+  });
+});
+
+describe('timeAxisSplits', () => {
+  const HALF_HOUR = 30 * 60_000;
+  const open = Date.UTC(2026, 8, 24, 7, 0, 0); // 10:00 Cairo
+  const close = Date.UTC(2026, 8, 24, 11, 30, 0); // 14:30 Cairo
+
+  it('always labels both ends of the range', () => {
+    const splits = timeAxisSplits(open, close, 2 * 60 * 60_000, 60 * 60_000);
+    expect(splits[0]).toBe(open);
+    expect(splits[splits.length - 1]).toBe(close);
+  });
+
+  it('keeps interior steps only where they stay clear of both ends', () => {
+    // Half-hour steps, but nothing within 45 minutes of either end.
+    const splits = timeAxisSplits(open, close, HALF_HOUR, 45 * 60_000);
+    expect(splits.map((t) => formatXAxisTick(t, HALF_HOUR))).toEqual(['10:00', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:30']);
+  });
+
+  it('handles a degenerate range', () => {
+    expect(timeAxisSplits(open, open, HALF_HOUR, 0)).toEqual([open]);
   });
 });

@@ -20,7 +20,7 @@ export function ThemeToggle() {
   return (
     <button
       type="button"
-      className="appearance-none box-border inline-flex items-center justify-center w-[30px] h-[30px] rounded-full border border-glass-border bg-glass text-text text-small leading-none cursor-pointer outline-none transition-[transform,border-color] duration-[150ms] fine-hover:border-accent active:scale-[0.92] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+      className="relative appearance-none box-border inline-flex items-center justify-center w-[30px] h-[30px] before:absolute before:-inset-[7px] before:content-[''] rounded-full border border-glass-border bg-glass text-text text-small leading-none cursor-pointer outline-none transition-[transform,border-color] duration-[150ms] fine-hover:border-accent active:scale-[0.92] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
       onClick={toggleTheme}
       aria-pressed={isDark}
       aria-label={label}

@@ -9,6 +9,7 @@ dist-ssr/
 playwright-report/
 test-results/
 coverage/
+.playwright-mcp/
 
 # editor / OS
 .DS_Store

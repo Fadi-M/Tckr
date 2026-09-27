@@ -81,7 +81,7 @@ describe('StockList row aria-label', () => {
     act(() => {
       applyTick(tickFixture({ s: 'COMI', p: toDecimal('90.00') }));
     });
-    const upRow = screen.getByRole('row', { name: /^COMI, 90(\.0+)?, up \d+(\.\d+)?%$/ });
+    const upRow = screen.getByRole('row', { name: /^COMI, 90(\.0+)?, up \d+(\.\d+)?%, change \+4\.90, volume [\d,]+$/ });
     expect(upRow).toBeTruthy();
   });
 
@@ -104,7 +104,7 @@ describe('StockList row aria-label', () => {
     act(() => {
       applyTick(tickFixture({ s: 'COMI', p: toDecimal('10.00') }));
     });
-    const downRow = screen.getByRole('row', { name: /^COMI, 10(\.0+)?, down \d+(\.\d+)?%$/ });
+    const downRow = screen.getByRole('row', { name: /^COMI, 10(\.0+)?, down \d+(\.\d+)?%, change -75\.10, volume [\d,]+$/ });
     expect(downRow).toBeTruthy();
   });
 });

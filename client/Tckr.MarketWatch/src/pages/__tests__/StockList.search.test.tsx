@@ -94,4 +94,30 @@ describe('StockList search', () => {
     expect(bodyRows()).toHaveLength(0);
     expect(screen.getByText(/no instruments match/i)).toBeTruthy();
   });
+
+  it('shows its own clear button only while there is a query, and clearing refocuses the box', async () => {
+    const universeSymbols = loadUniverseFixture();
+    mockGetSharedSource.mockReturnValue(makeFakeSource(universeSymbols).source);
+
+    render(
+      <MemoryRouter>
+        <StockList />
+      </MemoryRouter>,
+    );
+    await flushMicrotasks();
+
+    expect(screen.queryByRole('button', { name: 'Clear search' })).toBeNull();
+    const input = screen.getByRole('searchbox', { name: /search/i }) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'com' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+
+    expect(input.value).toBe('');
+    expect(document.activeElement).toBe(input);
+    expect(bodyRows()).toHaveLength(34);
+    expect(screen.queryByRole('button', { name: 'Clear search' })).toBeNull();
+  });
 });

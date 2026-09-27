@@ -7,6 +7,7 @@
  * attribute *is* the shared state, so every instance just watches it.
  */
 import { useCallback, useEffect, useState } from 'react';
+import { runViewTransition } from '../components/viewTransition.ts';
 import { applyTheme, getAppliedTheme, type ThemeName } from './theme.ts';
 
 export interface UseThemeResult {
@@ -16,29 +17,26 @@ export interface UseThemeResult {
 }
 
 const SWITCHING_CLASS = 'tckr-theme-switching';
-
-function prefersReducedMotion(): boolean {
-  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
+const TRANSITION_CLASS = 'tckr-theme-transition';
 
 /**
  * Applies a user-initiated theme switch as one change. Without this, every element
  * with its own colour transition (chips, pills, rows) faded on its own schedule, so for
  * ~200ms parts of the page showed the old theme's background behind the new theme's
  * text. `SWITCHING_CLASS` suppresses those per-element transitions (see tailwind.css)
- * for the duration of the switch. Where the View Transitions API exists and motion is
- * allowed, the whole page cross-fades once (280ms); otherwise the switch is instant.
+ * for the duration of the switch. The whole page — header included, since every
+ * surface changes colour — cross-fades once (280ms) in a document-scoped view
+ * transition; where that can't run (no API, reduced motion) the switch is instant.
  */
 function switchThemeSmoothly(apply: () => void): void {
   const root = document.documentElement;
-  root.classList.add(SWITCHING_CLASS);
-  if (typeof document.startViewTransition === 'function' && !prefersReducedMotion()) {
-    root.classList.add('tckr-theme-transition');
-    const transition = document.startViewTransition(apply);
-    void transition.finished.finally(() => root.classList.remove(SWITCHING_CLASS, 'tckr-theme-transition'));
+  root.classList.add(SWITCHING_CLASS, TRANSITION_CLASS);
+  const transition = runViewTransition(document, apply);
+  if (transition) {
+    void transition.finished.finally(() => root.classList.remove(SWITCHING_CLASS, TRANSITION_CLASS));
     return;
   }
-  apply();
+  root.classList.remove(TRANSITION_CLASS);
   // Two frames: one for the new colours to be computed and painted without
   // transitions, one more before transitions are allowed again.
   requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove(SWITCHING_CLASS)));

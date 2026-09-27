@@ -51,8 +51,6 @@
   --color-glass-border-card: var(--tckr-glass-border-card);
   --color-glass-stat: var(--tckr-glass-bg-stat);
   --color-glass-border-stat: var(--tckr-glass-border-stat);
-  --color-chart-body: var(--tckr-chart-body-bg);
-  --color-chart-body-border: var(--tckr-chart-body-border);
   --color-chip-up: var(--tckr-chip-text-up);
   --color-chip-down: var(--tckr-chip-text-down);
 
@@ -62,6 +60,7 @@
   --ease-tckr: var(--tckr-ease-out);
 
   --blur-tckr: var(--tckr-blur);
+  --shadow-float: var(--tckr-shadow-float);
 }
 
 @theme {
