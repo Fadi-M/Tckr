@@ -68,17 +68,25 @@ describe('StockList sort', () => {
     const priceHeader = screen.getByRole('columnheader', { name: /^price/i });
     const sortButton = within(priceHeader).getByRole('button');
 
-    fireEvent.click(sortButton); // ascending
+    // Figures sort highest-first on the first click, the way a trader reads a ranking.
+    fireEvent.click(sortButton); // descending
     let symbols = bodyRows().map((row) => row.getAttribute('data-symbol'));
     let indexOf = (s: string) => symbols.indexOf(s);
     expect(indexOf('COMI')).toBeGreaterThanOrEqual(0);
+    expect(indexOf('ORAS')).toBeLessThan(indexOf('SWDY'));
+    expect(indexOf('SWDY')).toBeLessThan(indexOf('COMI'));
+
+    fireEvent.click(sortButton); // ascending
+    symbols = bodyRows().map((row) => row.getAttribute('data-symbol'));
+    indexOf = (s: string) => symbols.indexOf(s);
     expect(indexOf('COMI')).toBeLessThan(indexOf('SWDY'));
     expect(indexOf('SWDY')).toBeLessThan(indexOf('ORAS'));
 
-    fireEvent.click(sortButton); // descending
+    // A third click flips back to descending; it never silently clears the sort.
+    fireEvent.click(sortButton);
+    expect(priceHeader.getAttribute('aria-sort')).toBe('descending');
     symbols = bodyRows().map((row) => row.getAttribute('data-symbol'));
     indexOf = (s: string) => symbols.indexOf(s);
-    expect(indexOf('ORAS')).toBeLessThan(indexOf('SWDY'));
     expect(indexOf('SWDY')).toBeLessThan(indexOf('COMI'));
   });
 });

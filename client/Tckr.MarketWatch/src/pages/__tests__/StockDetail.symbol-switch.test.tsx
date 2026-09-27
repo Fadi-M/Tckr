@@ -22,6 +22,7 @@ vi.mock('uplot', () => {
     setSize = vi.fn();
     redraw = vi.fn();
     root = document.createElement('div');
+    over = document.createElement('div');
     cursor = { idx: null };
     data: [number[], number[]] = [[], []];
     constructor(...args: unknown[]) {

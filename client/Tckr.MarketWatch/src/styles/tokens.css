@@ -58,16 +58,22 @@
   --tckr-glass-border-card: rgba(255, 255, 255, 0.88);
   --tckr-glass-bg-stat: rgba(255, 255, 255, 0.7);
   --tckr-glass-border-stat: rgba(255, 255, 255, 0.9);
-  /* Tailwind migration (ui-revamp): two more additive, non-required tokens for the
-     only two places a rule differed between light/dark *without* already being a
-     plain token-color swap — PriceChart's glass body (priceChart.css) and the
-     WCAG-contrast-adjusted chip text color (StockList's change% chip / hero badge,
-     see the light-only-darkened-text comment next to their light-mode value below).
-     Centralizing them here lets every className become one arbitrary-value Tailwind
-     utility referencing the token, with no separate `[data-theme="dark"]`/
+  /* One ambient float for every glass card (highlight cards, the table, the detail
+     panel): short, soft and pulled in, so the pane lifts off the field without a
+     wide halo around a thin edge. */
+  --tckr-shadow-float: 0 10px 24px -16px rgba(20, 24, 31, 0.3);
+  /* A text field's focus (the search box): an accent border plus a soft halo, so a
+     full-width pill reads as focused, not as an alert. Softer in dark mode, where the
+     mint accent on a near-black field glows at the same mix. */
+  --tckr-field-focus-border: var(--tckr-color-accent);
+  --tckr-field-focus-halo: color-mix(in oklab, var(--tckr-color-accent) 24%, transparent);
+  /* Tailwind migration (ui-revamp): an additive, non-required token pair for the one
+     place a rule differed between light/dark *without* already being a plain
+     token-color swap — the WCAG-contrast-adjusted chip text color (StockList's change%
+     chip / hero badge, see the light-only-darkened-text comment below). Centralizing
+     it here lets every className become one arbitrary-value Tailwind utility
+     referencing the token, with no separate `[data-theme="dark"]`/
      `prefers-color-scheme` override rule needed anywhere else in the app. */
-  --tckr-chart-body-bg: rgba(255, 255, 255, 0.5);
-  --tckr-chart-body-border: rgba(20, 24, 31, 0.06);
   /* Light theme only: color: var(--tckr-color-up/-down) over the chip/badge's own
      light-tinted background measures under WCAG AA's 4.5:1 minimum for normal text
      (see StockList.tsx's original inline comment for the measured ratios). Darken the
@@ -110,9 +116,10 @@
     --tckr-glass-border-card: rgba(255, 255, 255, 0.12);
     --tckr-glass-bg-stat: rgba(255, 255, 255, 0.06);
     --tckr-glass-border-stat: rgba(255, 255, 255, 0.1);
-    /* See the :root comment above these two tokens. */
-    --tckr-chart-body-bg: rgba(255, 255, 255, 0.04);
-    --tckr-chart-body-border: rgba(255, 255, 255, 0.08);
+    --tckr-shadow-float: 0 10px 24px -16px rgba(0, 0, 0, 0.55);
+    --tckr-field-focus-border: color-mix(in oklab, var(--tckr-color-accent) 70%, transparent);
+    --tckr-field-focus-halo: color-mix(in oklab, var(--tckr-color-accent) 12%, transparent);
+    /* See the :root chip-text comment above. */
     --tckr-chip-text-up: var(--tckr-color-up);
     /* Coral lifted slightly for text on the 20% down tint: plain --tckr-color-down
        measured 4.34:1 there (critique 2026-09-26), under AA for 11px badge text. */
@@ -148,9 +155,10 @@
   --tckr-glass-border-card: rgba(255, 255, 255, 0.12);
   --tckr-glass-bg-stat: rgba(255, 255, 255, 0.06);
   --tckr-glass-border-stat: rgba(255, 255, 255, 0.1);
-  /* See the :root comment above these two tokens. */
-  --tckr-chart-body-bg: rgba(255, 255, 255, 0.04);
-  --tckr-chart-body-border: rgba(255, 255, 255, 0.08);
+  --tckr-shadow-float: 0 10px 24px -16px rgba(0, 0, 0, 0.55);
+  --tckr-field-focus-border: color-mix(in oklab, var(--tckr-color-accent) 70%, transparent);
+  --tckr-field-focus-halo: color-mix(in oklab, var(--tckr-color-accent) 12%, transparent);
+  /* See the :root chip-text comment above. */
   --tckr-chip-text-up: var(--tckr-color-up);
   /* Coral lifted slightly for text on the 20% down tint: plain --tckr-color-down
      measured 4.34:1 there (critique 2026-09-26), under AA for 11px badge text. */

@@ -76,14 +76,15 @@
  * remaining dependency on `src/data/**` — no import from `src/components/**` anywhere
  * in `src/chart/**`.
  */
-import { useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type JSX } from 'react';
 import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
-import type { DecimalString } from '../contracts/decimal.ts';
+import { format, type DecimalString } from '../contracts/decimal.ts';
 import { onStreamDiscard } from '../data/store.ts';
 import { DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
+import { useTheme } from '../theme/useTheme.ts';
 import { RingBuffer, toPlotValue } from './ringBuffer.ts';
-import { formatYAxisLabel } from './axes.ts';
+import { decimalsForTickSize, formatXAxisTick, formatYAxisLabel, timeAxisSplits, X_AXIS_INCREMENTS_MS } from './axes.ts';
 
 /** One point of session history, already converted to this component's own numeric/x
  * representation (`t`: epoch ms, matching `SymbolView.lastUpdate`'s convention) — the
@@ -124,14 +125,46 @@ export interface PriceChartProps {
    */
   readonly livePrice?: ChartHistoryPoint | undefined;
   /**
-   * Label for the floating "{rangeLabel} · {N} ticks" pill (design import: the
-   * top-left overlay on the chart) — purely a display string the parent already knows
-   * (which range pill, 60S/5M/SESSION, is active); this component does not know or
-   * care what a "range" means, it only ever plots whatever `history`/`livePrice` it is
-   * given. Defaults to `'Session'` for callers that predate this prop.
+   * Caption for the floating range chip (top-left of the chart) and the chart's
+   * accessible name — what slice of time is plotted, e.g. "Last 60s" or "Thu 24 Sep
+   * session · 10:00–14:30". Purely a display string the parent already knows (see
+   * `pages/chartRanges.ts`); this component does not know or care what a "range"
+   * means, it only ever plots whatever `history`/`livePrice` it is given. Defaults to
+   * `'Session'`. (The chip used to add a sample count, "541 ticks": those points are
+   * 30-second samples, not ticks, and the count told a trader nothing.)
    */
   readonly rangeLabel?: string;
+  /**
+   * The price the page's change figures are measured from (the session open), drawn as
+   * a dashed reference line with its own price-axis tag and always kept inside the y
+   * range, so a move reads against where the day started instead of against its own
+   * extremes. Omitted for the short ranges,
+   * where pulling a far-away reference into view would flatten the line. Read live via
+   * a ref and applied with a redraw; never recreates the instance.
+   */
+  readonly referencePrice?: DecimalString | undefined;
+  /** Label for the reference line's tag, e.g. `'Open'`. */
+  readonly referenceLabel?: string;
+  /**
+   * The session's direction (the sign of the page's Change, i.e. last price vs. open):
+   * colours the line, its area fill, the last-price tag and the cursor dot — Exchange Green up, Brick
+   * Red down, Ink when unchanged or not yet known. One colour for the whole series,
+   * never per segment or per tick. Applied with a repaint in place; never recreates the
+   * instance.
+   */
+  readonly direction?: 'up' | 'down' | null | undefined;
 }
+
+type LineDirection = 'up' | 'down' | 'flat';
+
+// The token that colours the line for each direction. The canvas reads it by name
+// (`readChartColors`); the DOM pieces (last-price tag, cursor dot) get it through
+// `--tckr-chart-line` on the container. Both follow light/dark with the tokens.
+const LINE_TOKEN: Record<LineDirection, string> = {
+  up: '--tckr-color-up',
+  down: '--tckr-color-down',
+  flat: '--tckr-color-text',
+};
 
 // Generous enough to hold `SimulatedSource`'s own session-history cap
 // (`HISTORY_MAX_POINTS`, `src/data/SimulatedSource.ts`) without this ring buffer
@@ -143,10 +176,93 @@ export interface PriceChartProps {
 const DEFAULT_CAPACITY = 4200;
 const DEFAULT_HEIGHT = 340;
 const DEFAULT_WIDTH = 400;
+// Axis labels are canvas text, so the font is spelled out rather than inherited; the
+// family matches every other number on the page (IBM Plex Mono, tabular by design).
+const AXIS_FONT = '500 11px "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
+// Top padding leaves room for the range chip so the line never runs underneath it; the
+// left padding lets the first time label (centred on the session's first point) fit.
+const PLOT_PADDING: [number, number, number, number] = [40, 6, 0, 30];
+// Price-axis tags (the last price and the reference): their height, which is also the
+// distance two tags keep apart and the clearance within which an axis label is left
+// blank rather than peeking out from under one.
+const AXIS_TAG_HEIGHT_PX = 18;
+// Wide enough for the longest tag ("Open 466.25" in 11px Plex Mono plus its padding).
+const PRICE_AXIS_SIZE_PX = 92;
+// The area fill's strength, as a share of its colour.
+const FILL_TINT = '14%';
+
+/**
+ * y range for the plotted values plus the reference price (when given). A span smaller
+ * than 1% of the price (or 8 ticks) is widened around its midpoint, so a quiet session
+ * reads as quiet instead of being stretched edge to edge like a crash; then 10% of the
+ * span is added above and below so extremes never touch the frame.
+ */
+export function chartYRange(
+  min: number | null,
+  max: number | null,
+  reference: number | null,
+  tick: number,
+): [number, number] {
+  let lo = min ?? reference;
+  let hi = max ?? reference;
+  if (lo === null || hi === null) {
+    return [0, 1];
+  }
+  if (reference !== null) {
+    lo = Math.min(lo, reference);
+    hi = Math.max(hi, reference);
+  }
+  const mid = (lo + hi) / 2;
+  const minSpan = Math.max(tick * 8, Math.abs(mid) * 0.01);
+  if (hi - lo < minSpan) {
+    lo = mid - minSpan / 2;
+    hi = mid + minSpan / 2;
+  }
+  const pad = (hi - lo) * 0.1;
+  return [lo - pad, hi + pad];
+}
+
+/**
+ * Screen positions (CSS px from the plot top) of the price-axis tags. The last price
+ * keeps its exact spot; when the reference would overlap it, the reference steps one
+ * tag height away on the side it actually lies, so both stay readable.
+ */
+export function placeAxisTags(lastPos: number | null, refPos: number | null): { last: number | null; ref: number | null } {
+  if (refPos === null || lastPos === null || Math.abs(refPos - lastPos) >= AXIS_TAG_HEIGHT_PX) {
+    return { last: lastPos, ref: refPos };
+  }
+  return { last: lastPos, ref: refPos >= lastPos ? lastPos + AXIS_TAG_HEIGHT_PX : lastPos - AXIS_TAG_HEIGHT_PX };
+}
+
+/** Whether an axis label at `pos` would sit under one of the tags at `tagPositions`. */
+export function isUnderAxisTag(pos: number, tagPositions: readonly (number | null)[]): boolean {
+  return tagPositions.some((tag) => tag !== null && Math.abs(pos - tag) < AXIS_TAG_HEIGHT_PX);
+}
+
+function tint(color: string): string {
+  return `color-mix(in srgb, ${color} ${FILL_TINT}, transparent)`;
+}
 
 function readCssVar(el: Element, name: string, fallback: string): string {
   const value = getComputedStyle(el).getPropertyValue(name).trim();
   return value.length > 0 ? value : fallback;
+}
+
+interface ChartColors {
+  /** The line's (and its fill's) colour, by session direction — see `LINE_TOKEN`. */
+  readonly accent: string;
+  readonly border: string;
+  readonly muted: string;
+}
+
+/** Canvas can't read CSS custom properties, so the line and gridline colours are
+ * resolved from the tokens here: once at mount, and again on every theme switch. */
+function readChartColors(el: Element, direction: LineDirection): ChartColors {
+  return {
+    accent: readCssVar(el, LINE_TOKEN[direction], '#14181f'),
+    border: readCssVar(el, '--tckr-color-border', '#d8dbe1'),
+    muted: readCssVar(el, '--tckr-color-text-muted', '#5b6472'),
+  };
 }
 
 /** A single point cannot render a visible line — uPlot needs two x-values to draw a
@@ -170,8 +286,12 @@ export function PriceChart({
   history,
   livePrice,
   rangeLabel = 'Session',
+  referencePrice,
+  referenceLabel = 'Open',
+  direction,
 }: PriceChartProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const colorsRef = useRef<ChartColors | null>(null);
   const plotRef = useRef<uPlot | null>(null);
   const bufferRef = useRef<RingBuffer | null>(null);
 
@@ -184,6 +304,13 @@ export function PriceChart({
   const capacityRef = useRef(capacity);
   const historyRef = useRef(history);
   const livePriceRef = useRef(livePrice);
+  const lineDirection: LineDirection = direction ?? 'flat';
+  const lineDirectionRef = useRef(lineDirection);
+  lineDirectionRef.current = lineDirection;
+  const referencePriceRef = useRef(referencePrice);
+  const referenceLabelRef = useRef(referenceLabel);
+  referencePriceRef.current = referencePrice;
+  referenceLabelRef.current = referenceLabel;
   tickSizeRef.current = tickSize;
   heightRef.current = height;
   capacityRef.current = capacity;
@@ -196,16 +323,14 @@ export function PriceChart({
   // doc for why live sampling moved from an independent store read to a prop.
   const hasData = (history?.length ?? 0) > 0 || livePrice !== undefined;
 
-  // The design import's floating "{rangeLabel} · {N} ticks" / "H {high}" / "L {low}"
-  // overlay pills (styled inline via Tailwind utilities in the JSX below) — computed
-  // from this component's own buffer, the
-  // one place that already knows every plotted point, rather than asking the parent to
-  // duplicate that computation from its own copy of the data. `null` until the buffer
-  // holds at least one point. `high`/`low` are plot-space numbers (the same ones the old
-  // y-axis labels were computed from) formatted back through `formatYAxisLabel` — never
-  // a raw stringify — for the same decimal-safety reason every other price on this page
-  // goes through `contracts/decimal.ts`.
-  const [stats, setStats] = useState<{ count: number; high: number; low: number } | null>(null);
+  // The high/low in the chart's accessible name — computed from this component's own
+  // buffer, the one place that already knows every plotted point. (High and low are no
+  // longer drawn as chips: the price axis carries the range, and the page's stat tiles
+  // show the session's.) `null` until the buffer holds at least one point.
+  // `high`/`low` are plot-space numbers formatted back through `formatYAxisLabel` —
+  // never a raw stringify — for the same decimal-safety reason every other price on
+  // this page goes through `contracts/decimal.ts`.
+  const [stats, setStats] = useState<{ high: number; low: number } | null>(null);
 
   function recomputeStats(buffer: RingBuffer): void {
     if (buffer.length === 0) {
@@ -219,7 +344,7 @@ export function PriceChart({
       if (v > high) high = v;
       if (v < low) low = v;
     }
-    setStats({ count: buffer.length, high, low });
+    setStats({ high, low });
   }
 
   // One uPlot instance per mount; destroyed and recreated only when `symbol` changes.
@@ -232,38 +357,137 @@ export function PriceChart({
     const buffer = new RingBuffer(capacityRef.current);
     bufferRef.current = buffer;
 
-    const accent = readCssVar(container, '--tckr-color-accent', '#2f6fed');
-    const border = readCssVar(container, '--tckr-color-border', '#d8dbe1');
+    colorsRef.current = readChartColors(container, lineDirectionRef.current);
+    // Colours are passed as functions, which uPlot re-evaluates on every draw, so a
+    // theme switch only has to refresh `colorsRef` and redraw (see the theme effect
+    // below) and never recreates the instance.
+    const accent = (): string => colorsRef.current!.accent;
+    const border = (): string => colorsRef.current!.border;
+    const muted = (): string => colorsRef.current!.muted;
+    const referenceValue = (): number | null => {
+      const ref = referencePriceRef.current;
+      return ref === undefined ? null : toPlotValue(ref);
+    };
+
+    // The last-price and reference tags are plain DOM in uPlot's own plot-area overlay
+    // (`plot.over`), hung off its right edge onto the price axis and repositioned by the
+    // draw hook below, so following the line costs a style write per redraw rather
+    // than a React render. On the axis, never inside the plot, so the line can't run
+    // through them.
+    const lastTag = document.createElement('span');
+    lastTag.setAttribute('aria-hidden', 'true');
+    lastTag.dataset.testid = 'price-chart-last-tag';
+    lastTag.className =
+      'absolute left-full ml-1.5 -translate-y-1/2 font-mono text-caption font-semibold tabular-nums px-1.5 py-px rounded-[5px] bg-[var(--tckr-chart-line)] text-surface pointer-events-none whitespace-nowrap';
+    const referenceTag = document.createElement('span');
+    referenceTag.setAttribute('aria-hidden', 'true');
+    referenceTag.dataset.testid = 'price-chart-reference-tag';
+    referenceTag.className =
+      'absolute left-full ml-1.5 -translate-y-1/2 font-mono text-caption tabular-nums px-1.5 py-px rounded-[5px] bg-surface-raised text-text-muted pointer-events-none whitespace-nowrap';
+
+    const lastValue = (u: uPlot): number | null => {
+      const values = u.data[1] ?? [];
+      return values.length > 0 ? (values[values.length - 1] ?? null) : null;
+    };
+    const tagPositions = (u: uPlot): { last: number | null; ref: number | null } => {
+      const last = lastValue(u);
+      const ref = referenceValue();
+      return placeAxisTags(last === null ? null : u.valToPos(last, 'y'), ref === null ? null : u.valToPos(ref, 'y'));
+    };
+
+    const drawOverlays = (u: uPlot): void => {
+      const last = lastValue(u);
+      const positions = tagPositions(u);
+      if (last === null || positions.last === null) {
+        lastTag.hidden = true;
+      } else {
+        lastTag.hidden = false;
+        lastTag.textContent = formatYAxisLabel(last, tickSizeRef.current);
+        lastTag.style.top = `${positions.last}px`;
+      }
+
+      const ref = referencePriceRef.current;
+      if (ref === undefined || last === null || positions.ref === null) {
+        referenceTag.hidden = true;
+        return;
+      }
+      const refValue = toPlotValue(ref);
+      const { ctx, bbox } = u;
+      const y = Math.round(u.valToPos(refValue, 'y', true)) + 0.5;
+      ctx.save();
+      ctx.strokeStyle = colorsRef.current!.muted;
+      ctx.lineWidth = uPlot.pxRatio;
+      ctx.setLineDash([4 * uPlot.pxRatio, 4 * uPlot.pxRatio]);
+      ctx.beginPath();
+      ctx.moveTo(bbox.left, y);
+      ctx.lineTo(bbox.left + bbox.width, y);
+      ctx.stroke();
+      ctx.restore();
+      referenceTag.hidden = false;
+      referenceTag.textContent = `${referenceLabelRef.current} ${format(ref, { decimals: decimalsForTickSize(tickSizeRef.current) })}`;
+      referenceTag.style.top = `${positions.ref}px`;
+    };
 
     const plot = new uPlot(
       {
         width: container.clientWidth || DEFAULT_WIDTH,
         height: heightRef.current,
-        scales: { x: { time: false } },
+        padding: PLOT_PADDING,
+        scales: {
+          x: { time: false },
+          y: { range: (_u, min, max) => chartYRange(min, max, referenceValue(), toPlotValue(tickSizeRef.current)) },
+        },
         series: [
           {},
           {
             label: symbol,
             stroke: accent,
             width: 2.5,
-            // Filled area under the line (design import: opacity 0.14 in its own SVG
-            // fill) — a single accent hue, never recoloured per-tick (see the module
-            // doc's dataviz note above the imports for why a continuously-drawn series
-            // is not a discrete up/down delta).
-            fill: `color-mix(in srgb, ${accent} 14%, transparent)`,
+            // The whole area under the line, in a tint of the line's own colour: one
+            // colour for the whole session, by its direction (see `direction`).
+            fill: () => tint(accent()),
             points: { show: false },
           },
         ],
-        // Design import: no visible axis labels — a few flat horizontal gridlines and
-        // the floating stat pills (rendered below) carry all the context instead. Both
-        // axes drop their reserved label gutter (`size: 0`, `values: () => []`); the
-        // x-axis additionally has no grid at all (the mock's chart has horizontal
-        // gridlines only, never vertical ones).
+        // A sparse Cairo-time axis along the bottom and a price axis on the right, the
+        // side the eye lands on after reading the line left to right. Labels are canvas
+        // text in the muted token; horizontal gridlines only, no tick marks.
         axes: [
-          { side: 2, grid: { show: false }, ticks: { show: false }, size: 0, values: () => [] },
-          { side: 3, grid: { show: true, stroke: border, width: 1 }, ticks: { show: false }, size: 0, values: () => [] },
+          {
+            side: 2,
+            stroke: muted,
+            font: AXIS_FONT,
+            size: 28,
+            gap: 8,
+            space: 88,
+            incrs: [...X_AXIS_INCREMENTS_MS],
+            // Both ends always labelled, interior steps only where they fit (see
+            // `timeAxisSplits`); `space` in CSS px converted to the scale's ms.
+            splits: (u, _axisIdx, min, max, incr, space) =>
+              timeAxisSplits(min, max, incr, (space * (max - min)) / Math.max(1, u.bbox.width / uPlot.pxRatio)),
+            grid: { show: false },
+            ticks: { show: false },
+            values: (_u, splits, _axisIdx, _space, incr) => splits.map((v) => formatXAxisTick(v, incr)),
+          },
+          {
+            side: 1,
+            stroke: muted,
+            font: AXIS_FONT,
+            size: PRICE_AXIS_SIZE_PX,
+            gap: 8,
+            space: 44,
+            grid: { show: true, stroke: border, width: 1 },
+            ticks: { show: false },
+            values: (u, splits) => {
+              const { last, ref } = tagPositions(u);
+              return splits.map((v) =>
+                isUnderAxisTag(u.valToPos(v, 'y'), [last, ref]) ? '' : formatYAxisLabel(v, tickSizeRef.current),
+              );
+            },
+          },
         ],
         legend: { show: false },
+        hooks: { draw: [drawOverlays] },
         cursor: {
           show: true,
           x: true,
@@ -275,6 +499,7 @@ export function PriceChart({
       container,
     );
     plotRef.current = plot;
+    plot.over.append(lastTag, referenceTag);
 
     // Seed the buffer with the full session history *before* anything live — `history`
     // is fetched once by the parent page (task 06) and gates this component's own
@@ -420,6 +645,30 @@ export function PriceChart({
     recomputeStats(buffer);
   }, [symbol, livePrice]);
 
+  // A light/dark switch swaps the CSS tokens underneath the canvas, and a direction
+  // change swaps `--tckr-chart-line` (set on the container below, already committed by
+  // the time this runs); re-read them and repaint in place. Layout effect so the
+  // repaint lands in the same commit as the rest of the page's change (and inside a
+  // theme switch's view-transition snapshot).
+  const { theme } = useTheme();
+  useLayoutEffect(() => {
+    const plot = plotRef.current;
+    const container = containerRef.current;
+    if (!plot || !container) {
+      return;
+    }
+    colorsRef.current = readChartColors(container, lineDirection);
+    plot.redraw(false, false);
+  }, [theme, lineDirection]);
+
+  // A new reference price (the open arriving with the snapshot) re-ranges and repaints.
+  useEffect(() => {
+    const plot = plotRef.current;
+    if (plot && plot.data[0] && plot.data[0].length > 0) {
+      plot.setData(plot.data);
+    }
+  }, [referencePrice]);
+
   // tickSize changes reformat the y-axis in place — no instance recreation.
   useEffect(() => {
     plotRef.current?.redraw(false, true);
@@ -460,8 +709,9 @@ export function PriceChart({
   return (
     <div className="flex flex-col w-full min-w-0">
       <div
-        className="relative w-full min-w-0 border rounded-2xl overflow-hidden bg-chart-body border-chart-body-border"
-        style={{ height }}
+        className="relative w-full min-w-0 rounded-2xl overflow-hidden"
+        style={{ height, '--tckr-chart-line': `var(${LINE_TOKEN[lineDirection]})` } as CSSProperties}
+        data-direction={lineDirection}
       >
         {!hasData && (
           <div
@@ -473,29 +723,21 @@ export function PriceChart({
         )}
         <div
           ref={containerRef}
-          className="w-full h-full [&_.u-cursor-x]:border-l-[var(--tckr-color-text-muted)]! [&_.u-cursor-pt]:border-[var(--tckr-color-accent)]! [&_.u-cursor-pt]:bg-[var(--tckr-color-accent)]!"
+          className="w-full h-full [&_.u-cursor-x]:border-l-[var(--tckr-color-text-muted)]! [&_.u-cursor-pt]:border-[var(--tckr-chart-line)]! [&_.u-cursor-pt]:bg-[var(--tckr-chart-line)]!"
           role="img"
-          // The readout pills are `aria-hidden` decoration for sighted users; the same
+          // The range chip and price tags are `aria-hidden` decoration for sighted users; the same
           // numbers go into the image's accessible name so a screen-reader user gets
           // the chart's substance, not just its existence.
           aria-label={
             stats
-              ? `Price chart for ${symbol}, ${rangeLabel}: ${stats.count} ticks, high ${formatYAxisLabel(stats.high, tickSize)}, low ${formatYAxisLabel(stats.low, tickSize)}`
+              ? `Price chart for ${symbol}, ${rangeLabel}: high ${formatYAxisLabel(stats.high, tickSize)}, low ${formatYAxisLabel(stats.low, tickSize)}${referencePrice === undefined ? '' : `, ${referenceLabel.toLowerCase()} ${format(referencePrice, { decimals: decimalsForTickSize(tickSize) })}`}`
               : `Price chart for ${symbol}, waiting for ticks`
           }
         />
         {stats ? (
-          <>
-            <span aria-hidden="true" className="absolute z-2 font-mono text-caption text-text bg-surface border border-border px-2 py-[3px] rounded-[7px] pointer-events-none top-3 left-3.5">
-              {rangeLabel} · {stats.count} ticks
-            </span>
-            <span aria-hidden="true" className="absolute z-2 font-mono text-caption text-text bg-surface border border-border px-2 py-[3px] rounded-[7px] pointer-events-none top-3 right-3.5">
-              H {formatYAxisLabel(stats.high, tickSize)}
-            </span>
-            <span aria-hidden="true" className="absolute z-2 font-mono text-caption text-text bg-surface border border-border px-2 py-[3px] rounded-[7px] pointer-events-none bottom-3 right-3.5">
-              L {formatYAxisLabel(stats.low, tickSize)}
-            </span>
-          </>
+          <span aria-hidden="true" className="absolute z-2 font-mono text-caption text-text bg-surface border border-border px-2 py-[3px] rounded-[7px] pointer-events-none top-3 left-3.5">
+            {rangeLabel}
+          </span>
         ) : null}
       </div>
     </div>

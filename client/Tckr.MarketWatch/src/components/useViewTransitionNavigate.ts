@@ -1,6 +1,6 @@
 /**
- * `navigate()` wrapped in the View Transitions API — how opening or closing a symbol's
- * split pane animates.
+ * `navigate()` wrapped in a view transition — how opening, switching and closing a
+ * symbol's split pane animates.
  *
  * The split layout change (hero cards collapse, list narrows to 380px, detail pane
  * appears) used to animate with CSS transitions on `max-height`, `margin-bottom` and
@@ -10,28 +10,29 @@
  * snapshots on the compositor (see the `::view-transition-*` rules in
  * `src/styles/tailwind.css`).
  *
- * React Router's own `viewTransition` option only works with a data router, and this
- * app uses the declarative `<BrowserRouter>`, so the transition is started here. The
- * update callback returns a promise that resolves in the layout effect of the first
- * render that sees the new location, i.e. once the new DOM is committed, so the "new"
- * snapshot is never taken early. A timeout guards against a navigation that never
- * commits (e.g. to the current location), so the page can't get stuck mid-transition.
+ * The transition is scoped to the nearest `TransitionScopeContext` element (`App`'s
+ * `<main>`), not the whole document, so the sticky header is never part of it — see
+ * `viewTransition.ts` for the support detection and fallback.
  *
- * No transition (a plain `navigate`) when the browser lacks the API or the user asks
- * for reduced motion.
+ * React Router's own `viewTransition` option only works in data/framework mode, and
+ * always starts a document-scoped transition; this app uses the declarative
+ * `<BrowserRouter>`, so the transition is started here. The update callback returns a
+ * promise that resolves in the layout effect of the first render that sees the new
+ * location, i.e. once the new DOM is committed, so the "new" snapshot is never taken
+ * early. A timeout guards against a navigation that never commits (e.g. to the current
+ * location), so the page can't get stuck mid-transition.
  */
 import { useCallback, useLayoutEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTransitionScope } from './transitionScope.ts';
+import { runViewTransition } from './viewTransition.ts';
 
 const COMMIT_TIMEOUT_MS = 400;
-
-function prefersReducedMotion(): boolean {
-  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
 
 export function useViewTransitionNavigate(): (to: string) => void {
   const navigate = useNavigate();
   const location = useLocation();
+  const resolveScope = useTransitionScope();
   const resolveCommitted = useRef<(() => void) | null>(null);
 
   useLayoutEffect(() => {
@@ -41,11 +42,8 @@ export function useViewTransitionNavigate(): (to: string) => void {
 
   return useCallback(
     (to: string) => {
-      if (typeof document.startViewTransition !== 'function' || prefersReducedMotion()) {
-        navigate(to);
-        return;
-      }
-      document.startViewTransition(
+      runViewTransition(
+        resolveScope(),
         () =>
           new Promise<void>((resolve) => {
             resolveCommitted.current = resolve;
@@ -54,6 +52,6 @@ export function useViewTransitionNavigate(): (to: string) => void {
           }),
       );
     },
-    [navigate],
+    [navigate, resolveScope],
   );
 }

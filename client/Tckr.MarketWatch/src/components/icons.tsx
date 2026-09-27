@@ -72,6 +72,16 @@ export function SearchIcon(props: IconProps) {
   );
 }
 
+/** Clear a field (the search box's own clear button). */
+export function CloseIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="m4.5 4.5 7 7" />
+      <path d="m11.5 4.5-7 7" />
+    </Icon>
+  );
+}
+
 export function ArrowLeftIcon(props: IconProps) {
   return (
     <Icon {...props}>

@@ -19,9 +19,10 @@ import { getSharedSource } from '../data/config.ts';
 import type { Identity } from '../data/MarketDataSource.ts';
 import { ClockIcon } from './icons.tsx';
 import { streamDelay } from './streamDelay.ts';
+import { useMarketStatus } from './useMarketStatus.ts';
 
 const PILL_BASE =
-  'inline-flex items-center gap-1.5 font-mono text-label font-semibold tracking-[0.08em] px-[11px] py-[7px] rounded-full border whitespace-nowrap';
+  'inline-flex items-center gap-1.5 font-mono text-label font-semibold tracking-[0.08em] px-[11px] py-[7px] rounded-full border whitespace-nowrap max-[640px]:px-2 max-[640px]:tracking-[0.03em]';
 const CHANGED_CLASS = 'animate-stream-change motion-reduce:animate-none';
 
 export function StreamBadge() {
@@ -30,6 +31,7 @@ export function StreamBadge() {
   // element on each change, which replays the one-shot ring pulse; zero (first paint)
   // gets no pulse.
   const [changeCount, setChangeCount] = useState(0);
+  const marketStatus = useMarketStatus();
 
   useEffect(() => {
     const source = getSharedSource();
@@ -54,16 +56,29 @@ export function StreamBadge() {
   // The wrapper is the live region: it persists across stream changes (only the pill
   // inside is re-keyed), so a screen reader hears the new stream when it flips.
   if (identity.stream === 'LIVE') {
+    // The entitlement is still LIVE while EGX is closed, and the word stays. Only the
+    // green tint and dot step down, as the connection pill's do: a green dot reads as
+    // "trades are moving", which on a closed market is not true.
+    const idle = marketStatus.state !== 'open';
     return (
       <span role="status" className="inline-flex">
         <span
           key={changeCount}
-          className={`${PILL_BASE} ${changeCount > 0 ? CHANGED_CLASS : ''} text-up bg-[color-mix(in_oklab,var(--tckr-color-up)_16%,var(--tckr-glass-bg))] border-[color-mix(in_oklab,var(--tckr-color-up)_32%,transparent)]`}
+          className={`${PILL_BASE} ${changeCount > 0 ? CHANGED_CLASS : ''} ${
+            idle
+              ? 'text-text-muted bg-glass border-glass-border'
+              : 'text-chip-up bg-[color-mix(in_oklab,var(--tckr-color-up)_16%,var(--tckr-glass-bg))] border-[color-mix(in_oklab,var(--tckr-color-up)_32%,transparent)]'
+          }`}
           data-testid="stream-badge"
           data-stream="LIVE"
-          title="Live stream: prices arrive as they trade"
+          data-idle={idle || undefined}
+          title={
+            idle
+              ? 'Live stream: prices arrive as they trade. EGX is not trading right now, so nothing is moving.'
+              : 'Live stream: prices arrive as they trade'
+          }
         >
-          <span className="w-1.5 h-1.5 rounded-full bg-up flex-none" aria-hidden="true" />
+          <span className={`w-1.5 h-1.5 rounded-full flex-none ${idle ? 'bg-text-muted' : 'bg-up'}`} aria-hidden="true" />
           LIVE
         </span>
       </span>
@@ -85,7 +100,9 @@ export function StreamBadge() {
       >
         <ClockIcon size={12} />
         <span aria-hidden="true">
-          DELAYED<span className="max-[640px]:hidden"> · {delay.short}</span>
+          {/* The duration stays on phones (it is the fact that matters); only the
+              separator goes, so the header still fits on one row at 390px. */}
+          DELAYED<span className="max-[640px]:hidden"> ·</span> {delay.short}
         </span>
         <span className="sr-only">{behind}</span>
       </span>

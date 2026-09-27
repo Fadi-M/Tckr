@@ -42,12 +42,15 @@
  * "header simulated-tape tag" tests in `shell.slots.test.tsx`. `git log` has all of
  * it verbatim if a future requirement needs it restored.
  */
-import { lazy, Suspense, useEffect, type MouseEvent, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useRef, type MouseEvent, type ReactNode } from 'react';
 import { Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { TckrLogo } from './components/TckrLogo';
+import { SkipLink } from './components/SkipLink';
+import { TransitionScopeContext } from './components/transitionScope';
 import { useViewTransitionNavigate } from './components/useViewTransitionNavigate';
 import { ThemeToggle } from './components/ThemeToggle';
 import { StockList } from './pages/StockList';
+import { BOARD_ID } from './pages/pageAnchors';
 
 // Lazy-loaded so the chart library (`uplot`), only needed on the per-symbol
 // detail page, is not fetched by users who only ever visit the list page at
@@ -141,29 +144,46 @@ export interface AppProps {
 
 export function App({ statusSlot, badgeSlot }: AppProps) {
   usePrefetchStockDetail();
+  // Opening, switching and closing a symbol only changes what's inside <main>, so
+  // those view transitions are scoped to it (see `transitionScope.ts`). The header
+  // sits outside the scope: it stays live and on top, never snapshotted.
+  const mainRef = useRef<HTMLElement | null>(null);
   return (
-    <div className="relative flex flex-col min-h-full w-full max-w-[100vw] overflow-x-hidden">
-      <span
-        className="fixed -z-1 rounded-full blur-[70px] pointer-events-none max-[640px]:hidden top-[-180px] right-[-80px] w-[720px] h-[560px] bg-[radial-gradient(circle_at_60%_40%,var(--tckr-blob-a),transparent_68%)]"
-        aria-hidden="true"
-      />
-      <span
-        className="fixed -z-1 rounded-full blur-[70px] pointer-events-none max-[640px]:hidden top-[90px] right-[280px] w-[480px] h-[440px] bg-[radial-gradient(circle_at_50%_50%,var(--tckr-blob-b),transparent_70%)]"
-        aria-hidden="true"
-      />
-      <span
-        className="fixed -z-1 rounded-full blur-[70px] pointer-events-none max-[640px]:hidden bottom-[-220px] left-[-140px] w-[720px] h-[600px] bg-[radial-gradient(circle_at_40%_60%,var(--tckr-blob-c),transparent_70%)]"
-        aria-hidden="true"
-      />
-      <AppHeader statusSlot={statusSlot} badgeSlot={badgeSlot} />
-      <main className="flex-1 w-full p-4 max-[640px]:p-3">
-        <Routes>
-          <Route path="/" element={<StockList />}>
-            <Route path="symbols/:symbol" element={<StockDetailRoute />} />
-          </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
-    </div>
+    <TransitionScopeContext.Provider value={mainRef}>
+      {/* `overflow-x-clip`, not `-hidden`: both keep the off-canvas glow blobs from
+          adding a horizontal scrollbar, but `hidden` also turns this div into a scroll
+          container, which silently disables `position: sticky` for the header and the
+          detail pane. */}
+      <div className="relative flex flex-col min-h-full w-full max-w-[100vw] overflow-x-clip">
+        <span
+          className="fixed -z-1 rounded-full blur-[70px] pointer-events-none max-[640px]:hidden top-[-180px] right-[-80px] w-[720px] h-[560px] bg-[radial-gradient(circle_at_60%_40%,var(--tckr-blob-a),transparent_68%)]"
+          aria-hidden="true"
+        />
+        <span
+          className="fixed -z-1 rounded-full blur-[70px] pointer-events-none max-[640px]:hidden top-[90px] right-[280px] w-[480px] h-[440px] bg-[radial-gradient(circle_at_50%_50%,var(--tckr-blob-b),transparent_70%)]"
+          aria-hidden="true"
+        />
+        <span
+          className="fixed -z-1 rounded-full blur-[70px] pointer-events-none max-[640px]:hidden bottom-[-220px] left-[-140px] w-[720px] h-[600px] bg-[radial-gradient(circle_at_40%_60%,var(--tckr-blob-c),transparent_70%)]"
+          aria-hidden="true"
+        />
+        {/* First in the Tab order, ahead of the logo: past the header, the banners, the
+            highlight cards, the presets, the search box and seven sort headers. */}
+        <SkipLink targetId={BOARD_ID}>Skip to instruments</SkipLink>
+        <AppHeader statusSlot={statusSlot} badgeSlot={badgeSlot} />
+        {/* `view-transition-scope: all` keeps the view-transition names inside <main>
+            (list, detail, hero cards) local to it: its own scoped transitions use them,
+            while a document-wide transition (the theme switch) captures <main> as part
+            of the page instead of lifting those layers above the header. */}
+        <main ref={mainRef} className="flex-1 w-full p-4 max-[640px]:p-3 [view-transition-scope:all]">
+          <Routes>
+            <Route path="/" element={<StockList />}>
+              <Route path="symbols/:symbol" element={<StockDetailRoute />} />
+            </Route>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+      </div>
+    </TransitionScopeContext.Provider>
   );
 }

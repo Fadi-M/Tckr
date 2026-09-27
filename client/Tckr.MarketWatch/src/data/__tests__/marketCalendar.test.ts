@@ -12,6 +12,7 @@ import {
   cairoDateKey,
   cairoEpochFor,
   formatCairoClock,
+  formatCairoDateShort,
   formatCairoTimeShort,
   formatNextOpen,
   getCairoParts,
@@ -159,6 +160,17 @@ describe('formatCairoClock / formatCairoTimeShort', () => {
   it('agrees with getMarketStatus\'s own Cairo-time boundaries', () => {
     const openAt = cairoEpochFor('2026-08-13', 10, 0);
     expect(formatCairoTimeShort(openAt)).toBe('10:00');
+  });
+});
+
+describe('formatCairoDateShort', () => {
+  it('formats weekday, day and month in Cairo time', () => {
+    expect(formatCairoDateShort(Date.UTC(2026, 0, 15, 10, 5, 3))).toBe('Thu 15 Jan');
+  });
+
+  it('uses the Cairo calendar day, not UTC, near midnight', () => {
+    // 23:30 UTC on Thu 1 Jan is already Fri 2 Jan in Cairo (UTC+2).
+    expect(formatCairoDateShort(Date.UTC(2026, 0, 1, 23, 30, 0))).toBe('Fri 2 Jan');
   });
 });
 

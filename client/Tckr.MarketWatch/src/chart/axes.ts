@@ -15,7 +15,7 @@
  * user last saw the raw wire string for.
  */
 import { format, toDecimal, type DecimalString } from '../contracts/decimal.ts';
-import { formatCairoClock } from '../data/marketCalendar.ts';
+import { formatCairoClock, formatCairoTimeShort } from '../data/marketCalendar.ts';
 
 /** Digits after the decimal point in a tick-size string — `"0.05"` -> 2, `"0.005"` -> 3,
  * `"1"` -> 0. Pure string indexing, not a numeric parse: a tick size's own precision is
@@ -73,8 +73,39 @@ export function formatXAxisLabel(epochMs: number): string {
   return formatClockTime(epochMs);
 }
 
+/** `x` label at the density uPlot chose: `HH:MM` once splits are a whole minute or more
+ * apart (a SESSION chart), `HH:MM:SS` below that (the 60S range), where the seconds are
+ * the information. Both in Cairo time via the same shared formatters. */
+export function formatXAxisTick(epochMs: number, stepMs: number): string {
+  return stepMs >= 60000 ? formatCairoTimeShort(epochMs) : formatClockTime(epochMs);
+}
+
 /**
- * Candidate x-axis increments in milliseconds, ascending, from 1 second to 30 minutes.
+ * Where the time axis puts its labels: always at both ends of the plotted range (the
+ * session's first and last sample — "10:00" and "14:30" — so a narrow chart still says
+ * what span it covers), plus every whole `incrMs` step in between that stays at least
+ * `minGapMs` from both ends (so an interior label never collides with an end label).
+ * `incrMs` is the step uPlot picked from `X_AXIS_INCREMENTS_MS` for the space available.
+ */
+export function timeAxisSplits(minMs: number, maxMs: number, incrMs: number, minGapMs: number): number[] {
+  if (!(maxMs > minMs)) {
+    return [minMs];
+  }
+  const splits = [minMs];
+  for (let t = Math.ceil(minMs / incrMs) * incrMs; t < maxMs; t += incrMs) {
+    if (t - minMs >= minGapMs && maxMs - t >= minGapMs) {
+      splits.push(t);
+    }
+  }
+  splits.push(maxMs);
+  return splits;
+}
+
+/**
+ * Candidate x-axis increments in milliseconds, ascending, from 1 second to 8 hours. The
+ * top steps exceed a session on purpose: uPlot drops an axis's labels entirely when no
+ * step fits the width, so a phone-width chart needs one that always fits (its labels are
+ * then just the two ends — see `timeAxisSplits`).
  * Passed as uPlot's `Axis.incrs` for the (linear, non-`time`) x scale so uPlot's own
  * space-aware split algorithm — unmodified — snaps to whichever of these fits the
  * container width without crowding labels, rather than picking an arbitrary raw-ms
@@ -83,4 +114,5 @@ export function formatXAxisLabel(epochMs: number): string {
  */
 export const X_AXIS_INCREMENTS_MS: readonly number[] = [
   1000, 2000, 5000, 10000, 15000, 30000, 60000, 120000, 300000, 600000, 900000, 1800000,
+  3600000, 7200000, 14400000, 28800000,
 ];

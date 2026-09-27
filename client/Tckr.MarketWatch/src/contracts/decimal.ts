@@ -95,6 +95,56 @@ export function subtract(a: DecimalString, b: DecimalString): DecimalString {
 }
 
 /**
+ * `value` times a whole-number quantity, exactly — e.g. a price times the shares
+ * traded, giving the traded value. The result keeps `value`'s own decimal places, which
+ * is exact because multiplying by an integer never adds fractional digits.
+ */
+export function multiplyByQuantity(value: DecimalString, quantity: number): DecimalString {
+  if (!Number.isSafeInteger(quantity)) {
+    throw new RangeError(`Quantity must be a safe integer: ${String(quantity)}`);
+  }
+  return fromScaledInt(toScaledInt(value) * BigInt(quantity), decimalPlaces(value));
+}
+
+const COMPACT_UNITS: readonly (readonly [bigint, string])[] = [
+  [1_000_000_000n, 'B'],
+  [1_000_000n, 'M'],
+  [1_000n, 'K'],
+];
+
+/**
+ * A magnitude for display at a glance: `25,234,000.50` -> `"25.23M"`, `3,067,000` ->
+ * `"3.07M"`, `6,000,000` -> `"6M"`, `950` -> `"950"`. Two fractional digits, rounded
+ * half away from zero; trailing zeros are dropped unless `fixedFraction` is set (a
+ * right-aligned column keeps them, so its decimal points line up: `"18.60M"`). A value
+ * that rounds up to the next unit is shown in it (`999,999` -> `"1M"`, never
+ * `"1000K"`). Computed on the exact scaled integer, never through a float.
+ */
+export function formatCompact(value: DecimalString, options: { readonly fixedFraction?: boolean } = {}): string {
+  const scaled = toScaledInt(value);
+  const negative = scaled < 0n;
+  const magnitude = negative ? -scaled : scaled;
+  const one = 10n ** BigInt(SCALE_DIGITS);
+  let body: string | null = null;
+  for (const [unit, suffix] of COMPACT_UNITS) {
+    const divisor = unit * one;
+    // Hundredths of a unit, rounded half away from zero.
+    const hundredths = (magnitude * 100n + divisor / 2n) / divisor;
+    if (hundredths >= 100n) {
+      const whole = hundredths / 100n;
+      const padded = (hundredths % 100n).toString().padStart(2, '0');
+      const frac = options.fixedFraction === true ? padded : padded.replace(/0+$/, '');
+      body = `${whole.toString()}${frac === '' ? '' : `.${frac}`}${suffix}`;
+      break;
+    }
+  }
+  if (body === null) {
+    body = ((magnitude + one / 2n) / one).toString();
+  }
+  return negative && body !== '0' ? `-${body}` : body;
+}
+
+/**
  * Presentational percentage change from `from` to `to`, as a plain JS `number`. This
  * is the only function in this module permitted to produce one. The ratio is computed
  * exactly in BigInt space (parts-per-10000-of-a-percent) and the final `number` is

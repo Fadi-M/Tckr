@@ -12,6 +12,7 @@ export interface FakeUPlotInstance {
   readonly setSize: ReturnType<typeof vi.fn>;
   readonly redraw: ReturnType<typeof vi.fn>;
   readonly root: HTMLElement;
+  readonly over: HTMLElement;
   cursor: { idx: number | null };
   data: [number[], number[]];
 }
@@ -25,6 +26,7 @@ export class FakeUPlot implements FakeUPlotInstance {
   readonly setSize = vi.fn();
   readonly redraw = vi.fn();
   readonly root: HTMLElement = document.createElement('div');
+  readonly over: HTMLElement = document.createElement('div');
   cursor: { idx: number | null } = { idx: null };
   data: [number[], number[]] = [[], []];
 

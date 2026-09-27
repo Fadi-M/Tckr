@@ -1,7 +1,7 @@
 /**
  * `StockList` table precision (2026-09-26 critique, P2): numeric headers sit over their
- * right-aligned figures; a change that rounds to 0.0% reads as unchanged (neutral chip,
- * no sign, "unchanged" to a screen reader) rather than a coloured "-0.0%"; and the
+ * right-aligned figures; a change that rounds to 0.00% reads as unchanged (neutral chip,
+ * no sign, "unchanged" to a screen reader) rather than a coloured "-0.00%"; and the
  * Session sparkline is seeded from each symbol's history instead of starting flat.
  */
 import { act } from 'react';
@@ -46,22 +46,24 @@ describe('StockList table precision', () => {
   it('right-aligns numeric column headers and left-aligns text ones', async () => {
     await renderList();
     const header = (label: string) => screen.getByRole('columnheader', { name: new RegExp(`^${label}$`) });
-    for (const label of ['Price', 'Change', 'Change %', 'Volume']) {
+    for (const label of ['Price', 'Change', 'Change %', 'Volume', 'Value EGP']) {
       expect(header(label).className).toContain('text-right');
     }
-    for (const label of ['Symbol', 'Name', 'Last update']) {
+    // (Last update is live-only, so whether it renders depends on the clock; its
+    // alignment is covered in StockList.market-closed.test.tsx.)
+    for (const label of ['Symbol', 'Name']) {
       expect(header(label).className).toContain('text-left');
     }
   });
 
-  it('shows a change that rounds to 0.0% as a neutral, unsigned, "unchanged" chip', async () => {
+  it('shows a change that rounds to 0.00% as a neutral, unsigned, "unchanged" chip', async () => {
     await renderList();
-    // COMI's reference price is 85.10; 85.12 is +0.02%, which rounds to 0.0%.
+    // COMI's reference price is 85.10; 85.104 is +0.0047%, which rounds to 0.00%.
     act(() => {
-      applyTick(tickFixture({ s: 'COMI', p: toDecimal('85.12') }));
+      applyTick(tickFixture({ s: 'COMI', p: toDecimal('85.104') }));
     });
-    const row = screen.getByRole('row', { name: /^COMI, 85\.12, unchanged 0\.0%$/ });
-    const chip = Array.from(row.querySelectorAll('span')).find((el) => el.textContent === '0.0%');
+    const row = screen.getByRole('row', { name: /^COMI, 85\.104, unchanged 0\.00%, change \+0\.00, volume [\d,]+$/ });
+    const chip = Array.from(row.querySelectorAll('span')).find((el) => el.textContent === '0.00%');
     expect(chip).toBeDefined();
     expect(chip?.className).toContain('bg-surface-raised');
     expect(chip?.className).not.toContain('text-chip-up');

@@ -17,21 +17,8 @@ agent needs that the README doesn't already say.
 
 ## Commands
 
-```bash
-npm run dev          # http://localhost:5173, hot-reloading
-npm run typecheck    # tsc --noEmit (project is strict: true)
-npm test             # vitest run — jsdom, no browser needed
-npm run test:watch   # vitest watch mode
-npm run build        # production build to dist/
-npm run preview      # serve dist/ at http://localhost:4173
-```
-
-Run a single test file or a subset with vitest's normal filtering, e.g.:
-
-```bash
-npx vitest run src/data/__tests__/dispatcher.coalescing.test.ts
-npx vitest run -t "coalesces"
-```
+The standard scripts (`dev`, `typecheck`, `test`, `test:watch`, `build`, `preview`) are in
+`package.json`; run them from this directory.
 
 Performance tests (`perf/frame-timing.spec.ts`, `perf/layout-400.spec.ts`) are **not** run
 in the normal test suite or CI — they need a real Chromium and a built app, and are run
@@ -44,35 +31,6 @@ npm run test:perf
 ```
 
 ## Architecture — the one seam
-
-```text
-                          MarketDataSource            (interface, src/data/MarketDataSource.ts)
-                                 ▲
-                ┌────────────────┴────────────────┐
-         SimulatedSource                    TckrGatewaySource
- (seeded random walk, in-browser)      (WebSocket + REST, client-contract.md v1;
-                                         dormant until a gateway exists — Phase 11)
-                └────────────────┬─────────────────┘
-                                  ▼
-                      config.ts: createMarketDataSource()
-                      — the ONLY place either class is named —
-                      wrapped by getSharedSource() into an
-                      app-wide singleton (one connection, ever)
-                                  │
-                                  ▼
-                           TickDispatcher
-                (coalesces per symbol, flushes ≤1×/animation frame)
-                                  │
-                                  ▼
-                              store.ts
-                (external store, per-symbol subscriptions via
-                 useSyncExternalStore — a tick re-renders one row)
-                          │              │
-                          ▼              ▼
-                      StockList     StockDetail ──▶ PriceChart
-                    (search, sort,   (snapshot-then-stream,        (uPlot, bounded
-                     live cells)      subscribe lifecycle)          ring buffer)
-```
 
 **The one seam that matters**: `src/data/config.ts`'s `createMarketDataSource()` is the
 only place `SimulatedSource` or `TckrGatewaySource` is named. No page or component imports

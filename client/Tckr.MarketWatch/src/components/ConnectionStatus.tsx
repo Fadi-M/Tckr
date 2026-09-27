@@ -131,6 +131,8 @@ const PILL_STATE_CLASSES: Record<ConnectionState['kind'], string> = {
 // "Connected" beside "Market closed" read as "prices are moving" and trained users to
 // ignore the pill; the glow is now reserved for a connection that is carrying trades.
 const CONNECTED_IDLE_CLASSES = 'text-text-muted bg-glass border-glass-border';
+// ...and its dot too: a green dot is the same "trades are moving" signal in miniature.
+const CONNECTED_IDLE_DOT_CLASS = 'bg-text-muted';
 
 const DOT_STATE_CLASSES: Record<ConnectionState['kind'], string> = {
   connecting: 'bg-warning',
@@ -186,7 +188,7 @@ export function ConnectionStatus() {
 
   return (
     <span
-      className={`inline-flex items-center gap-2 font-mono text-label font-semibold tracking-[0.08em] px-[13px] py-[7px] rounded-full border whitespace-nowrap transition-[background-color,border-color,color,box-shadow] duration-[250ms] ease-out ${
+      className={`inline-flex items-center gap-2 font-mono text-label font-semibold tracking-[0.08em] px-[13px] py-[7px] rounded-full border whitespace-nowrap max-[640px]:px-2 max-[640px]:gap-1.5 max-[640px]:tracking-[0.03em] transition-[background-color,border-color,color,box-shadow] duration-[250ms] ease-out ${
         idle ? CONNECTED_IDLE_CLASSES : PILL_STATE_CLASSES[state.kind]
       }`}
       data-state={state.kind}
@@ -194,14 +196,33 @@ export function ConnectionStatus() {
       role="status"
       title={idle ? `Connected to the feed. ${idleReason}.` : undefined}
     >
-      <span className={`w-1.5 h-1.5 rounded-full flex-none transition-[background-color] duration-[250ms] ${DOT_STATE_CLASSES[state.kind]}`} data-state={state.kind} aria-hidden="true" />
+      <span
+        className={`w-1.5 h-1.5 rounded-full flex-none transition-[background-color] duration-[250ms] ${idle ? CONNECTED_IDLE_DOT_CLASS : DOT_STATE_CLASSES[state.kind]}`}
+        data-state={state.kind}
+        aria-hidden="true"
+      />
+      {/* This is a status region, so every text change is announced. The elapsed time
+          and the retry countdown change every second: they are shown, but hidden from
+          assistive tech, which hears only the state itself ("Connected", "Reconnecting,
+          attempt 2"). */}
       {state.kind === 'connected' ? (
         // Same text as `describeState`, split so the elapsed time can drop on phones,
         // where the header has to fit the logo, stream badge, this pill and the theme
         // toggle on one row.
         <span data-testid="connection-status">
-          Connected<span className="max-[640px]:hidden"> · {elapsedText}</span>
+          Connected
+          <span className="max-[640px]:hidden" aria-hidden="true">
+            {' '}
+            · {elapsedText}
+          </span>
         </span>
+      ) : state.kind === 'reconnecting' ? (
+        <>
+          <span data-testid="connection-status" aria-hidden="true">
+            {describeState(state, remainingSecs, elapsedText)}
+          </span>
+          <span className="sr-only">Reconnecting, attempt {state.attempt}</span>
+        </>
       ) : (
         <span data-testid="connection-status">{describeState(state, remainingSecs, elapsedText)}</span>
       )}

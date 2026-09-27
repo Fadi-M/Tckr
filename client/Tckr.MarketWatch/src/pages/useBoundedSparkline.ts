@@ -43,17 +43,30 @@ export function sparklineDirection(changePercent: number | undefined): 'up' | 'd
 }
 
 /**
- * Reduces a session's full price history to `maxPoints` evenly spaced samples — first
- * and last always kept — so a row's sparkline can show the whole session's shape from
- * first paint instead of starting flat and filling in one repaint (30s) at a time.
+ * Reduces a session's full price history to `maxPoints` points — first and last kept
+ * exactly — so a row's sparkline can show the whole session's shape from first paint
+ * instead of starting flat and filling in one repaint (30s) at a time. Each point in
+ * between is the *mean* of its slice of the session, not one sampled tick: picking
+ * single ticks out of a noisy tape kept the noise (critique 2026-09-27: the lines read
+ * as texture, not trend), while averaging keeps the session's shape.
  * Decorative only, like every sparkline value: never rendered as text.
  */
 export function downsampleSeries(values: readonly number[], maxPoints: number): number[] {
   if (values.length <= maxPoints) {
     return [...values];
   }
-  const step = (values.length - 1) / (maxPoints - 1);
-  return Array.from({ length: maxPoints }, (_, i) => values[Math.round(i * step)]!);
+  const inner = values.length - 2;
+  const buckets = maxPoints - 2;
+  const means = Array.from({ length: buckets }, (_, i) => {
+    const start = 1 + Math.floor((i * inner) / buckets);
+    const end = 1 + Math.floor(((i + 1) * inner) / buckets);
+    let sum = 0;
+    for (let j = start; j < end; j++) {
+      sum += values[j]!;
+    }
+    return sum / (end - start);
+  });
+  return [values[0]!, ...means, values[values.length - 1]!];
 }
 
 /**

@@ -82,17 +82,23 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react';
-import { Outlet, useMatch } from 'react-router-dom';
-import { compare, toDecimal, type DecimalString } from '../contracts/decimal.ts';
+import { Link, Outlet, useMatch } from 'react-router-dom';
+import { compare, format, formatCompact, multiplyByQuantity, toDecimal, type DecimalString } from '../contracts/decimal.ts';
 import type { SymbolDefinition } from '../contracts/rest.ts';
 import { CloseCode } from '../contracts/closeCodes.ts';
 import { getSharedSource, reconnectSharedSource } from '../data/config.ts';
 import type { ConnectionState } from '../data/MarketDataSource.ts';
+import type { Stream } from '../contracts/messages.ts';
+import { streamDelay } from '../components/streamDelay.ts';
+import { BOARD_ID, DETAIL_HEADING_ID } from './pageAnchors.ts';
 import { getSymbolSnapshot, subscribeSymbol } from '../data/store.ts';
-import { formatCairoTimeShort, formatNextOpen, isPreOpenAuction, type MarketStatus } from '../data/marketCalendar.ts';
-import { AlertIcon, ArrowLeftIcon, CheckIcon, ClockIcon, RetryIcon, SearchIcon } from '../components/icons.tsx';
+import { formatCairoDateShort, formatCairoTimeShort, formatNextOpen, isPreOpenAuction, type MarketStatus } from '../data/marketCalendar.ts';
+import { AlertIcon, ArrowLeftIcon, CheckIcon, ClockIcon, CloseIcon, RetryIcon, SearchIcon } from '../components/icons.tsx';
 import { TckrMark } from '../components/TckrLogo.tsx';
 import { PriceCell } from '../components/PriceCell.tsx';
+import { DELTA_TONE_CLASSES, deltaTone, type DeltaTone } from '../components/deltaTone.ts';
+import { isEditableTarget, modifierKeyLabel } from '../components/keyboard.ts';
+import { prefersReducedMotion } from '../components/prefersReducedMotion.ts';
 import { useMarketStatus } from '../components/useMarketStatus.ts';
 import { useViewTransitionNavigate } from '../components/useViewTransitionNavigate.ts';
 import { createThrottle, DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
@@ -101,7 +107,8 @@ import { sparklineDirection, useSessionSparkline } from './useBoundedSparkline.t
 
 const ZERO_DECIMAL: DecimalString = toDecimal('0');
 
-type SortColumn = 'symbol' | 'name' | 'price' | 'change' | 'changePercent' | 'volume' | 'lastUpdate';
+type SortColumn = 'symbol' | 'name' | 'price' | 'change' | 'changePercent' | 'volume' | 'value' | 'lastUpdate';
+type ColumnKey = SortColumn | 'trend';
 type SortDirection = 'asc' | 'desc';
 
 interface SortState {
@@ -110,14 +117,22 @@ interface SortState {
 }
 
 interface ColumnSpec {
-  readonly key: SortColumn | 'trend';
+  readonly key: ColumnKey;
   readonly label: string;
+  /** Tooltip for a header whose label is shorthand (the sparkline column). */
+  readonly title?: string;
+  /** Unit printed after the label, in a lighter weight. A tooltip can't be opened on
+   * touch, so what a figure is measured in is on the header itself. */
+  readonly unit?: string;
   readonly sortable: boolean;
   /** Hidden below the 640px breakpoint (task 03's convention) so the page stays
    * scroll-free at 400px — only Symbol, Price and Change % remain. */
   readonly hideNarrow?: boolean;
   /** Right-aligned figures; the header right-aligns to match. */
   readonly numeric?: boolean;
+  /** Only meaningful while EGX is trading; left out of the table while it is closed,
+   * when every row would say the same thing (the Market closed banner says it once). */
+  readonly liveOnly?: boolean;
   /** `table-layout: fixed` (kept for perf/no-reflow — a symbol's price can repaint
    * every `DISPLAY_REFRESH_INTERVAL_MS` and must never trigger a table-wide reflow)
    * otherwise divides the table into 8 *equal* columns regardless of content, which
@@ -133,63 +148,108 @@ interface ColumnSpec {
 // column's label sits above the digits it names (the ones and tenths line up under it).
 const COLUMNS: readonly ColumnSpec[] = [
   { key: 'symbol', label: 'Symbol', sortable: true, widthPercent: 8 },
-  { key: 'trend', label: 'Session', sortable: false, hideNarrow: true, widthPercent: 10 },
-  { key: 'name', label: 'Name', sortable: true, hideNarrow: true, widthPercent: 22 },
-  { key: 'price', label: 'Price', sortable: true, numeric: true, widthPercent: 12 },
-  { key: 'change', label: 'Change', sortable: true, numeric: true, hideNarrow: true, widthPercent: 10 },
+  // "Trend", not a bare "Session": the column is a shape, not a figure — the price's
+  // path through the session, open to now (or to the close).
+  {
+    key: 'trend',
+    label: 'Session trend',
+    title: 'Price through the session, from the open to now (or to the close)',
+    sortable: false,
+    hideNarrow: true,
+    widthPercent: 10,
+  },
+  { key: 'name', label: 'Name', sortable: true, hideNarrow: true, widthPercent: 18 },
+  { key: 'price', label: 'Price', sortable: true, numeric: true, widthPercent: 10 },
+  { key: 'change', label: 'Change', sortable: true, numeric: true, hideNarrow: true, widthPercent: 9 },
   { key: 'changePercent', label: 'Change %', sortable: true, numeric: true, widthPercent: 10 },
-  { key: 'volume', label: 'Volume', sortable: true, numeric: true, hideNarrow: true, widthPercent: 12 },
-  { key: 'lastUpdate', label: 'Last update', sortable: true, hideNarrow: true, widthPercent: 16 },
+  { key: 'volume', label: 'Volume', title: 'Shares traded this session', sortable: true, numeric: true, hideNarrow: true, widthPercent: 10 },
+  {
+    key: 'value',
+    label: 'Value',
+    unit: 'EGP',
+    title: 'Traded value this session, in EGP (price × shares)',
+    sortable: true,
+    numeric: true,
+    hideNarrow: true,
+    widthPercent: 10,
+  },
+  { key: 'lastUpdate', label: 'Last update', sortable: true, hideNarrow: true, liveOnly: true, widthPercent: 15 },
 ];
 
-/** Sum of the always-visible (`!hideNarrow`) columns' `widthPercent` — the
- * denominator `narrowColumnWidthPercent` rescales against. */
-const NARROW_VISIBLE_WIDTH_TOTAL = COLUMNS.filter((column) => !column.hideNarrow).reduce(
-  (sum, column) => sum + column.widthPercent,
-  0,
-);
-
-/** `table-layout: fixed`'s `<colgroup>` widths are independent of which `<td>`s are
- * actually visible — hiding a cell via `display: none` does not return its column's
- * reserved width to the rest of the row (the browser does not auto-collapse a
- * fixed-layout column just because every cell in it is hidden). Split-pane mode
- * (`narrow`) hides the same columns the 640px breakpoint hides, but the list column
- * itself can be far narrower than a real 640px viewport (see `StockList`'s grid), so
- * the always-visible columns' original percentages (8/12/10, out of the *full*
- * 8-column layout) leave most of the row blank and squeeze Symbol/Price/Change % into
- * illegibly few pixels. Rescale them to fill 100% of the row instead; the 640px
- * media-query narrow-hide path (real narrow viewports, untouched by this) does not
- * call this — it keeps the original 8/12/10 of the full width, which is enough
- * absolute pixels on an actual phone-width viewport. */
-function narrowColumnWidthPercent(column: ColumnSpec): number {
-  if (column.hideNarrow) {
-    return 0;
-  }
-  return (column.widthPercent / NARROW_VISIBLE_WIDTH_TOTAL) * 100;
+/** The columns the table renders: all of them, minus the `hideNarrow` ones when the
+ * list is narrow (split pane or a phone-width viewport) and the `liveOnly` ones while
+ * EGX is closed. The header, the `<colgroup>` and every row read this one list, so
+ * they can never disagree. */
+function visibleColumns(narrow: boolean, marketClosed: boolean): readonly ColumnSpec[] {
+  return COLUMNS.filter((column) => !(narrow && column.hideNarrow) && !(marketClosed && column.liveOnly));
 }
 
-type Preset = 'most-active' | 'gainers' | 'losers' | 'az';
+/** `table-layout: fixed`'s `<colgroup>` widths don't give a left-out column's share back
+ * to the others, so each visible column's `widthPercent` is rescaled against the
+ * visible total: the row always fills 100%, whichever columns it shows. */
+function columnWidthPercent(column: ColumnSpec, columns: readonly ColumnSpec[]): number {
+  const total = columns.reduce((sum, visible) => sum + visible.widthPercent, 0);
+  return (column.widthPercent / total) * 100;
+}
 
-const PRESETS: readonly { readonly id: Preset; readonly label: string; readonly sort: SortState }[] = [
-  { id: 'most-active', label: 'Most active', sort: { column: 'volume', direction: 'desc' } },
-  { id: 'gainers', label: 'Gainers', sort: { column: 'changePercent', direction: 'desc' } },
-  { id: 'losers', label: 'Losers', sort: { column: 'changePercent', direction: 'asc' } },
-  { id: 'az', label: 'A–Z', sort: { column: 'symbol', direction: 'asc' } },
+type Preset = 'exchange' | 'most-active' | 'gainers' | 'losers';
+
+// `hint` says what each ordering ranks by — the tooltip and accessible description for
+// a label ("Most active") that doesn't say it on its own. "Exchange order" is the
+// unsorted board and the lit default, so there is always a named way back after a
+// header sort. No A–Z preset: the Symbol header already does exactly that, and the
+// presets are for the orderings a trader asks for by name.
+const PRESETS: readonly { readonly id: Preset; readonly label: string; readonly hint: string; readonly sort: SortState | null }[] = [
+  { id: 'exchange', label: 'Exchange order', hint: 'The order EGX lists its instruments in', sort: null },
+  { id: 'most-active', label: 'Most active', hint: 'Highest traded value (EGP) this session first', sort: { column: 'value', direction: 'desc' } },
+  { id: 'gainers', label: 'Gainers', hint: 'Biggest rise since the open first', sort: { column: 'changePercent', direction: 'desc' } },
+  { id: 'losers', label: 'Losers', hint: 'Biggest fall since the open first', sort: { column: 'changePercent', direction: 'asc' } },
 ];
 
 function presetFor(sortState: SortState | null): Preset | null {
-  if (!sortState) {
-    return null;
-  }
-  const match = PRESETS.find(
-    (preset) => preset.sort.column === sortState.column && preset.sort.direction === sortState.direction,
+  const match = PRESETS.find((preset) =>
+    preset.sort === null || sortState === null
+      ? preset.sort === sortState
+      : preset.sort.column === sortState.column && preset.sort.direction === sortState.direction,
   );
   return match?.id ?? null;
+}
+
+/**
+ * What order the board is in, in words — the table's caption, so the order is never
+ * implied only by which pill or header arrow happens to be lit (and nothing is lit by
+ * default). A preset names itself and what it ranks by; any other column sort says
+ * which column and which way; no sort is the order the exchange lists instruments in.
+ */
+export function describeOrder(sortState: SortState | null): string {
+  if (sortState === null) {
+    return 'Exchange order';
+  }
+  const preset = PRESETS.find((candidate) => candidate.id === presetFor(sortState));
+  if (preset && preset.sort !== null) {
+    return `${preset.label} · ${preset.hint}`;
+  }
+  const column = COLUMNS.find((candidate) => candidate.key === sortState.column);
+  const way = column?.numeric
+    ? sortState.direction === 'asc'
+      ? 'lowest first'
+      : 'highest first'
+    : sortState.direction === 'asc'
+      ? 'A–Z'
+      : 'Z–A';
+  return `Sorted by ${column?.label ?? sortState.column}, ${way}`;
 }
 
 function decimalPlacesOf(value: string): number {
   const dot = value.indexOf('.');
   return dot === -1 ? 0 : value.length - dot - 1;
+}
+
+/** A symbol's traded value this session (last price × shares traded), exact — how
+ * EGX ranks "most active". Reads the store unless the caller already holds the view.
+ * Before the first snapshot: the reference price × 0. */
+function tradedValue(definition: SymbolDefinition, view = getSymbolSnapshot(definition.symbol)): DecimalString {
+  return multiplyByQuantity(view?.price ?? definition.referencePrice, view?.volume ?? 0);
 }
 
 function compareBy(column: SortColumn, a: SymbolDefinition, b: SymbolDefinition): number {
@@ -218,6 +278,8 @@ function compareBy(column: SortColumn, a: SymbolDefinition, b: SymbolDefinition)
       const vb = getSymbolSnapshot(b.symbol)?.volume ?? 0;
       return va - vb;
     }
+    case 'value':
+      return compare(tradedValue(a), tradedValue(b));
     case 'lastUpdate': {
       const la = getSymbolSnapshot(a.symbol)?.lastUpdate ?? 0;
       const lb = getSymbolSnapshot(b.symbol)?.lastUpdate ?? 0;
@@ -228,20 +290,28 @@ function compareBy(column: SortColumn, a: SymbolDefinition, b: SymbolDefinition)
   }
 }
 
-/** Below this magnitude a change rounds to "0.0%" at one decimal, so it is shown as
- * unchanged: a coloured "-0.0%" chip would claim a direction the figure can't show. */
-const UNCHANGED_PERCENT_THRESHOLD = 0.05;
+/** Below this magnitude a change rounds to "0.00%" at two decimals, so it is shown as
+ * unchanged: a coloured "-0.00%" chip would claim a direction the figure can't show.
+ * Two decimals everywhere, matching the detail pane, so one move never reads as +0.6%
+ * on the board and +0.59% beside it. */
+const UNCHANGED_PERCENT_THRESHOLD = 0.005;
 
 function isEffectivelyUnchanged(changePercent: number): boolean {
   return Math.abs(changePercent) < UNCHANGED_PERCENT_THRESHOLD;
 }
 
+/** The chip tone for a change %, matching what `formatSignedPercent` prints: flat when
+ * there is none yet or it rounds to "0.00%" (so a neutral figure never wears a colour). */
+function percentTone(changePercent: number | undefined): DeltaTone {
+  return changePercent === undefined || isEffectivelyUnchanged(changePercent) ? 'flat' : deltaTone(changePercent);
+}
+
 function formatSignedPercent(value: number): string {
   if (isEffectivelyUnchanged(value)) {
-    return '0.0%';
+    return '0.00%';
   }
   const sign = value > 0 ? '+' : '';
-  return `${sign}${value.toFixed(1)}%`;
+  return `${sign}${value.toFixed(2)}%`;
 }
 
 function formatRelativeTime(lastUpdate: number, now: number): string {
@@ -264,7 +334,7 @@ const NARROW_VIEWPORT_QUERY = '(max-width: 640px)';
 
 /** True below the 640px breakpoint (task 03's convention) — the *other* trigger,
  * besides the split-pane, for narrowing the table down to Symbol/Price/Change %
- * (see `StockListRow`'s `narrow` prop doc for why this needs to physically remove
+ * (see `StockListRow`'s `columns` prop doc for why this needs to physically remove
  * the hidden columns from the DOM rather than the CSS-only `display: none` this
  * breakpoint used before the "Frosted Glass Revamp" split-pane pass: that CSS-only
  * approach and `table-layout: fixed`'s per-column `<colgroup>` percentages
@@ -306,6 +376,46 @@ function seedConnectionState(): ConnectionState {
     return current;
   }
   return source.identity() !== null ? { kind: 'connected', since: Date.now() } : { kind: 'connecting', attempt: 1 };
+}
+
+/** Which stream the viewer is on, from the server's `identity()` only (never a
+ * client-side default: `null` until the handshake). Re-read on every status transition
+ * and entitlement change, the same two signals the header's StreamBadge follows. */
+function useViewerStream(): Stream | null {
+  const [stream, setStream] = useState<Stream | null>(() => getSharedSource().identity()?.stream ?? null);
+  useEffect(() => {
+    const source = getSharedSource();
+    const refresh = (): void => setStream(source.identity()?.stream ?? null);
+    const unsubStatus = source.on.status(refresh);
+    const unsubEntitlement = source.on.entitlement(refresh);
+    return () => {
+      unsubStatus();
+      unsubEntitlement();
+    };
+  }, []);
+  return stream;
+}
+
+/** Shown while the viewer is on the DELAYED stream, above everything that carries a
+ * price — the highlight cards, the board and the detail pane alike — so no price on
+ * the page can be taken for a live one (the header badge alone was one small pill).
+ * A lighter amber than the "stream dropped" warning: this is an entitlement, not a
+ * fault (DESIGN.md, "The Tinted Status Rule": 9% tint, 24% border). */
+function DelayedStreamBanner() {
+  const delay = streamDelay();
+  return (
+    <div className={`${CONN_BANNER_BASE} ${CONN_BANNER_DELAYED}`} role="note" data-testid="delayed-stream-banner">
+      <ClockIcon className="text-warning" />
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold text-small">Delayed prices · {delay.short} behind</div>
+        <div className="mt-[3px] text-caption text-text-muted">
+          {delay.simulated
+            ? `Every price on this page is ${delay.short} behind the exchange (simulated; a real delayed entitlement is 15\u00a0min).`
+            : `Every price on this page is ${delay.short} behind the exchange, per your entitlement.`}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function useConnectionBanner(): { state: ConnectionState; remainingSecs: number } {
@@ -365,6 +475,8 @@ const CONN_BANNER_WARNING =
 const CONN_BANNER_DANGER =
   'bg-[color-mix(in_oklab,var(--tckr-color-down)_16%,var(--tckr-glass-bg))] border border-[color-mix(in_oklab,var(--tckr-color-down)_32%,transparent)] reduced-transparency:bg-[color-mix(in_oklab,var(--tckr-color-down)_16%,var(--tckr-color-surface))] contrast-more:bg-[color-mix(in_oklab,var(--tckr-color-down)_16%,var(--tckr-color-surface))]';
 const CONN_BANNER_INFO = 'bg-glass border border-glass-border reduced-transparency:bg-surface contrast-more:bg-surface';
+const CONN_BANNER_DELAYED =
+  'bg-[color-mix(in_oklab,var(--tckr-color-warning)_9%,var(--tckr-glass-bg))] border border-[color-mix(in_oklab,var(--tckr-color-warning)_24%,transparent)] reduced-transparency:bg-[color-mix(in_oklab,var(--tckr-color-warning)_9%,var(--tckr-color-surface))] contrast-more:bg-[color-mix(in_oklab,var(--tckr-color-warning)_9%,var(--tckr-color-surface))]';
 const CONN_BANNER_GOOD =
   'bg-[color-mix(in_oklab,var(--tckr-color-up)_12%,var(--tckr-glass-bg))] border border-[color-mix(in_oklab,var(--tckr-color-up)_28%,transparent)] reduced-transparency:bg-[color-mix(in_oklab,var(--tckr-color-up)_12%,var(--tckr-color-surface))] contrast-more:bg-[color-mix(in_oklab,var(--tckr-color-up)_12%,var(--tckr-color-surface))]';
 const BANNER_DISMISS =
@@ -378,7 +490,12 @@ function ConnectionBanner({ state, remainingSecs }: { state: ConnectionState; re
       <div className={`${CONN_BANNER_BASE} ${CONN_BANNER_WARNING}`} role="alert">
         <RetryIcon className="text-warning" />
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-small">The stream dropped — retrying in {remainingSecs}s</div>
+          {/* The countdown ticks every second inside this alert region; hiding it from
+              assistive tech keeps the alert to one announcement, not one per second. */}
+          <div className="font-semibold text-small">
+            The stream dropped<span aria-hidden="true"> — retrying in {remainingSecs}s</span>
+            <span className="sr-only"> — retrying automatically</span>
+          </div>
           <div className="mt-[3px] text-caption text-text-muted">
             Attempt {state.attempt}. Prices below are the last values received and are no longer moving.
           </div>
@@ -463,7 +580,7 @@ export function closestInstruments(
     return [];
   }
   const allowed = Math.max(1, Math.floor(q.length / 3));
-  return universe
+  const candidates = universe
     .map((def) => {
       const nameWordStarts = def.name.toLowerCase().split(/\s+/).map((word) => word.slice(0, q.length));
       const symbolDistance = editDistance(q, def.symbol.toLowerCase());
@@ -473,7 +590,12 @@ export function closestInstruments(
       const rank = Math.min(symbolDistance * 2, nameDistance * 2 + 1);
       return { def, distance: Math.min(symbolDistance, nameDistance), rank };
     })
-    .filter(({ distance }) => distance <= allowed)
+    .filter(({ distance }) => distance <= allowed);
+  // A ticker-shaped query ("COMY") with a close ticker means a mistyped ticker: a
+  // name-word near-miss ("Company" -> ARCC) beside it is noise, not a second guess.
+  const tickerShaped = /^[a-z0-9]{2,6}$/.test(q);
+  const tickerMatches = candidates.filter(({ def }) => editDistance(q, def.symbol.toLowerCase()) <= allowed);
+  return (tickerShaped && tickerMatches.length > 0 ? tickerMatches : candidates)
     .sort((a, b) => a.rank - b.rank || a.def.symbol.localeCompare(b.def.symbol))
     .slice(0, limit)
     .map(({ def }) => def);
@@ -571,7 +693,18 @@ function MomentBanner({
   );
 }
 
-function MarketClosedBanner({ status }: { status: MarketStatus }) {
+/** `compact`: the split view's ~380px list column, where the full sentence wrapped to
+ * three lines and pushed the board down. The chart beside it already says which session
+ * it shows, so the column keeps only when trading resumes. */
+function MarketClosedBanner({
+  status,
+  className = '',
+  compact = false,
+}: {
+  status: MarketStatus;
+  className?: string;
+  compact?: boolean;
+}) {
   if (status.state !== 'closed') {
     return null;
   }
@@ -583,14 +716,28 @@ function MarketClosedBanner({ status }: { status: MarketStatus }) {
   // minute without a clock of its own.
   const until = formatUntil(status.nextOpenAt - now);
   return (
-    <div className={`${CONN_BANNER_BASE} ${CONN_BANNER_INFO}`} role="status">
+    <div className={`${CONN_BANNER_BASE} ${CONN_BANNER_INFO} ${className}`} role="status">
       <ClockIcon className="text-text-muted" />
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-small">{preOpen ? 'Pre-open auction' : 'Market closed'}</div>
         <div className="mt-[3px] text-caption text-text-muted">
-          {preOpen
-            ? `Continuous trading starts at ${formatNextOpen(status)} Cairo time, ${until}. Prices below are from the last completed session.`
-            : `Showing the last completed session. Reopens ${formatNextOpen(status)} Cairo time, ${until}.`}
+          {/* The relative countdown is visual only: it changes every minute inside a
+              status region, and the absolute Cairo time already says when. */}
+          {compact ? (
+            <>
+              {preOpen ? 'Trading starts' : 'Reopens'} {formatNextOpen(status)} Cairo
+            </>
+          ) : preOpen ? (
+            <>
+              Continuous trading starts at {formatNextOpen(status)} Cairo time<span aria-hidden="true">, {until}</span>. Prices
+              below are from the last completed session.
+            </>
+          ) : (
+            <>
+              Showing the last completed session. Reopens {formatNextOpen(status)} Cairo time
+              <span aria-hidden="true">, {until}</span>.
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -663,11 +810,11 @@ function pickHeroes(universe: readonly SymbolDefinition[]): readonly HeroPick[] 
   }
   const metrics = universe.map((definition) => {
     const view = getSymbolSnapshot(definition.symbol);
-    return { definition, changePercent: view?.changePercent ?? 0, volume: view?.volume ?? 0 };
+    return { definition, changePercent: view?.changePercent ?? 0, value: tradedValue(definition) };
   });
   const gainer = [...metrics].sort((a, b) => b.changePercent - a.changePercent)[0]!;
   const loser = [...metrics].sort((a, b) => a.changePercent - b.changePercent)[0]!;
-  const active = [...metrics].sort((a, b) => b.volume - a.volume)[0]!;
+  const active = [...metrics].sort((a, b) => compare(b.value, a.value))[0]!;
   const candidates: readonly HeroPick[] = [
     { kind: 'gainer', kicker: 'TOP GAINER', definition: gainer.definition },
     { kind: 'loser', kicker: 'TOP LOSER', definition: loser.definition },
@@ -694,6 +841,9 @@ interface HeroCardProps {
   readonly onActivate: (symbol: string) => void;
   /** Same as `StockListRowProps.sessionTrend`. */
   readonly sessionTrend?: readonly number[] | undefined;
+  /** While EGX is closed the picks describe a past session, e.g. `"Thu 24 Sep"`;
+   * `undefined` while it trades, when "today" goes without saying. */
+  readonly sessionDate?: string | undefined;
 }
 
 // `all: unset` on the card button had no direct Tailwind equivalent (see module's
@@ -705,9 +855,9 @@ interface HeroCardProps {
 // with no separate reset step, so there is never a same-property class pair whose
 // winner depends on Tailwind's internal utility ordering.
 const HERO_CARD_CLASS =
-  'appearance-none m-0 p-0 outline-none text-inherit text-left box-border cursor-pointer w-full pt-4 px-[18px] pb-[15px] rounded-[20px] bg-glass border border-glass-border shadow-[0_18px_40px_-28px_rgba(0,0,0,0.4)] backdrop-blur-tckr backdrop-saturate-[1.6] [transition:transform_160ms_ease-out,border-color_160ms_ease] fine-hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none reduced-transparency:backdrop-saturate-100 contrast-more:bg-surface contrast-more:backdrop-blur-none contrast-more:backdrop-saturate-100';
+  'appearance-none m-0 p-0 outline-none text-inherit text-left box-border cursor-pointer w-full max-[640px]:w-[78%] max-[640px]:flex-none max-[640px]:snap-start max-[640px]:pt-3 max-[640px]:px-4 max-[640px]:pb-3 pt-4 px-[18px] pb-[15px] rounded-[20px] bg-glass border border-glass-border shadow-float backdrop-blur-tckr backdrop-saturate-[1.6] [transition:transform_160ms_ease-out,border-color_160ms_ease] fine-hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none reduced-transparency:backdrop-saturate-100 contrast-more:bg-surface contrast-more:backdrop-blur-none contrast-more:backdrop-saturate-100';
 
-function HeroCard({ kicker, kind, definition, priceDecimals, onActivate, sessionTrend }: HeroCardProps) {
+function HeroCard({ kicker, kind, definition, priceDecimals, onActivate, sessionTrend, sessionDate }: HeroCardProps) {
   const { symbol, name, referencePrice } = definition;
 
   // Same throttled-subscribe shape as `StockListRow` — see that component's doc for
@@ -728,7 +878,8 @@ function HeroCard({ kicker, kind, definition, priceDecimals, onActivate, session
   const priceMuted = view === undefined;
   const price = view?.price ?? referencePrice;
   const changePercent = view?.changePercent;
-  const volumeLabel = view ? view.volume.toLocaleString('en-US') : '—';
+  const valueLabel = view ? `EGP ${formatCompact(tradedValue(definition, view))}` : '—';
+  const delayed = view?.stream === 'DELAYED';
 
   // Session sparkline — same shape/purpose as `StockListRow`'s (decorative only; every
   // price shown as *text* here still goes through `PriceCell`), seeded from the
@@ -737,36 +888,33 @@ function HeroCard({ kicker, kind, definition, priceDecimals, onActivate, session
   const sparklinePoints = useSessionSparkline(currentPriceNum, 26, sessionTrend);
   const direction = sparklineDirection(changePercent);
 
-  const badgeText = kind === 'active' ? `${volumeLabel} QTY` : changePercent === undefined ? '—' : formatSignedPercent(changePercent);
-  // Branches the badge's *entire* background/text-color set rather than layering a
-  // base `bg-surface-raised` plus a conditional override — both would be plain,
-  // equal-specificity utility classes targeting the same `background-color`, so
-  // which one wins would depend on Tailwind's internal generation order rather than
-  // anything in this file (previously a `.tckr-hero__badge.tckr-delta--up/--down`
-  // compound-class selector, which doesn't have a Tailwind utility-class
-  // equivalent — see module's migration notes).
-  const badgeDeltaClass =
-    kind === 'active' || changePercent === undefined
-      ? 'bg-surface-raised'
-      : changePercent > 0
-        ? 'bg-[color-mix(in_oklab,var(--tckr-color-up)_20%,transparent)] text-chip-up'
-        : changePercent < 0
-          ? 'bg-[color-mix(in_oklab,var(--tckr-color-down)_20%,transparent)] text-chip-down'
-          : 'bg-surface-raised';
+  const badgeText = kind === 'active' ? valueLabel : changePercent === undefined ? '—' : formatSignedPercent(changePercent);
+  // Most active shows a traded value, not a move, so its badge stays neutral.
+  const badgeDeltaClass = DELTA_TONE_CLASSES[kind === 'active' ? 'flat' : percentTone(changePercent)];
 
   const directionWord = direction === 'flat' ? 'unchanged' : direction;
-  const ariaLabel =
+  // On a closed day "Top gainer" would otherwise read as today's; the weekday alone
+  // fits the card's label row, and the accessible name carries the full date.
+  const shownKicker = sessionDate === undefined ? kicker : `${kicker} · ${sessionDate.split(' ')[0]!.toUpperCase()}`;
+  const spokenKicker = sessionDate === undefined ? kicker : `${kicker}, ${sessionDate} session`;
+  const baseAriaLabel =
     kind === 'active'
-      ? `${kicker}: ${symbol}, ${String(price)}, volume ${volumeLabel}`
+      ? `${spokenKicker}: ${symbol}, ${String(price)}, traded value ${valueLabel}`
       : changePercent === undefined
-        ? `${kicker}: ${symbol}, ${String(price)}`
-        : `${kicker}: ${symbol}, ${String(price)}, ${directionWord} ${Math.abs(changePercent).toFixed(1)}%`;
+        ? `${spokenKicker}: ${symbol}, ${String(price)}`
+        : `${spokenKicker}: ${symbol}, ${String(price)}, ${directionWord} ${Math.abs(changePercent).toFixed(2)}%`;
+  // Same rule as a board row: a delayed price is never read, or shown, as live.
+  const ariaLabel = delayed ? `${baseAriaLabel}, delayed stream` : baseAriaLabel;
 
   return (
     <button type="button" className={HERO_CARD_CLASS} aria-label={ariaLabel} onClick={() => onActivate(symbol)}>
       <div className="flex items-center justify-between gap-2.5">
-        <span className="font-mono text-label font-semibold tracking-[0.14em] text-text-muted" aria-hidden="true">
-          {kicker}
+        <span
+          className={`inline-flex items-center gap-1.5 font-mono text-label font-semibold tracking-[0.14em] ${delayed ? 'text-warning' : 'text-text-muted'}`}
+          aria-hidden="true"
+        >
+          {delayed ? <ClockIcon size={11} /> : null}
+          {shownKicker}
         </span>
         <span
           className={`font-mono text-label font-semibold px-2.5 py-[3px] rounded-full whitespace-nowrap ${badgeDeltaClass}`}
@@ -794,17 +942,24 @@ function HeroCards({
   priceDecimalsBySymbol,
   onActivate,
   sessionTrends,
+  sessionDate,
 }: {
   picks: readonly HeroPick[];
   priceDecimalsBySymbol: Map<string, number>;
   onActivate: (symbol: string) => void;
   sessionTrends: ReadonlyMap<string, readonly number[]>;
+  sessionDate: string | undefined;
 }) {
   if (picks.length === 0) {
     return null;
   }
   return (
-    <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
+    // Below 640px the three cards stacked to ~430px and pushed the board — the page's
+    // reason to exist — below the first screen. There they become one swipeable row
+    // (the next card peeks in at the edge, so the row reads as scrollable) that bleeds
+    // to the screen edge; the glass shadows get vertical room so the scroller doesn't
+    // clip them.
+    <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))] max-[640px]:flex max-[640px]:gap-2.5 max-[640px]:overflow-x-auto max-[640px]:snap-x max-[640px]:snap-mandatory max-[640px]:-mx-3 max-[640px]:px-3 max-[640px]:scroll-px-3 max-[640px]:pt-0.5 max-[640px]:pb-3 max-[640px]:-mb-3 max-[640px]:[scrollbar-width:none] max-[640px]:[&::-webkit-scrollbar]:hidden">
       {picks.map((pick) => (
         <HeroCard
           key={pick.kind}
@@ -814,6 +969,7 @@ function HeroCards({
           priceDecimals={priceDecimalsBySymbol.get(pick.definition.symbol) ?? 2}
           onActivate={onActivate}
           sessionTrend={sessionTrends.get(pick.definition.symbol)}
+          sessionDate={sessionDate}
         />
       ))}
     </div>
@@ -834,34 +990,27 @@ const CELL_BASE = 'px-3 py-2 pointer-coarse:py-2.5 border-b border-glass-border 
 interface StockListRowProps {
   readonly definition: SymbolDefinition;
   readonly priceDecimals: number;
+  /** The board's widest price precision, so every row's decimal point lines up (see
+   * `PriceCell`'s `alignDecimals`). */
+  readonly alignDecimals?: number;
   readonly onActivate: (symbol: string) => void;
   /** Whether this row's symbol is the one currently open in the split-pane detail
    * view (see `useMatch('/symbols/:symbol')` in `StockList`). Purely presentational
    * (a glass highlight + accent edge) — never affects subscription lifecycle. */
   readonly selected?: boolean;
-  /** True when the split-pane detail view is open (narrows the list column well
-   * below the 640px breakpoint's own narrow-hide threshold). Unlike the 640px
-   * breakpoint — which hides the same cells purely via CSS (`display: none`,
-   * `.tckr-stocklist__col--narrow-hide`) — this omits the hidden `<td>`s (and,
-   * in `StockList`, the corresponding `<col>`/`<th>`) from the DOM entirely.
-   * `table-layout: fixed`'s per-column width comes from each column's `<col>`
-   * percentage, but Chromium (verified against this exact table) miscomputes it
-   * when a visible column's `<col>` sits *after* a `display: none`-hidden one in
-   * the same `<colgroup>` — the visible column collapses to ~0 width instead of
-   * its specified percentage. Removing the hidden columns' `<col>`/cells outright
-   * (rather than hiding them) sidesteps that entirely, at the cost of the two
-   * paths (640px viewport vs. split-pane) using different mechanisms for what is
-   * visually the same "narrow" state. */
-  readonly narrow?: boolean;
+  /** The columns this row renders a cell for — `visibleColumns(...)` in `StockList`,
+   * the same list its header and `<colgroup>` use. Left-out columns' `<td>`s are
+   * omitted from the DOM entirely, not hidden: `table-layout: fixed`'s per-column
+   * width comes from each column's `<col>` percentage, and Chromium (verified against
+   * this exact table) miscomputes it when a visible column's `<col>` sits *after* a
+   * `display: none`-hidden one in the same `<colgroup>`, collapsing it to ~0 width. */
+  readonly columns: ReadonlySet<ColumnKey>;
   /** Roving tabindex: exactly one row in the table is a Tab stop (`tabIndex=0`); the
    * rest are `-1` and reached with the arrow keys (see `handleTableKeyDown` in
    * `StockList`). Keeps the whole 34-row table to one Tab stop, so a keyboard user can
    * reach the detail pane beside it without tabbing through every row. */
   readonly tabStop?: boolean;
   readonly onRowFocus?: (symbol: string) => void;
-  /** True while EGX is closed: the row shows its values as of the session close
-   * ("At close") instead of a relative receipt time like "just now". */
-  readonly marketClosed?: boolean;
   /** The symbol's full session price history (plot values), for `useSessionSparkline`;
    * `undefined` until `StockList`'s one-time history fetch resolves. */
   readonly sessionTrend?: readonly number[] | undefined;
@@ -870,12 +1019,12 @@ interface StockListRowProps {
 function StockListRow({
   definition,
   priceDecimals,
+  alignDecimals,
   onActivate,
   selected = false,
-  narrow = false,
+  columns,
   tabStop = true,
   onRowFocus,
-  marketClosed = false,
   sessionTrend,
 }: StockListRowProps) {
   const { symbol, name, referencePrice } = definition;
@@ -953,7 +1102,11 @@ function StockListRow({
   const change = view?.change ?? ZERO_DECIMAL;
   const changePercent = view?.changePercent;
   const volumeLabel = view ? view.volume.toLocaleString('en-US') : '—';
-  const lastUpdateLabel = view ? (marketClosed ? 'At close' : formatRelativeTime(view.lastUpdate, Date.now())) : '—';
+  const valueLabel = view ? formatCompact(tradedValue(definition, view), { fixedFraction: true }) : '—';
+  const lastUpdateLabel = view ? formatRelativeTime(view.lastUpdate, Date.now()) : '—';
+  // "just now" on the delayed stream means "arrived just now", not "traded just now";
+  // the amber clock keeps that from reading as live (the delayed banner says by how much).
+  const lastUpdateDelayed = view?.stream === 'DELAYED';
 
   // Decorative sparkline history — bounded, committed post-render (see module doc for
   // why this mirrors PriceCell's flash-tracking shape rather than mutating during
@@ -983,10 +1136,15 @@ function StockListRow({
   const baseAriaLabel =
     changePercent === undefined
       ? `${symbol}, ${String(price)}`
-      : `${symbol}, ${String(price)}, ${directionWord} ${Math.abs(changePercent).toFixed(1)}%`;
+      : `${symbol}, ${String(price)}, ${directionWord} ${Math.abs(changePercent).toFixed(2)}%`;
   // The header's StreamBadge says which stream the whole board is on; a row visited in
   // isolation by a screen reader repeats it, so a delayed price is never read as live.
-  const rowAriaLabel = view?.stream === 'DELAYED' ? `${baseAriaLabel}, delayed stream` : baseAriaLabel;
+  // Change amount and volume follow once a tick or snapshot has arrived — the same
+  // figures the Change and Volume columns show, which a narrow row doesn't render at all.
+  const detailAriaLabel = view
+    ? `${baseAriaLabel}, change ${format(change, { decimals: priceDecimals, sign: true })}, volume ${volumeLabel}`
+    : baseAriaLabel;
+  const rowAriaLabel = view?.stream === 'DELAYED' ? `${detailAriaLabel}, delayed stream` : detailAriaLabel;
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTableRowElement>) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -995,17 +1153,7 @@ function StockListRow({
     }
   };
 
-  // The changePercent chip's whole background/text-color set is branched together
-  // (rather than a base `bg-surface-raised` plus a conditional up/down override) for
-  // the same reason `HeroCard`'s badge is — see that component's `badgeDeltaClass`
-  // comment. Previously a `.tckr-stocklist__changepct.tckr-delta--up/--down`
-  // compound-class selector.
-  const changeDeltaClass =
-    changePercent === undefined || isEffectivelyUnchanged(changePercent)
-      ? 'bg-surface-raised'
-      : changePercent > 0
-        ? 'bg-[color-mix(in_oklab,var(--tckr-color-up)_14%,transparent)] text-chip-up'
-        : 'bg-[color-mix(in_oklab,var(--tckr-color-down)_14%,transparent)] text-chip-down';
+  const changeDeltaClass = DELTA_TONE_CLASSES[percentTone(changePercent)];
 
   return (
     <tr
@@ -1029,28 +1177,50 @@ function StockListRow({
       onKeyDown={handleKeyDown}
       onFocus={onRowFocus ? () => onRowFocus(symbol) : undefined}
     >
-      <td className={`${CELL_BASE} text-left font-mono font-semibold`}>{symbol}</td>
-      {narrow ? null : (
+      <td className={`${CELL_BASE} text-left font-mono font-semibold`}>
+        {/* The row is the keyboard target (one Tab stop for the board), but a <tr> has
+            no role that says it opens anything. This link gives screen-reader users a
+            real, discoverable action (links list, "open in new tab") without adding a
+            Tab stop. A plain click falls through to the row's own handler, which also
+            closes an already-open symbol; a modified click keeps the browser default. */}
+        <Link
+          to={`/symbols/${symbol}`}
+          tabIndex={-1}
+          className="text-inherit no-underline"
+          aria-label={`Open ${symbol} details`}
+          onClick={(event) => {
+            if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+              event.stopPropagation();
+              return;
+            }
+            event.preventDefault();
+          }}
+        >
+          {symbol}
+        </Link>
+      </td>
+      {columns.has('trend') ? (
         <td className={`${CELL_BASE} text-left max-[640px]:hidden`}>
           <Sparkline points={sparklinePoints} direction={direction} />
         </td>
-      )}
-      {narrow ? null : <td className={`${CELL_BASE} text-left max-[640px]:hidden`}>{name}</td>}
+      ) : null}
+      {columns.has('name') ? <td className={`${CELL_BASE} text-left max-[640px]:hidden`}>{name}</td> : null}
       <td className={`${CELL_BASE} text-right tabular-nums`}>
         <PriceCell
           value={price}
           decimals={priceDecimals}
+          alignDecimals={alignDecimals}
           muted={priceMuted}
           flashDirectionOverride={
             changePercent === undefined ? undefined : changePercent > 0 ? 'up' : changePercent < 0 ? 'down' : null
           }
         />
       </td>
-      {narrow ? null : (
+      {columns.has('change') ? (
         <td className={`${CELL_BASE} text-right tabular-nums max-[640px]:hidden`}>
-          <PriceCell value={change} decimals={priceDecimals} sign muted={priceMuted} indicateSign />
+          <PriceCell value={change} decimals={priceDecimals} alignDecimals={alignDecimals} sign muted={priceMuted} indicateSign />
         </td>
-      )}
+      ) : null}
       <td className={`${CELL_BASE} text-right tabular-nums`}>
         {changePercent === undefined ? (
           <span className="font-mono tabular-nums text-text-muted">—</span>
@@ -1062,10 +1232,24 @@ function StockListRow({
           </span>
         )}
       </td>
-      {narrow ? null : (
+      {columns.has('volume') ? (
         <td className={`${CELL_BASE} text-right font-mono tabular-nums max-[640px]:hidden`}>{volumeLabel}</td>
-      )}
-      {narrow ? null : <td className={`${CELL_BASE} text-left max-[640px]:hidden`}>{lastUpdateLabel}</td>}
+      ) : null}
+      {columns.has('value') ? (
+        <td className={`${CELL_BASE} text-right font-mono tabular-nums max-[640px]:hidden`}>{valueLabel}</td>
+      ) : null}
+      {columns.has('lastUpdate') ? (
+        <td className={`${CELL_BASE} text-left max-[640px]:hidden`}>
+          {lastUpdateDelayed ? (
+            <span className="inline-flex items-center gap-1.5 text-warning">
+              <ClockIcon size={11} className="flex-none" />
+              {lastUpdateLabel}
+            </span>
+          ) : (
+            lastUpdateLabel
+          )}
+        </td>
+      ) : null}
     </tr>
   );
 }
@@ -1102,8 +1286,14 @@ function shellListColClass(split: boolean): string {
   return `min-w-0 [view-transition-name:tckr-list] ${split ? 'flex-none w-[380px] max-[800px]:hidden' : 'w-full'}`;
 }
 
+// Beside the list, the detail pane sticks just under the sticky app header (59px + a
+// 16px gap), so scrolling a 34-row board never scrolls the open chart away. Only where
+// the viewport is tall enough to hold the whole pane (≈615px) under the header;
+// shorter windows keep normal flow so the stat tiles are never cut off.
+const DETAIL_PANE_STICKY = '[@media(min-width:801px)_and_(min-height:720px)]:sticky [@media(min-width:801px)_and_(min-height:720px)]:top-[75px]';
+
 function shellDetailPaneClass(split: boolean): string {
-  return `flex-1 min-w-0 max-[800px]:w-full [view-transition-name:tckr-detail] ${split ? '' : 'hidden'}`;
+  return `flex-1 min-w-0 max-[800px]:w-full [view-transition-name:tckr-detail] ${split ? DETAIL_PANE_STICKY : 'hidden'}`;
 }
 
 // `hidden` (display: none) while split: the cards leave the layout, the Tab order and
@@ -1118,18 +1308,50 @@ const PILL_ACTIVE = 'bg-text text-surface border-text font-semibold';
 const PILL_INACTIVE = 'bg-transparent text-text-muted border-border font-medium';
 
 const SEARCH_WRAP_CLASS =
-  'flex-[1_1_240px] min-w-[160px] flex items-center gap-2 py-2.5 px-3.5 border border-glass-border rounded-full bg-glass backdrop-blur-tckr backdrop-saturate-150 [transition:border-color_150ms_ease] focus-within:outline-2 focus-within:outline-accent focus-within:outline-offset-2 reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none reduced-transparency:backdrop-saturate-100 contrast-more:bg-surface contrast-more:backdrop-blur-none contrast-more:backdrop-saturate-100';
+  'flex-[1_1_240px] min-w-[160px] flex items-center gap-2 py-2.5 px-3.5 border border-glass-border rounded-full bg-glass backdrop-blur-tckr backdrop-saturate-150 [transition:border-color_150ms_ease] focus-within:border-[var(--tckr-field-focus-border)] focus-within:outline-[3px] focus-within:outline-[var(--tckr-field-focus-halo)] focus-within:outline-offset-0 reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none reduced-transparency:backdrop-saturate-100 contrast-more:bg-surface contrast-more:backdrop-blur-none contrast-more:backdrop-saturate-100';
 
 function tableWrapClass(stale: boolean): string {
   const base =
-    'w-full max-w-full border border-glass-border rounded-[18px] overflow-hidden bg-glass backdrop-blur-tckr backdrop-saturate-[1.6] shadow-[0_18px_40px_-30px_rgba(0,0,0,0.4)] [transition:opacity_250ms_ease] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none reduced-transparency:backdrop-saturate-100 contrast-more:bg-surface contrast-more:backdrop-blur-none contrast-more:backdrop-saturate-100';
+    'w-full max-w-full border border-glass-border rounded-[18px] overflow-hidden bg-glass backdrop-blur-tckr backdrop-saturate-[1.6] shadow-float [transition:opacity_250ms_ease] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none reduced-transparency:backdrop-saturate-100 contrast-more:bg-surface contrast-more:backdrop-blur-none contrast-more:backdrop-saturate-100';
   return stale ? `${base} opacity-[0.72]` : base;
 }
 
 const SORT_BUTTON_CLASS =
   'appearance-none bg-transparent border-none m-0 p-0 outline-none text-inherit [text-transform:inherit] cursor-pointer font-semibold inline-flex items-center gap-0.5 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2';
 
-const KBD_CLASS = 'font-mono text-label border border-border rounded px-1.5 py-px bg-glass';
+const KBD_CLASS = 'font-mono text-label border border-border rounded px-1.5 py-px bg-surface-raised';
+
+const BOARD_HELP_ID = 'tckr-board-help';
+
+/**
+ * The board's keyboard model, said once for each audience. Screen readers get it as
+ * the table's description (`aria-describedby`). Sighted keyboard users get a legend
+ * that floats at the bottom of the viewport while a row has keyboard focus, so it is
+ * in view wherever in the 34 rows they are, and never clutters the board for anyone
+ * else. Hidden on touch devices, where none of these keys exist.
+ */
+function BoardKeyboardHelp({ detailOpen }: { detailOpen: boolean }) {
+  const mod = modifierKeyLabel();
+  return (
+    <>
+      <p id={BOARD_HELP_ID} className="sr-only">
+        Arrow keys move between instruments, Home and End jump to the first and last, Enter opens one
+        {detailOpen ? ', and the open details follow the arrow keys; Escape closes them' : ''}. Press {mod}K or slash to
+        search.
+      </p>
+      <p
+        className="hidden group-has-[tr:focus-visible]/board:flex pointer-coarse:!hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-10 items-center flex-wrap justify-center gap-x-3.5 gap-y-1 px-4 py-2 rounded-full bg-glass-strong border border-glass-border backdrop-blur-tckr shadow-[0_12px_30px_-16px_rgba(20,24,31,0.45)] text-caption text-text-muted whitespace-nowrap reduced-transparency:bg-surface contrast-more:bg-surface"
+        aria-hidden="true"
+      >
+        <span><kbd className={KBD_CLASS}>↑</kbd> <kbd className={KBD_CLASS}>↓</kbd> move</span>
+        <span><kbd className={KBD_CLASS}>Home</kbd> <kbd className={KBD_CLASS}>End</kbd> jump</span>
+        <span><kbd className={KBD_CLASS}>Enter</kbd> open</span>
+        {detailOpen ? <span><kbd className={KBD_CLASS}>Esc</kbd> close</span> : null}
+        <span><kbd className={KBD_CLASS}>{mod}K</kbd> or <kbd className={KBD_CLASS}>/</kbd> search</span>
+      </p>
+    </>
+  );
+}
 
 const EMPTY_ACTION_BUTTON_BASE =
   'font-semibold text-caption px-3.5 py-[9px] rounded-[7px] cursor-pointer [transition:transform_120ms_ease-out,opacity_150ms_ease] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2';
@@ -1149,6 +1371,7 @@ export function StockList() {
   const { state: connState, remainingSecs } = useConnectionBanner();
   const recovery = useRecoveryMoment(connState);
   const marketStatus = useMarketStatus();
+  const viewerStream = useViewerStream();
   const openingBell = useOpeningBell(marketStatus);
 
   // Whether a `/symbols/:symbol` child route is open, read straight from the URL —
@@ -1264,18 +1487,57 @@ export function StockList() {
     return () => clearTimeout(handle);
   }, [rawQuery]);
 
-  // ⌘K / Ctrl+K focuses the search box — additive convenience, no existing behaviour
-  // touched.
+  // Page shortcuts: ⌘K / Ctrl+K and "/" focus the search box; Escape closes the open
+  // detail pane. None of them fire while the user is typing in a field, where Escape
+  // already means "clear this field" and "/" is a character.
   useEffect(() => {
     function handleGlobalKeyDown(event: globalThis.KeyboardEvent): void {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         searchInputRef.current?.focus();
+        return;
+      }
+      if (event.defaultPrevented || isEditableTarget(event.target)) {
+        return;
+      }
+      if (event.key === '/' && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+      if (event.key === 'Escape' && selectedSymbol !== null) {
+        event.preventDefault();
+        navigate('/');
       }
     }
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, []);
+  }, [navigate, selectedSymbol]);
+
+  // Keeps keyboard focus somewhere visible whenever the detail opens, switches or
+  // closes — however that happened (a row, Escape, the pane's close button, the logo).
+  // Only steps in when the focused element has gone: opening hides the list column
+  // below 800px (focus moves to the detail's heading), and closing unmounts the pane
+  // (focus returns to the row of the symbol that was open). On desktop a focused row
+  // stays visible and keeps focus, so the arrow keys keep browsing the board.
+  const previousSelectedRef = useRef(selectedSymbol);
+  useEffect(() => {
+    const previous = previousSelectedRef.current;
+    previousSelectedRef.current = selectedSymbol;
+    const id = requestAnimationFrame(() => {
+      const active = document.activeElement as HTMLElement | null;
+      const focusLost = !active || active === document.body || active.getClientRects().length === 0;
+      if (!focusLost) {
+        return;
+      }
+      if (selectedSymbol !== null) {
+        document.getElementById(DETAIL_HEADING_ID)?.focus();
+      } else if (previous !== null) {
+        tbodyRef.current?.querySelector<HTMLTableRowElement>(`tr[data-symbol="${CSS.escape(previous)}"]`)?.focus();
+      }
+    });
+    return () => cancelAnimationFrame(id);
+  }, [selectedSymbol]);
 
   const priceDecimalsBySymbol = useMemo(() => {
     const map = new Map<string, number>();
@@ -1284,6 +1546,7 @@ export function StockList() {
     }
     return map;
   }, [universe]);
+  const boardPriceDecimals = useMemo(() => Math.max(0, ...priceDecimalsBySymbol.values()), [priceDecimalsBySymbol]);
 
   const filtered = useMemo(() => {
     if (!universe) {
@@ -1319,12 +1582,14 @@ export function StockList() {
   const handleSort = useCallback((column: SortColumn) => {
     setSortState((current) => {
       if (!current || current.column !== column) {
-        return { column, direction: 'asc' };
+        // Figures lead with the biggest (the top price, the heaviest volume), the way a
+        // trader reads a ranking; text columns start at A.
+        const numeric = COLUMNS.find((candidate) => candidate.key === column)?.numeric === true;
+        return { column, direction: numeric ? 'desc' : 'asc' };
       }
-      if (current.direction === 'asc') {
-        return { column, direction: 'desc' };
-      }
-      return null;
+      // Toggles between the two directions; never silently drops back to "unsorted" on
+      // a third click. The "Exchange order" preset is the named way back.
+      return { column, direction: current.direction === 'asc' ? 'desc' : 'asc' };
     });
   }, []);
 
@@ -1342,27 +1607,36 @@ export function StockList() {
   // Arrow-key movement between rows (roving tabindex — see `StockListRowProps.tabStop`).
   // Reads the rendered row order from the DOM rather than `sorted`, so it always matches
   // what the user sees, including after a re-sort.
-  const handleTableKeyDown = useCallback((event: KeyboardEvent<HTMLTableSectionElement>) => {
-    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp' && event.key !== 'Home' && event.key !== 'End') {
-      return;
-    }
-    const current = (event.target as HTMLElement).closest<HTMLTableRowElement>('tr[data-symbol]');
-    if (!current) {
-      return;
-    }
-    const rows = Array.from(event.currentTarget.querySelectorAll<HTMLTableRowElement>('tr[data-symbol]'));
-    const index = rows.indexOf(current);
-    const next =
-      event.key === 'Home'
-        ? rows[0]
-        : event.key === 'End'
-          ? rows[rows.length - 1]
-          : rows[index + (event.key === 'ArrowDown' ? 1 : -1)];
-    if (next) {
-      event.preventDefault();
-      next.focus();
-    }
-  }, []);
+  const handleTableKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLTableSectionElement>) => {
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp' && event.key !== 'Home' && event.key !== 'End') {
+        return;
+      }
+      const current = (event.target as HTMLElement).closest<HTMLTableRowElement>('tr[data-symbol]');
+      if (!current) {
+        return;
+      }
+      const rows = Array.from(event.currentTarget.querySelectorAll<HTMLTableRowElement>('tr[data-symbol]'));
+      const index = rows.indexOf(current);
+      const next =
+        event.key === 'Home'
+          ? rows[0]
+          : event.key === 'End'
+            ? rows[rows.length - 1]
+            : rows[index + (event.key === 'ArrowDown' ? 1 : -1)];
+      if (next) {
+        event.preventDefault();
+        next.focus();
+        // With the detail open, the pane follows the focused row (master-detail), so
+        // ↑/↓ steps through instruments without an Enter per symbol.
+        const nextSymbol = next.dataset.symbol;
+        if (selectedSymbol !== null && nextSymbol && nextSymbol !== selectedSymbol) {
+          navigate(`/symbols/${nextSymbol}`);
+        }
+      }
+    },
+    [navigate, selectedSymbol],
+  );
 
   // ---------------------------------------------------------------------------------
   // Re-rank motion (FLIP). When the row order changes — a preset or header sort, the
@@ -1395,9 +1669,7 @@ export function StockList() {
     rowTopsRef.current = nextTops;
     lastOrderKeyRef.current = orderKey;
 
-    const reducedMotion =
-      typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (!orderChanged || !previousTops || reducedMotion) {
+    if (!orderChanged || !previousTops || prefersReducedMotion()) {
       return;
     }
     for (const row of rows) {
@@ -1452,6 +1724,7 @@ export function StockList() {
 
   const isStale = connState.kind === 'reconnecting' || connState.kind === 'closed';
   const activePreset = presetFor(sortState);
+  const searching = debouncedQuery.trim() !== '';
   const isSplit = selectedSymbol !== null;
   // The list column collapses to Symbol/Price/Change % whenever *either* the
   // split-pane detail is open or the real viewport is narrow — see
@@ -1459,6 +1732,8 @@ export function StockList() {
   // mechanism instead of the split-pane using it and the viewport case keeping
   // the old CSS-only `display: none` one.
   const narrow = isSplit || isNarrowViewport;
+  const columns = visibleColumns(narrow, marketStatus.state === 'closed');
+  const columnKeys: ReadonlySet<ColumnKey> = new Set(columns.map((column) => column.key));
   // The one row that is a Tab stop: whichever row last had focus, else the open
   // symbol's row, else the first row — always one that is actually rendered.
   const tabStopSymbol =
@@ -1472,8 +1747,12 @@ export function StockList() {
       <p className="sr-only" aria-live="polite">
         {isSplit ? `${selectedSymbol} details open beside the list` : ''}
       </p>
+      <p className="sr-only" aria-live="polite" data-testid="search-result-count">
+        {searching ? `${sorted.length} of ${universe.length} instruments match “${debouncedQuery.trim()}”` : ''}
+      </p>
 
       <ConnectionBanner state={connState} remainingSecs={remainingSecs} />
+      {viewerStream === 'DELAYED' ? <DelayedStreamBanner /> : null}
       {recovery.shown && connState.kind === 'connected' ? (
         <MomentBanner
           icon={<CheckIcon />}
@@ -1490,7 +1769,10 @@ export function StockList() {
           onDismiss={openingBell.dismiss}
         />
       ) : null}
-      <MarketClosedBanner status={marketStatus} />
+      {/* In split view on desktop the banner moves into the list column (below), so
+          it describes the board it sits on instead of spanning the chart too. Phones
+          keep it here: their split view hides the list column. */}
+      <MarketClosedBanner status={marketStatus} className={isSplit ? 'min-[801px]:hidden' : ''} />
 
       <div className={heroWrapClass(isSplit)}>
         <HeroCards
@@ -1498,6 +1780,7 @@ export function StockList() {
           priceDecimalsBySymbol={priceDecimalsBySymbol}
           onActivate={handleRowActivate}
           sessionTrends={sessionTrends}
+          sessionDate={marketStatus.state === 'closed' ? formatCairoDateShort(marketStatus.sessionOpenAt) : undefined}
         />
       </div>
 
@@ -1520,6 +1803,9 @@ export function StockList() {
               key={preset.id}
               type="button"
               className={`${PILL_BASE} ${activePreset === preset.id ? PILL_ACTIVE : PILL_INACTIVE}`}
+              aria-pressed={activePreset === preset.id}
+              title={preset.hint}
+              aria-description={preset.hint}
               onClick={() => setSortState(preset.sort)}
             >
               {preset.label}
@@ -1532,39 +1818,59 @@ export function StockList() {
             id="tckr-stocklist-search"
             ref={searchInputRef}
             type="search"
-            className="appearance-none bg-transparent border-none m-0 p-0 outline-none flex-[1_1_auto] min-w-0 text-text text-small pointer-coarse:text-body placeholder:text-text-muted"
+            className="appearance-none bg-transparent border-none m-0 p-0 outline-none [&::-webkit-search-cancel-button]:appearance-none flex-[1_1_auto] min-w-0 text-text text-small pointer-coarse:text-body placeholder:text-text-muted"
             aria-label="Search symbol or name"
+            aria-keyshortcuts="Meta+K Control+K /"
             placeholder="Search symbol or name"
             value={rawQuery}
             onChange={(event) => setRawQuery(event.target.value)}
           />
+          {rawQuery !== '' ? (
+            <button
+              type="button"
+              aria-label="Clear search"
+              className="flex-none -my-1 p-1 rounded-full text-text-muted cursor-pointer fine-hover:text-text focus-visible:outline-2 focus-visible:outline-accent"
+              onClick={() => {
+                clearSearch();
+                searchInputRef.current?.focus();
+              }}
+            >
+              <CloseIcon size={13} />
+            </button>
+          ) : null}
           <span className="flex-none font-mono text-label text-text-muted border border-border rounded px-1.5 py-[3px] pointer-coarse:hidden">
-            ⌘K
+            {modifierKeyLabel()}K
           </span>
         </label>
       </div>
 
       <div className={SHELL_CLASS}>
         <div className={shellListColClass(isSplit)}>
+          {isSplit ? <MarketClosedBanner status={marketStatus} className="max-[800px]:hidden" compact /> : null}
           <div className="group/board">
             <div className={tableWrapClass(isStale)}>
-              <table className="w-full max-w-full border-collapse table-fixed">
+              <table aria-label="Instruments" aria-describedby={BOARD_HELP_ID} className="w-full max-w-full border-collapse table-fixed">
+                <caption className="caption-top text-left px-3.5 pt-2.5 pb-1 text-caption text-text-muted" data-testid="board-order">
+                  {searching ? `${sorted.length} of ${universe.length} · ` : ''}
+                  {describeOrder(sortState)}
+                </caption>
                 <colgroup>
-                  {COLUMNS.filter((column) => !narrow || !column.hideNarrow).map((column) => (
+                  {columns.map((column) => (
                     <col
                       key={column.key}
-                      style={{ width: `${narrow ? narrowColumnWidthPercent(column) : column.widthPercent}%` }}
+                      style={{ width: `${columnWidthPercent(column, columns)}%` }}
                     />
                   ))}
                 </colgroup>
                 <thead>
                   <tr>
-                    {COLUMNS.filter((column) => !narrow || !column.hideNarrow).map((column) => (
+                    {columns.map((column) => (
                       <th
                         key={column.key}
                         className={`${CELL_BASE} ${column.numeric ? 'text-right' : 'text-left'} font-mono text-label font-semibold tracking-[0.1em] text-text-muted uppercase bg-transparent${
                           !narrow && column.hideNarrow ? ' max-[640px]:hidden' : ''
                         }`}
+                        title={column.title}
                         aria-sort={
                           column.sortable && sortState?.column === column.key
                             ? sortState.direction === 'asc'
@@ -1576,6 +1882,12 @@ export function StockList() {
                         {column.sortable ? (
                           <button type="button" className={SORT_BUTTON_CLASS} onClick={() => handleSort(column.key as SortColumn)}>
                             {column.label}
+                            {column.unit ? (
+                              <>
+                                {' '}
+                                <span className="font-normal">{column.unit}</span>
+                              </>
+                            ) : null}
                             {sortState?.column === column.key ? (sortState.direction === 'asc' ? ' ▲' : ' ▼') : ''}
                           </button>
                         ) : (
@@ -1585,11 +1897,11 @@ export function StockList() {
                     ))}
                   </tr>
                 </thead>
-                <tbody ref={tbodyRef} onKeyDown={handleTableKeyDown}>
+                <tbody id={BOARD_ID} ref={tbodyRef} onKeyDown={handleTableKeyDown}>
                   {sorted.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={narrow ? COLUMNS.filter((column) => !column.hideNarrow).length : COLUMNS.length}
+                        colSpan={columns.length}
                         className="text-center text-text-muted px-4 py-11 whitespace-normal animate-fade-in"
                       >
                         <div className="font-mono text-caption tracking-[0.04em]">0 of {universe.length}</div>
@@ -1638,12 +1950,12 @@ export function StockList() {
                         key={def.symbol}
                         definition={def}
                         priceDecimals={priceDecimalsBySymbol.get(def.symbol) ?? 2}
+                        alignDecimals={boardPriceDecimals}
                         onActivate={handleRowActivate}
                         selected={def.symbol === selectedSymbol}
-                        narrow={narrow}
+                        columns={columnKeys}
                         tabStop={def.symbol === tabStopSymbol}
                         onRowFocus={setFocusedSymbol}
-                        marketClosed={marketStatus.state === 'closed'}
                         sessionTrend={sessionTrends.get(def.symbol)}
                       />
                     ))
@@ -1651,18 +1963,7 @@ export function StockList() {
                 </tbody>
               </table>
             </div>
-            {/* Shown only while a row has keyboard focus, so the shortcuts are discovered
-                by the people using the keyboard and never clutter the board for anyone
-                else. Hidden on touch devices, where none of these keys exist. */}
-            <p
-              className="hidden group-has-[tr:focus-visible]/board:flex pointer-coarse:!hidden flex-wrap gap-x-3.5 gap-y-1 mt-2 px-1 text-caption text-text-muted"
-              aria-hidden="true"
-            >
-              <span><kbd className={KBD_CLASS}>↑</kbd> <kbd className={KBD_CLASS}>↓</kbd> move</span>
-              <span><kbd className={KBD_CLASS}>Home</kbd> <kbd className={KBD_CLASS}>End</kbd> jump</span>
-              <span><kbd className={KBD_CLASS}>Enter</kbd> open</span>
-              <span><kbd className={KBD_CLASS}>⌘K</kbd> search</span>
-            </p>
+            <BoardKeyboardHelp detailOpen={isSplit} />
           </div>
         </div>
         <div className={shellDetailPaneClass(isSplit)}>

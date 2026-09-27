@@ -251,6 +251,15 @@ export function formatCairoClock(epochMs: number): string {
   return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:${second.toString().padStart(2, '0')}`;
 }
 
+const MONTH_SHORT_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+
+/** `"{Weekday} {D} {Mon}"` in Cairo time (e.g. `"Thu 24 Sep"`) — for a timestamp that
+ * may not be today's, such as the last trade shown while the market is closed. */
+export function formatCairoDateShort(epochMs: number): string {
+  const { weekday, day, month } = getCairoParts(epochMs);
+  return `${CAIRO_WEEKDAY_SHORT_NAMES[weekday]} ${day} ${MONTH_SHORT_NAMES[month - 1]}`;
+}
+
 /** `HH:MM` in Cairo time, no seconds — for "opens at" copy where second-level
  * precision would be noise (e.g. "opens Sun 10:00 Cairo"). */
 export function formatCairoTimeShort(epochMs: number): string {
