@@ -33,7 +33,7 @@ export function SkipLink({ targetId, children }: { targetId: string; children: R
     <a
       href={`#${targetId}`}
       onClick={skip}
-      className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-3 focus-visible:left-4 focus-visible:z-10 focus-visible:px-3.5! focus-visible:py-2! rounded-full border border-text bg-text text-surface font-sans text-caption font-semibold no-underline shadow-float outline-none focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+      className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-3 focus-visible:left-4 focus-visible:z-10 focus-visible:px-3.5! focus-visible:py-2! rounded-full border border-text bg-text text-surface font-sans text-caption font-semibold no-underline shadow-float outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-accent focus-visible:outline-offset-2"
     >
       {children}
     </a>

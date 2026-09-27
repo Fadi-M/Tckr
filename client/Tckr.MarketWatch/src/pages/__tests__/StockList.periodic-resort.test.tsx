@@ -6,9 +6,9 @@
  * re-render this page exists to avoid, and would make rows jump under the cursor).
  * Left alone that means an active preset (e.g. "Most active") can show a stale ranking
  * indefinitely between user actions, even while individual rows keep visibly
- * repainting. `StockList.tsx` now forces one extra resort every
- * `RANK_REFRESH_INTERVAL_MS` while a sort is active, via a `resortTick` counter
- * bumped on that cadence.
+ * repainting. `StockList.tsx` now re-ranks on the page's price beat
+ * (`subscribeBeat`, every `DISPLAY_REFRESH_INTERVAL_MS`) while a sort is active, in the
+ * same commit as the figures it ranks by.
  *
  * This test asserts BOTH halves of that contract: the ranking is still stale
  * immediately after a tick (no resort-per-tick regression), and it catches up once the
@@ -20,7 +20,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { toDecimal } from '../../contracts/decimal.ts';
 import { applyTick, primeUniverse, resetStore } from '../../data/store.ts';
-import { RANK_REFRESH_INTERVAL_MS } from '../../display/throttle.ts';
+import { DISPLAY_REFRESH_INTERVAL_MS } from '../../display/throttle.ts';
 import { loadUniverseFixture, makeFakeSource, tickFixture } from './testSupport.ts';
 
 const { mockGetSharedSource } = vi.hoisted(() => ({ mockGetSharedSource: vi.fn() }));
@@ -44,7 +44,7 @@ describe('StockList periodic re-sort', () => {
     vi.useRealTimers();
   });
 
-  it('keeps a stale ranking between ticks, then catches up once RANK_REFRESH_INTERVAL_MS elapses', async () => {
+  it('keeps a stale ranking between ticks, then catches up once DISPLAY_REFRESH_INTERVAL_MS elapses', async () => {
     const universeSymbols = loadUniverseFixture();
     // A real `MarketDataSource` primes the store's universe itself before any tick can
     // be accepted (store.ts's "real universe, not whatever the wire claims" guard).
@@ -65,13 +65,12 @@ describe('StockList periodic re-sort', () => {
 
     // "Most active" sorts by volume descending. Every symbol starts at volume 0 (tied),
     // so the initial order is the untouched universe order — SWDY is not first.
-    fireEvent.click(screen.getByRole('button', { name: /most active/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Most active' }));
     const before = bodyRows().map((row) => row.getAttribute('data-symbol'));
     expect(before[0]).not.toBe('SWDY');
 
-    // Push SWDY's volume far above every other symbol's (still 0). The row itself
-    // repaints immediately (it reads the store reactively) but the table's *order*
-    // must NOT jump immediately — that would mean this page resorts on every tick,
+    // Push SWDY's volume far above every other symbol's (still 0). Neither its figures
+    // nor the table's *order* may jump immediately — that would mean this page resorts on every tick,
     // which the module doc says would make rows jump under the user's cursor.
     act(() => {
       applyTick(tickFixture({ s: 'SWDY', p: toDecimal('10.00'), q: 5_000_000 }));
@@ -79,11 +78,11 @@ describe('StockList periodic re-sort', () => {
     const stillBefore = bodyRows().map((row) => row.getAttribute('data-symbol'));
     expect(stillBefore[0]).not.toBe('SWDY');
 
-    // Once a full RANK_REFRESH_INTERVAL_MS window elapses, the periodic re-sort
+    // Once the next beat passes (at most DISPLAY_REFRESH_INTERVAL_MS away), the re-sort
     // fires and SWDY — now the clear volume leader — rises to the top with no further
     // user action.
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(RANK_REFRESH_INTERVAL_MS);
+      await vi.advanceTimersByTimeAsync(DISPLAY_REFRESH_INTERVAL_MS);
     });
     const after = bodyRows().map((row) => row.getAttribute('data-symbol'));
     expect(after[0]).toBe('SWDY');

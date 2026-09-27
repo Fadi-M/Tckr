@@ -121,7 +121,7 @@ const PILL_STATE_CLASSES: Record<ConnectionState['kind'], string> = {
   reconnecting:
     'text-warning bg-[color-mix(in_oklab,var(--tckr-color-warning)_16%,var(--tckr-glass-bg))] border-[color-mix(in_oklab,var(--tckr-color-warning)_32%,transparent)]',
   connected:
-    'text-up bg-[color-mix(in_oklab,var(--tckr-color-up)_16%,var(--tckr-glass-bg))] border-[color-mix(in_oklab,var(--tckr-color-up)_32%,transparent)] shadow-[0_4px_14px_color-mix(in_oklab,var(--tckr-color-up)_30%,transparent)]',
+    'text-chip-up bg-[color-mix(in_oklab,var(--tckr-color-up)_16%,var(--tckr-glass-bg))] border-[color-mix(in_oklab,var(--tckr-color-up)_32%,transparent)] shadow-[0_4px_14px_color-mix(in_oklab,var(--tckr-color-up)_30%,transparent)]',
   closed:
     'text-down bg-[color-mix(in_oklab,var(--tckr-color-down)_16%,var(--tckr-glass-bg))] border-[color-mix(in_oklab,var(--tckr-color-down)_32%,transparent)]',
 };

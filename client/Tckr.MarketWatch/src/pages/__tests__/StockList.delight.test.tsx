@@ -15,7 +15,8 @@ import { loadUniverseFixture, makeFakeSource } from './testSupport.ts';
 const { mockGetSharedSource } = vi.hoisted(() => ({ mockGetSharedSource: vi.fn() }));
 vi.mock('../../data/config.ts', () => ({ getSharedSource: mockGetSharedSource }));
 
-import { closestInstruments, formatUntil, StockList } from '../StockList.tsx';
+import { closestInstruments } from '../closestInstruments.ts';
+import { formatUntil, StockList } from '../StockList.tsx';
 
 async function renderList() {
   const universeSymbols = loadUniverseFixture();

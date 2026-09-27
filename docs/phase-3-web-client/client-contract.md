@@ -84,6 +84,7 @@ recover after a reconnect (DS-3).
   "change": "+1.05",
   "changePercent": "+1.24",
   "open": "84.37",
+  "previousClose": "84.10",
   "high": "85.90",
   "low": "84.10",
   "volume": 216637,
@@ -93,6 +94,12 @@ recover after a reconnect (DS-3).
   "simulated": true
 }
 ```
+
+`change` and `changePercent` are measured from `open`. `previousClose` (additive,
+optional in v1) is the previous session's closing price — on EGX, the instrument's
+reference price for this session. When it is present the client quotes Change and
+Change % from it, the way EGX and its brokers do, and shows the move since `open`
+separately; when it is absent the client falls back to `open`.
 
 `stream` is resolved from the caller's identity, exactly as it is on the WebSocket. A
 DELAYED caller gets the snapshot as of 15 minutes ago and `snapshotAge` (milliseconds)

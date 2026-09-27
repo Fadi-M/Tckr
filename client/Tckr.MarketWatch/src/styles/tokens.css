@@ -80,7 +80,9 @@
      *text* only for light theme; dark theme keeps the plain up/down token, since its
      ratio already passes easily. */
   --tckr-chip-text-up: #0d6841;
-  --tckr-chip-text-down: #a33025;
+  /* #a33025 measured 4.26:1 for a down chip on the selected row, whose green 12% tint
+     sits under the chip's red 20% one; this passes there too. */
+  --tckr-chip-text-down: #942a1f;
   /* Tckr logo (design import: "Tckr Logo Final.dc.html" / logo/README.md). Exact
      brand values, deliberately not aliased to --tckr-color-text/-up: the logo spec
      pins ink/white and green/mint independently of the app's text and price tokens. */

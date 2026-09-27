@@ -210,6 +210,7 @@ function parseSnapshotBody(value: unknown): Snapshot {
     change: reqPrice(value, 'change', context),
     changePercent: reqString(value, 'changePercent', context),
     open: reqPrice(value, 'open', context),
+    ...(value['previousClose'] === undefined ? {} : { previousClose: reqPrice(value, 'previousClose', context) }),
     high: reqPrice(value, 'high', context),
     low: reqPrice(value, 'low', context),
     volume: reqNumber(value, 'volume', context),

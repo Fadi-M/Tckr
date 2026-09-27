@@ -69,19 +69,25 @@ describe('StockList market-closed banner', () => {
     expect(screen.getByText(/market closed/i).closest('[role="status"]')).not.toBeNull();
   });
 
-  it('shows the live-only Last update column while EGX trades, left-aligned', async () => {
+  it('says once, in the caption, when the board last updated while EGX trades', async () => {
     await renderListAt(MID_SESSION);
-    expect(screen.getByRole('columnheader', { name: /^Last update$/ }).className).toContain('text-left');
-  });
-
-  it('leaves out Last update once EGX has closed, rather than repeating "At close" on every row', async () => {
-    await renderListAt(AFTER_CLOSE);
     expect(screen.queryByRole('columnheader', { name: /^Last update$/ })).toBeNull();
-    expect(screen.queryByText('At close')).toBeNull();
-    // The remaining columns still fill the row.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect(screen.getByTestId('board-updated-at').textContent).toMatch(/updated \d{2}:\d{2}:\d{2}/);
+    // The columns still fill the row.
     const widths = Array.from(document.querySelectorAll<HTMLTableColElement>('colgroup col')).map((col) =>
       Number.parseFloat(col.style.width),
     );
     expect(widths.reduce((sum, width) => sum + width, 0)).toBeCloseTo(100, 5);
+  });
+
+  it('leaves the update time out once EGX has closed, when nothing is moving', async () => {
+    await renderListAt(AFTER_CLOSE);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect(screen.queryByTestId('board-updated-at')).toBeNull();
   });
 });

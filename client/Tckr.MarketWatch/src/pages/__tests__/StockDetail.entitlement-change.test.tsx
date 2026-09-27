@@ -16,7 +16,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { toDecimal } from '../../contracts/decimal.ts';
 import type { EntitlementChanged, IsoUtc } from '../../contracts/messages.ts';
 import { resetStore } from '../../data/store.ts';
-import { DISPLAY_REFRESH_INTERVAL_MS } from '../../display/throttle.ts';
+import { beatNowForTests } from '../../display/pacedViews.ts';
 import { createFakeSource, tickFixture } from './testSupport.ts';
 
 vi.mock('uplot', () => {
@@ -86,7 +86,7 @@ describe('StockDetail entitlementChanged', () => {
     });
     expect(screen.getByTestId('stock-detail-price').textContent).toContain('84.50');
 
-    // A LIVE tick moves the displayed price/change/volume away from the snapshot —
+    // A LIVE tick (painted on the next beat) moves the displayed price/change/volume away from the snapshot —
     // this is the "old stream" state that must not survive the switch below.
     act(() => {
       emitTick(
@@ -97,6 +97,7 @@ describe('StockDetail entitlementChanged', () => {
           st: 'LIVE',
         }),
       );
+      beatNowForTests();
     });
     expect(screen.getByTestId('stock-detail-price').textContent).toContain('86.00');
     expect(screen.getByTestId('stock-detail-footer').textContent).toContain(
@@ -117,11 +118,6 @@ describe('StockDetail entitlementChanged', () => {
     // A fresh tick under the new stream must not be diffed against the old stream's
     // baseline (86.00) — the baseline re-anchors to this tick's own price, exactly
     // like `store.ts`'s `resetStream()` re-anchoring to a fresh reference point.
-    // Advance past the throttle window first so this tick paints on its leading edge
-    // rather than being coalesced with the pre-switch tick above.
-    act(() => {
-      vi.advanceTimersByTime(DISPLAY_REFRESH_INTERVAL_MS);
-    });
     act(() => {
       emitTick(
         tickFixture({
@@ -131,6 +127,7 @@ describe('StockDetail entitlementChanged', () => {
           st: 'DELAYED',
         }),
       );
+      beatNowForTests();
     });
 
     expect(screen.getByTestId('stock-detail-price').textContent).toContain('90.00');

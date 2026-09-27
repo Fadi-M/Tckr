@@ -223,11 +223,9 @@ interface SymbolRuntime {
   readonly def: SimSymbol;
   readonly decimals: number;
   price: bigint;
-  /** The active session's opening price — always `def.referencePrice` (see
-   * `backfillAllSymbols`'s doc for why every trading day restarts from the same static
-   * reference rather than carrying forward a previous day's close). Mutable, unlike an
-   * earlier revision: it is reset on every new trading session, not set once at
-   * construction. */
+  /** The active session's opening price: the previous close (`def.referencePrice`) moved
+   * by the session's seeded auction gap (`auctionOpen`). Mutable: it is reset on every new
+   * trading session, not set once at construction. */
   open: bigint;
   high: bigint;
   low: bigint;
@@ -361,23 +359,44 @@ function pickSignedSteps(rng: () => number, price: bigint, open: bigint, maxStep
   return steps === 0 ? 0 : goUp ? steps : -steps;
 }
 
+/** Largest opening gap the simulated pre-open auction produces, as a fraction of the
+ * previous close. Real EGX opens routinely gap by a fraction of a percent. */
+const MAX_OPENING_GAP = 0.008;
+
+/**
+ * The session's opening price: the previous close (`referencePrice`, EGX's reference
+ * price) moved by a seeded pre-open auction gap of up to `MAX_OPENING_GAP`, on the tick
+ * grid. Without a gap the open and the previous close were the same number, so "change
+ * since the close" and "change since the open" could never differ, which no real
+ * session looks like. Drawn from its own generator, so the session's walk after the open
+ * is unchanged by it.
+ */
+function auctionOpen(def: SimSymbol, seed: number): bigint {
+  const reference = scaledFromDecimal(def.referencePrice);
+  const tick = scaledFromDecimal(def.tickSize);
+  const gapRng = mulberry32((seed ^ 0x5f3759df) >>> 0);
+  const maxTicks = Math.max(1, Math.floor((Number(reference) * MAX_OPENING_GAP) / Number(tick)));
+  const gapTicks = Math.round((gapRng() * 2 - 1) * maxTicks);
+  const open = reference + tick * BigInt(gapTicks);
+  return open < tick ? tick : open;
+}
+
 /**
  * Reconstructs one symbol's full trading-session state from `sessionOpenAt` up through
  * `targetTime` (either "now," for an open market, or the session's own close, for a
  * closed one) — instantly, at the 30-second sample granularity, rather than replaying
  * the live raw-tick engine (see the module doc for why that would be too slow). Every
- * trading day restarts from the symbol's static `referencePrice` (no persisted
- * cross-day closing price) — the simplest choice, and consistent with how
- * `store.ts`/`primeUniverse` already treat `referencePrice` as *the* one static anchor
- * for a symbol, not a rolling "yesterday's close."
+ * trading day treats the symbol's static `referencePrice` as the previous close (no
+ * persisted cross-day closing price) and opens a seeded auction gap away from it
+ * (`auctionOpen`).
  *
  * Pure and side-effect-free: easy to unit-test in isolation, and safe to call from
  * `ensureSessionFor` as often as a session/state transition requires.
  */
 function computeBackfilledSession(def: SimSymbol, sessionOpenAt: number, targetTime: number, seed: number): BackfilledSession {
   const rng = mulberry32(seed);
-  const open = scaledFromDecimal(def.referencePrice);
   const tickSizeScaled = scaledFromDecimal(def.tickSize);
+  const open = auctionOpen(def, seed);
   let price = open;
   let high = open;
   let low = open;
@@ -952,6 +971,7 @@ export class SimulatedSource implements MarketDataSource {
       change,
       changePercent: formatSignedPercent(changePercentValue),
       open: openDecimal,
+      previousClose: runtime.def.referencePrice,
       high: decimalFromScaled(runtime.high, runtime.decimals),
       low: decimalFromScaled(runtime.low, runtime.decimals),
       volume: runtime.volume,
