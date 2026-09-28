@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const STORAGE_KEY = 'tckr-announce-price';
 
@@ -19,16 +19,20 @@ function readStored(): boolean {
  */
 export function usePriceAnnouncements(): readonly [boolean, () => void] {
   const [enabled, setEnabled] = useState(readStored);
-  const toggle = useCallback(() => {
-    setEnabled((previous) => {
-      const next = !previous;
-      try {
-        localStorage.setItem(STORAGE_KEY, next ? 'on' : 'off');
-      } catch {
-        // Storage unavailable (private mode, blocked site data): the toggle still works for this visit.
-      }
-      return next;
-    });
-  }, []);
+  const toggle = useCallback(() => setEnabled((previous) => !previous), []);
+  // Persisted after commit, not inside the updater: updaters must stay pure (StrictMode
+  // runs them twice, and a discarded render must not write).
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    try {
+      localStorage.setItem(STORAGE_KEY, enabled ? 'on' : 'off');
+    } catch {
+      // Storage unavailable (private mode, blocked site data): the toggle still works for this visit.
+    }
+  }, [enabled]);
   return [enabled, toggle] as const;
 }

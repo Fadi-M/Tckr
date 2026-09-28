@@ -85,7 +85,9 @@ export function useDetailQuote(symbol: string): DetailQuoteState {
   // The displayed quote needs the same treatment: left to the effect's reset, the old
   // symbol's price, change and session figures render under the new symbol for one
   // commit, and every `PriceCell` then "moves" to the new symbol's values — a flash
-  // (with ▲/▼) for a change that was never a tick.
+  // (with ▲/▼) for a change that was never a tick. The instrument definition and the
+  // not-found suggestions reset here too, or the new ticker renders (and titles the tab)
+  // beside the previous instrument's name for a commit.
   const [historyForSymbol, setHistoryForSymbol] = useState(symbol);
   if (historyForSymbol !== symbol) {
     setHistoryForSymbol(symbol);
@@ -93,6 +95,8 @@ export function useDetailQuote(symbol: string): DetailQuoteState {
     setPhase('loading');
     setQuote(undefined);
     setExtras(undefined);
+    setUniverseDef(undefined);
+    setSuggestions([]);
   }
 
   // Mount sequence, and the sole effect governing subscribe/unsubscribe lifecycle:

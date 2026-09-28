@@ -32,9 +32,14 @@ function contentSecurityPolicy(env: Record<string, string>): Plugin {
         );
         const connect = ["'self'"];
         if (env.VITE_TCKR_SOURCE === 'gateway') {
-          const gateway = new URL(env.VITE_TCKR_GATEWAY_URL ?? 'ws://localhost:5000');
-          const http = gateway.protocol === 'wss:' ? 'https:' : 'http:';
-          connect.push(`${gateway.protocol}//${gateway.host}`, `${http}//${gateway.host}`);
+          // Same fallback as config.ts's readEnvString: empty means unset. A relative URL
+          // (same origin) is already covered by 'self'.
+          const raw = env.VITE_TCKR_GATEWAY_URL || 'ws://localhost:5000';
+          if (URL.canParse(raw)) {
+            const gateway = new URL(raw);
+            const http = gateway.protocol === 'wss:' ? 'https:' : 'http:';
+            connect.push(`${gateway.protocol}//${gateway.host}`, `${http}//${gateway.host}`);
+          }
         }
         const policy = [
           "default-src 'self'",

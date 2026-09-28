@@ -7,7 +7,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { resetStore } from '../../data/store.ts';
-import { createFakeSource } from './testSupport.ts';
+import { toDecimal } from '../../contracts/decimal.ts';
+import {
+  cibDefinition,
+  comiDefinition,
+  createFakeSource,
+  snapshotFixture,
+  universeFixture,
+} from './testSupport.ts';
 
 vi.mock('uplot', () => {
   class FakeUPlot {
@@ -75,6 +82,39 @@ describe('StockDetail document title', () => {
     expect(document.title).toBe('Tckr MarketWatch');
   });
 
+  it("never pairs the new ticker with the previous instrument's name on a switch", async () => {
+    const titles: string[] = [];
+    const descriptor = Object.getOwnPropertyDescriptor(Document.prototype, 'title')!;
+    vi.spyOn(document, 'title', 'set').mockImplementation(function (this: Document, value) {
+      titles.push(value);
+      descriptor.set!.call(this, value);
+    });
+    const { source } = createFakeSource({
+      universe: universeFixture({ symbols: [comiDefinition(), cibDefinition()] }),
+    });
+    vi.mocked(getSharedSource).mockReturnValue(source);
+    const { rerender } = render(
+      <MemoryRouter>
+        <StockDetail symbol="COMI" />
+      </MemoryRouter>,
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    rerender(
+      <MemoryRouter>
+        <StockDetail symbol="CIB" />
+      </MemoryRouter>,
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(titles).not.toContain('CIB · Commercial International Holding · Tckr MarketWatch');
+    expect(document.title).toBe('CIB · Commercial International Bank · Tckr MarketWatch');
+  });
+
   it('says the symbol is unknown on the not-found view', async () => {
     const { source } = createFakeSource({
       snapshotImpl: (symbol) => Promise.reject(new Error(`Unknown symbol: ${symbol}`)),
@@ -101,6 +141,22 @@ describe('StockDetail price announcements', () => {
     ).toBe('true');
     expect(liveRegion().textContent).toMatch(/^COMI 84\.50, up \d+\.\d{2} percent$/);
     expect(localStorage.getItem('tckr-announce-price')).toBe('on');
+  });
+
+  it('reads a real but sub-0.01% move as "less than 0.01 percent", never "0.00"', async () => {
+    localStorage.setItem('tckr-announce-price', 'on');
+    const { source } = createFakeSource({
+      snapshotImpl: (symbol) =>
+        Promise.resolve(
+          snapshotFixture({
+            symbol,
+            price: toDecimal('1000.01'),
+            previousClose: toDecimal('1000.00'),
+          }),
+        ),
+    });
+    await renderDetail('COMI', source);
+    expect(liveRegion().textContent).toBe('COMI 1000.01, up less than 0.01 percent');
   });
 
   it('starts enabled when the user opted in on an earlier visit', async () => {

@@ -149,23 +149,28 @@ function formatExchangeTime(iso: IsoUtc): string {
  * indicator's persistent colour and the raw price's flash colour key off of (see
  * `PriceCell`'s `flashDirectionOverride` doc for why the price must not compute its
  * own, different, tick-to-tick answer to that question). */
-/** What the opt-in live region reads: "COMI 85.42, up 1.24 percent", plus the held state. */
-function priceAnnouncement(symbol: string, quote: DetailQuote, held: boolean): string {
-  const direction = deltaDirection(quote.change);
-  const size = quote.changePercentText.replace(/^[+-]/, '');
-  const move = direction === null ? 'unchanged' : `${direction} ${size} percent`;
-  return `${symbol} ${quote.price}, ${move}${held ? ', stream down, price not moving' : ''}`;
-}
-
-const ANNOUNCE_TOGGLE_CLASS =
-  'font-sans text-caption text-text-muted underline decoration-dotted underline-offset-2 cursor-pointer rounded-[4px] fine-hover:text-text aria-pressed:text-text aria-pressed:no-underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-accent focus-visible:outline-offset-2';
-
 function deltaDirection(change: DecimalString): 'up' | 'down' | null {
   const direction = compare(change, ZERO_DECIMAL);
   if (direction > 0) return 'up';
   if (direction < 0) return 'down';
   return null;
 }
+
+/** What the opt-in live region reads: "COMI 85.42, up 1.24 percent", plus the held state.
+ * The size is the rounded figure the change pill shows, so a real but tiny move reads as
+ * "up less than 0.01 percent", never "up 0.00 percent". */
+function priceAnnouncement(symbol: string, quote: DetailQuote, held: boolean): string {
+  const direction = deltaDirection(quote.change);
+  const size = quote.changePercentText.replace(/^[+-]/, '');
+  const move =
+    direction === null
+      ? 'unchanged'
+      : `${direction} ${size === '0.00' ? 'less than 0.01' : size} percent`;
+  return `${symbol} ${quote.price}, ${move}${held ? ', stream down, price not moving' : ''}`;
+}
+
+const ANNOUNCE_TOGGLE_CLASS =
+  'font-sans text-caption text-text-muted underline decoration-dotted underline-offset-2 cursor-pointer rounded-[4px] fine-hover:text-text aria-pressed:text-text aria-pressed:no-underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-accent focus-visible:outline-offset-2';
 
 // Base layout/type classes shared by every state of the Change/Change% pill, kept
 // separate from the colour variant below so the two never fight over the same
