@@ -26,9 +26,9 @@ function block(pattern: RegExp): string {
 
 const rootBlock = block(/(?<!\S):root\s*\{([^}]*)\}/);
 const darkMediaBlock = block(
-  /@media\s*\(prefers-color-scheme:\s*dark\)\s*\{\s*:root:not\(\[data-theme="light"\]\)\s*\{([^}]*)\}/,
+  /@media\s*\(prefers-color-scheme:\s*dark\)\s*\{\s*:root:not\(\[data-theme=["']light["']\]\)\s*\{([^}]*)\}/,
 );
-const dataThemeDarkBlock = block(/:root\[data-theme="dark"\]\s*\{([^}]*)\}/);
+const dataThemeDarkBlock = block(/:root\[data-theme=["']dark["']\]\s*\{([^}]*)\}/);
 
 describe('tokens.css', () => {
   it.each(REQUIRED_TOKENS)('defines --tckr-color-%s under bare :root', (token) => {

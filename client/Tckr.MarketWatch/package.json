@@ -17,7 +17,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "npm run -s typecheck && npm run -s lint && npm run -s test && npm run -s build && npm run -s check:bundle",
+    "check": "npm run -s typecheck && npm run -s lint && npm run -s format:check && npm run -s test && npm run -s build && npm run -s check:bundle",
     "check:bundle": "node scripts/check-bundle.mjs"
   },
   "dependencies": {
