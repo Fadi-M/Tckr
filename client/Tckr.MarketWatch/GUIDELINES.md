@@ -125,8 +125,9 @@ the check and mark it.
   `focus-visible` ring. **[partly enforced: `eslint-plugin-jsx-a11y`]**
 - **Page context.** Every view that shows one thing names it in the tab title with
   `useDocumentTitle` (`src/components/useDocumentTitle.ts`).
-- **Live regions are opt-in.** Streaming values are never announced unasked. The detail
-  view's "Announce price" toggle feeds a polite region at the display beat, never per tick.
+- **No streaming announcements.** Prices are never pushed to a live region, on the board
+  or in the detail view. An opt-in "Announce price" toggle was built and removed by product
+  decision (2026-09-28); revisit only with that decision.
 - **Reduced motion.** Every moment honours `prefers-reduced-motion`. Colour and opacity
   fades may remain; movement may not.
 - **Motion.** `emil-design-eng` is the rulebook, and `review-animations` reviews any

@@ -1,20 +1,12 @@
 /**
- * Page context for assistive tech: the tab title names the open instrument (and is
- * restored when the detail closes), and the price is announced only after the user opts
- * in with "Announce price", which is remembered on this device.
+ * Page context for assistive tech: the tab title names the open instrument, is restored
+ * when the detail closes, and never pairs a new ticker with the previous instrument's name.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { resetStore } from '../../data/store.ts';
-import { toDecimal } from '../../contracts/decimal.ts';
-import {
-  cibDefinition,
-  comiDefinition,
-  createFakeSource,
-  snapshotFixture,
-  universeFixture,
-} from './testSupport.ts';
+import { cibDefinition, comiDefinition, createFakeSource, universeFixture } from './testSupport.ts';
 
 vi.mock('uplot', () => {
   class FakeUPlot {
@@ -56,12 +48,6 @@ async function renderDetail(symbol: string, source = createFakeSource().source) 
     await Promise.resolve();
   });
   return view;
-}
-
-function liveRegion(): HTMLElement {
-  const region = document.querySelector<HTMLElement>('[aria-live="polite"]');
-  if (!region) throw new Error('no polite live region');
-  return region;
 }
 
 afterEach(cleanup);
@@ -121,47 +107,5 @@ describe('StockDetail document title', () => {
     });
     await renderDetail('NOPE', source);
     expect(document.title).toBe('Unknown symbol NOPE · Tckr MarketWatch');
-  });
-});
-
-describe('StockDetail price announcements', () => {
-  it('announces nothing until the user opts in', async () => {
-    await renderDetail('COMI');
-    const toggle = screen.getByRole('button', { name: 'Announce price' });
-    expect(toggle.getAttribute('aria-pressed')).toBe('false');
-    expect(liveRegion().textContent).toBe('');
-  });
-
-  it('announces the price and move once enabled, and remembers the choice', async () => {
-    await renderDetail('COMI');
-    fireEvent.click(screen.getByRole('button', { name: 'Announce price' }));
-
-    expect(
-      screen.getByRole('button', { name: 'Announce price' }).getAttribute('aria-pressed'),
-    ).toBe('true');
-    expect(liveRegion().textContent).toMatch(/^COMI 84\.50, up \d+\.\d{2} percent$/);
-    expect(localStorage.getItem('tckr-announce-price')).toBe('on');
-  });
-
-  it('reads a real but sub-0.01% move as "less than 0.01 percent", never "0.00"', async () => {
-    localStorage.setItem('tckr-announce-price', 'on');
-    const { source } = createFakeSource({
-      snapshotImpl: (symbol) =>
-        Promise.resolve(
-          snapshotFixture({
-            symbol,
-            price: toDecimal('1000.01'),
-            previousClose: toDecimal('1000.00'),
-          }),
-        ),
-    });
-    await renderDetail('COMI', source);
-    expect(liveRegion().textContent).toBe('COMI 1000.01, up less than 0.01 percent');
-  });
-
-  it('starts enabled when the user opted in on an earlier visit', async () => {
-    localStorage.setItem('tckr-announce-price', 'on');
-    await renderDetail('COMI');
-    expect(liveRegion().textContent).toContain('COMI 84.50');
   });
 });
