@@ -60,12 +60,18 @@ the check and mark it.
 - **Comments explain why.** Doc comments give the reason and the constraint, not a
   restatement of the code. This repo's long "why" comments are intentional; keep them
   accurate when the code changes.
+- **React Compiler lint rules are off, by decision.** `react-hooks/refs`, `purity` and
+  `set-state-in-effect` are disabled in `eslint.config.js` because the app doesn't use the
+  compiler and the hot price path reads refs and the clock during render on purpose
+  (`PriceCell`, `RollingText`, the board re-rank). Adopting the compiler means turning them
+  back on and reworking those paths together.
 - **Size is a smell, not a rule.** A component over ~300 lines, or a hook-heavy
   function over ~150 lines, is a candidate for extraction through named, test-green
   steps (`refactoring-patterns`). Don't split code to hit a number.
 - **No dead code.** No commented-out code, and no TODO without a tracked item in §Known debt.
-- **Formatting.** Prettier config is in `.prettierrc.json`. The codebase hasn't been
-  reformatted yet (see §Known debt), so format only the lines you touch until then.
+- **Formatting.** Prettier (`.prettierrc.json`) owns code formatting; docs and `public/`
+  data are excluded (`.prettierignore`). **[enforced: `npm run format:check`]** A future
+  mass reformat is its own commit, listed in the repo-root `.git-blame-ignore-revs`.
 
 ## 4. Testing
 
@@ -191,10 +197,5 @@ Review. `/postflight` walks these:
 
 Tracked items that the rules above would otherwise flag. Remove an entry when it's fixed.
 
-3. **Oversized components.** `StockList.tsx` (2,072 lines, the `StockList` component is
+1. **Oversized components.** `StockList.tsx` (2,072 lines, the `StockList` component is
    ~785), `PriceChart.tsx` (~667-line component) and `StockDetail.tsx` (~565).
-4. **React Compiler rules are off.** `react-hooks/refs`, `purity` and `set-state-in-effect`
-   are disabled (see `eslint.config.js`), because the hot path deliberately reads refs and the
-   clock during render. Revisit if the compiler is adopted.
-5. **Not Prettier-formatted.** A one-off `npm run format` commit is pending. Do it on its own,
-   and add its SHA to `.git-blame-ignore-revs`.

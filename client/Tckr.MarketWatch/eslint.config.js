@@ -67,7 +67,7 @@ export default defineConfig([
       'no-console': ['error', { allow: ['info', 'warn', 'error'] }],
       // React Compiler rules. The app does not use the compiler, and the hot price path
       // deliberately reads/writes refs and the clock during render (PriceCell, RollingText,
-      // the board re-rank). Revisit together if the compiler is adopted (GUIDELINES.md §Known debt).
+      // the board re-rank). Revisit together if the compiler is adopted (GUIDELINES.md §3).
       'react-hooks/refs': 'off',
       'react-hooks/purity': 'off',
       'react-hooks/set-state-in-effect': 'off',
