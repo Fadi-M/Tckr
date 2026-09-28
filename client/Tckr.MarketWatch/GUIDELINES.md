@@ -197,5 +197,8 @@ Review. `/postflight` walks these:
 
 Tracked items that the rules above would otherwise flag. Remove an entry when it's fixed.
 
-1. **Oversized components.** `StockList.tsx` (2,072 lines, the `StockList` component is
-   ~785), `PriceChart.tsx` (~667-line component) and `StockDetail.tsx` (~565).
+1. **Two components are still large.** `StockList` (~580 lines: about half hooks and
+   derived values, half the table and toolbar JSX; next step is `BoardToolbar`/`BoardTable`
+   components) and `PriceChart` (~475 lines, mostly the landing tween and its comments,
+   which share the `landing` state with the overlays). Both were split on 2026-09-28; see
+   the module docs for where each piece now lives.
