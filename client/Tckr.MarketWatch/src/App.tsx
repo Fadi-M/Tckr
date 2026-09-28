@@ -61,6 +61,7 @@ import { ThemeToggle } from './components/ThemeToggle';
 import { StockList } from './pages/StockList';
 import { DetailPaneSkeleton } from './pages/detailChrome';
 import { Greeting } from './motion/Greeting';
+import { useLogoHover } from './motion/useLogoHover';
 import { BOARD_ID } from './pages/pageAnchors';
 import { LEGACY_SYMBOL_ROUTE_PATTERN, SYMBOL_ROUTE, symbolPath } from './pages/routes';
 
@@ -107,6 +108,9 @@ export interface AppHeaderProps {
 
 function AppHeader({ statusSlot, badgeSlot }: AppHeaderProps) {
   const navigateWithTransition = useViewTransitionNavigate();
+  // The candle ticks up under a mouse (see `useLogoHover`).
+  const logoLinkRef = useRef<HTMLAnchorElement | null>(null);
+  useLogoHover(logoLinkRef);
   // Going home from a symbol closes the split pane, so the logo uses the same view
   // transition as the list's own navigation. Only a plain left-click is intercepted;
   // modifier-clicks keep the link's normal new-tab/new-window behaviour.
@@ -121,6 +125,7 @@ function AppHeader({ statusSlot, badgeSlot }: AppHeaderProps) {
   return (
     <header className="sticky top-0 z-[5] flex items-center justify-between gap-3 w-full px-5 py-3.5 bg-glass backdrop-blur-tckr backdrop-saturate-[160%] border-b border-glass-border reduced-transparency:bg-surface contrast-more:bg-surface reduced-transparency:backdrop-blur-none contrast-more:backdrop-blur-none max-[640px]:px-4 max-[640px]:gap-2">
       <Link
+        ref={logoLinkRef}
         to="/"
         onClick={handleLogoClick}
         aria-label="Tckr"
