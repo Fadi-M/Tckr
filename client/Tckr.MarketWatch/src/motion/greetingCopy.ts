@@ -23,13 +23,13 @@ export interface GreetingCopy {
   readonly tone: GreetingTone;
 }
 
-/** The salutation for a local clock hour (0–23): morning 5 AM–noon, afternoon noon–5 PM,
- * evening 5–9 PM, night 9 PM–5 AM. */
+/** The salutation for a local clock hour (0–23), one familiar "Hello, …" for each part
+ * of the day: morning 5 AM–noon, afternoon noon–5 PM, evening 5–9 PM, night 9 PM–5 AM. */
 export function salutationFor(hour: number): string {
-  if (hour >= 5 && hour < 12) return 'Good morning';
-  if (hour >= 12 && hour < 17) return 'Good afternoon';
-  if (hour >= 17 && hour < 21) return 'Good evening';
-  return 'Good night';
+  if (hour >= 5 && hour < 12) return 'Hello, early bird';
+  if (hour >= 12 && hour < 17) return 'Hello, sunshine';
+  if (hour >= 17 && hour < 21) return 'Hello, stargazer';
+  return 'Hello, night owl';
 }
 
 export function greetingCopy(status: MarketStatus, nowMs: number): GreetingCopy {

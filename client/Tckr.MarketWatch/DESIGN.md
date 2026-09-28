@@ -634,8 +634,9 @@ starts, Tckr opens with "The Candle Prints" (`motion/Greeting.tsx`). It lasts ab
   and the crossbar lands. A mint light (`--tckr-blob-a`, a plain radial gradient with no
   filter) swells behind it through the rally and settles to an ember. "ckr" then
   resolves in mono.
-- **The words:** a salutation for the viewer's own time of day: "Good morning" (5 AM–noon),
-  "Good afternoon" (noon–5 PM), "Good evening" (5–9 PM), "Good night" (9 PM–5 AM), in
+- **The words:** a salutation for the viewer's own time of day: "Hello, early bird"
+  (5 AM–noon), "Hello, sunshine" (noon–5 PM), "Hello, stargazer" (5–9 PM), "Hello, night
+  owl" (9 PM–5 AM), in
   Instrument Sans 500
   rises word by word through a mask, coming into focus. Beneath it the market's true
   state prints left to right in a tracked mono caption, beside a dot that is green only
