@@ -1,10 +1,10 @@
 /**
- * The header logo's hover (`useLogoHover`): a mouse on a fine pointer rallies the candle
- * and leaving settles it; touch, reduced motion and the greeting's hidden logo leave it
- * at rest. Asserts end states (jsdom paints nothing), via `finishMotion`. jsdom has no SVG
- * geometry, so that the body and wick stay joined is checked in a real browser, not here.
+ * The header logo's hover (`useLogoHover`): under a mouse the candle opens and trades,
+ * with its body anchored at the open and its upper wick always meeting the crossbar;
+ * leaving (or unmounting) returns it to the exact resting mark. Touch, reduced motion
+ * and the greeting's hidden logo leave it at rest.
  */
-import { useRef } from 'react';
+import { act, useRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render } from '@testing-library/react';
 import { TckrLogo } from '../../components/TckrLogo.tsx';
@@ -22,17 +22,6 @@ function HeaderLogo() {
   );
 }
 
-/** jsdom has no SVG layout, so each rect reports its own geometry for GSAP's origins. */
-function stubSvgBBox(): void {
-  Object.defineProperty(SVGElement.prototype, 'getBBox', {
-    configurable: true,
-    value(this: SVGElement) {
-      const n = (name: string) => Number(this.getAttribute(name) ?? 0);
-      return { x: n('x'), y: n('y'), width: n('width'), height: n('height') };
-    },
-  });
-}
-
 function stubMedia({ fine, reduce }: { fine: boolean; reduce: boolean }): void {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
     matches:
@@ -48,22 +37,38 @@ function stubMedia({ fine, reduce }: { fine: boolean; reduce: boolean }): void {
   }));
 }
 
-async function scaleY(element: Element): Promise<number> {
-  const { gsap } = await loadMotion();
-  return Number(gsap.getProperty(element, 'scaleY'));
+function geometry(container: Element) {
+  const attr = (part: string, name: string) =>
+    Number(container.querySelector(`[data-candle="${part}"]`)!.getAttribute(name));
+  return {
+    barY: attr('bar', 'y'),
+    wickTop: attr('wick-high', 'y'),
+    wickBottom: attr('wick-high', 'y') + attr('wick-high', 'height'),
+    bodyTop: attr('body', 'y'),
+    bodyBottom: attr('body', 'y') + attr('body', 'height'),
+    lowHeight: attr('wick-low', 'height'),
+  };
 }
 
-function parts(container: HTMLElement) {
-  return {
-    link: container.querySelector('a')!,
-    body: container.querySelector('[data-candle="body"]')!,
-    wick: container.querySelector('[data-candle="wick-high"]')!,
-  };
+const REST = { barY: 4, wickTop: 15, wickBottom: 25, bodyTop: 25, bodyBottom: 59, lowHeight: 11 };
+
+/** Seeks every running animation to `progress`, as a frame at that point would draw. */
+async function seekAll(progress: number): Promise<void> {
+  const { gsap } = await loadMotion();
+  act(() => {
+    for (const animation of gsap.globalTimeline.getChildren(true, true, false)) {
+      animation.progress(progress);
+    }
+  });
+}
+
+function renderLogo() {
+  const { container, unmount } = render(<HeaderLogo />);
+  return { container, unmount, link: container.querySelector('a')! };
 }
 
 describe('useLogoHover', () => {
   beforeEach(async () => {
-    stubSvgBBox();
     await primeMotion();
   });
 
@@ -71,22 +76,63 @@ describe('useLogoHover', () => {
     cleanup();
     await resetMotion();
     Reflect.deleteProperty(window, 'matchMedia');
-    Reflect.deleteProperty(SVGElement.prototype, 'getBBox');
   });
 
-  it('rallies the candle under a mouse and settles it on leave', async () => {
+  it('keeps the body on its open and the wick on the crossbar at every point of the trade', async () => {
     stubMedia({ fine: true, reduce: false });
-    const { link, body, wick } = parts(render(<HeaderLogo />).container);
+    const { container, link } = renderLogo();
+    fireEvent.pointerEnter(link, { pointerType: 'mouse' });
 
+    for (const progress of [0.1, 0.35, 0.6, 0.85, 1]) {
+      await seekAll(progress);
+      const g = geometry(container);
+      expect(g.bodyBottom).toBeCloseTo(REST.bodyBottom);
+      expect(g.wickTop).toBe(REST.wickTop);
+      expect(g.wickBottom).toBeCloseTo(g.bodyTop);
+      expect(g.bodyTop).toBeGreaterThanOrEqual(19);
+      expect(g.bodyTop).toBeLessThanOrEqual(33);
+      expect(g.lowHeight).toBeLessThanOrEqual(12);
+    }
+  });
+
+  it('lands the crossbar and keeps trading while hovered', async () => {
+    stubMedia({ fine: true, reduce: false });
+    const { container, link } = renderLogo();
     fireEvent.pointerEnter(link, { pointerType: 'mouse' });
     await finishMotion();
-    expect(await scaleY(body)).toBeCloseTo(1.1);
-    expect(await scaleY(wick)).toBeCloseTo(0.66);
 
+    const { gsap } = await loadMotion();
+    expect(geometry(container).barY).toBe(REST.barY);
+    const trading = gsap.globalTimeline
+      .getChildren(true, true, false)
+      .filter((animation) => animation.repeat() === -1);
+    expect(trading).toHaveLength(1);
+  });
+
+  it('settles back to the exact resting mark on leave', async () => {
+    stubMedia({ fine: true, reduce: false });
+    const { container, link } = renderLogo();
+    fireEvent.pointerEnter(link, { pointerType: 'mouse' });
+    await seekAll(0.5);
     fireEvent.pointerLeave(link, { pointerType: 'mouse' });
     await finishMotion();
-    expect(await scaleY(body)).toBeCloseTo(1);
-    expect(await scaleY(wick)).toBeCloseTo(1);
+
+    expect(geometry(container)).toEqual(REST);
+    const { gsap } = await loadMotion();
+    const stillTrading = gsap.globalTimeline
+      .getChildren(true, true, false)
+      .some((animation) => animation.repeat() === -1);
+    expect(stillTrading).toBe(false);
+  });
+
+  it('restores the resting mark if the header unmounts mid-trade', async () => {
+    stubMedia({ fine: true, reduce: false });
+    const { container, link, unmount } = renderLogo();
+    const svg = container.querySelector('svg')!;
+    fireEvent.pointerEnter(link, { pointerType: 'mouse' });
+    await seekAll(0.5);
+    unmount();
+    expect(geometry(svg)).toEqual(REST);
   });
 
   it.each([
@@ -94,19 +140,18 @@ describe('useLogoHover', () => {
     ['reduced motion', { fine: true, reduce: true }, 'mouse'],
   ] as const)('stays at rest for %s', async (_label, media, pointerType) => {
     stubMedia(media);
-    const { link, body } = parts(render(<HeaderLogo />).container);
+    const { container, link } = renderLogo();
     fireEvent.pointerEnter(link, { pointerType });
     await finishMotion();
-    expect(await scaleY(body)).toBe(1);
+    expect(geometry(container)).toEqual(REST);
   });
 
   it('stays at rest while the greeting has the header logo hidden', async () => {
     stubMedia({ fine: true, reduce: false });
-    const { container } = render(<HeaderLogo />);
-    const { link, body } = parts(container);
+    const { container, link } = renderLogo();
     container.querySelector<HTMLElement>('[data-tckr-logo]')!.style.opacity = '0';
     fireEvent.pointerEnter(link, { pointerType: 'mouse' });
     await finishMotion();
-    expect(await scaleY(body)).toBe(1);
+    expect(geometry(container)).toEqual(REST);
   });
 });
