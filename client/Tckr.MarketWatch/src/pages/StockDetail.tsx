@@ -635,7 +635,6 @@ export function StockDetail({ symbol }: { symbol: string }) {
     setQuote((prev) =>
       mergeTickIntoQuote(prev, queued, baselineRef.current, volumeBaselineRef.current + volumeSinceBaselineRef.current),
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, symbol]);
 
   // Opening a symbol shows its latest (snapshot, a queued tick, then the throttle's

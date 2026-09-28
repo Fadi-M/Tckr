@@ -63,7 +63,6 @@ export function useChartHeight(): number {
     const update = (): void => setHeight(read());
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return height;
 }

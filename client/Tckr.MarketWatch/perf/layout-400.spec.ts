@@ -116,6 +116,8 @@ test.describe('400px viewport', () => {
           text,
           x,
           y,
+          // A gradient/pattern recording as "[object …]" is fine: the spec only compares colour strings.
+          // eslint-disable-next-line @typescript-eslint/no-base-to-string
           fillStyle: String(this.fillStyle),
           globalAlpha: this.globalAlpha,
           textAlign: this.textAlign,
@@ -202,7 +204,6 @@ test.describe('400px viewport', () => {
 
     writeFileSync(resolve(RAW_DIR, 'axis-labels-400.json'), JSON.stringify(result, null, 2));
 
-    // eslint-disable-next-line no-console
     console.log(
       `[layout-400] x-axis distinct label text=${xLabelTexts.length} (${xLabelTexts.join(', ')}) ` +
         `y-axis distinct label text=${yLabelTexts.length} (${yLabelTexts.join(', ')})`,

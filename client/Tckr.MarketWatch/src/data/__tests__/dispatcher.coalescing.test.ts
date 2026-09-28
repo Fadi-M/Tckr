@@ -73,7 +73,6 @@ describe('TickDispatcher coalescing', () => {
     const ratio = received / flushedCount;
     expect(ratio).toBeGreaterThanOrEqual(50);
     // Measured coalescing ratio for the phase record (task 09 reads this number):
-    // eslint-disable-next-line no-console
     console.info(`[dispatcher.coalescing] received=${received} flushed=${flushedCount} ratio=${ratio}x`);
   });
 

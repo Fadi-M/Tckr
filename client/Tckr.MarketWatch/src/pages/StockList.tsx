@@ -1342,6 +1342,9 @@ export function StockList() {
     const source = getSharedSource();
     let cancelled = false;
 
+    // Known debt: a rejected universe fetch is unhandled and leaves the board loading
+    // (GUIDELINES.md §Known debt).
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     source.getUniverse().then((response) => {
       if (cancelled) {
         return;
@@ -1483,6 +1486,7 @@ export function StockList() {
     // `resortTick` is intentionally in this array even though the body never reads
     // it — bumping it is exactly what forces this memo to recompute (and re-read live
     // snapshot values via `compareBy`) once per `DISPLAY_REFRESH_INTERVAL_MS`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- resortTick is the recompute trigger (above)
   }, [filtered, sortState, resortTick]);
 
   // Only computed when the search matched nothing (see the empty state).
@@ -1697,6 +1701,7 @@ export function StockList() {
   const presetPills = (
     <div className="flex gap-1.5 flex-wrap">
       {PRESETS.map((preset) => (
+        // eslint-disable-next-line jsx-a11y/role-supports-aria-props -- aria-description is ARIA 1.3; the plugin predates it
         <button
           key={preset.id}
           type="button"
@@ -1992,6 +1997,7 @@ export function StockList() {
                     ))}
                   </tr>
                 </thead>
+                {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- delegated arrow-key navigation between focusable row links */}
                 <tbody id={BOARD_ID} ref={tbodyRef} onKeyDown={handleTableKeyDown}>
                   {sorted.length === 0 ? (
                     <tr>

@@ -54,7 +54,6 @@ export async function collectTicks(config: SimulatedSourceConfig, count: number)
   let elapsed = 0;
   const maxMs = 120000;
   while (ticks.length < count && elapsed < maxMs) {
-    // eslint-disable-next-line no-await-in-loop
     await vi.advanceTimersByTimeAsync(stepMs);
     elapsed += stepMs;
   }

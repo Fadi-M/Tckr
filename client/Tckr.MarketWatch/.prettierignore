@@ -1,0 +1,7 @@
+dist/
+coverage/
+perf/raw/
+package-lock.json
+.claude/skills/
+.impeccable/
+.playwright-mcp/
