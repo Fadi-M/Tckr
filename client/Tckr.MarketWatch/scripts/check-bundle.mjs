@@ -5,6 +5,11 @@
 // The markers are strings that only appear in those libraries' own code; the check also
 // asserts each marker is found somewhere in dist, so a library upgrade that renames it fails
 // loudly instead of silently passing.
+//
+// It also checks the built page carries the Content-Security-Policy (vite.config.ts) and
+// that every inline script's hash is in its script-src, so the policy can't be dropped or
+// go stale without failing CI.
+import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
@@ -47,10 +52,22 @@ for (const [lib, marker] of Object.entries(LAZY_MARKERS)) {
   }
 }
 
+const csp = html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)"/)?.[1];
+if (!csp) {
+  failures.push('dist/index.html has no Content-Security-Policy meta tag');
+} else {
+  for (const [, body] of html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)) {
+    const hash = `'sha256-${createHash('sha256').update(body).digest('base64')}'`;
+    if (!csp.includes(hash)) {
+      failures.push(`an inline script's hash ${hash} is missing from the CSP script-src`);
+    }
+  }
+}
+
 if (failures.length > 0) {
   console.error(`check-bundle failed:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 console.info(
-  `check-bundle ok: entry ${(gzipBytes / 1024).toFixed(1)} KB gzip, uplot and gsap lazy`,
+  `check-bundle ok: entry ${(gzipBytes / 1024).toFixed(1)} KB gzip, uplot and gsap lazy, CSP present`,
 );

@@ -95,6 +95,11 @@ the check and mark it.
 
 - **No raw HTML.** No `dangerouslySetInnerHTML`, `innerHTML`, `eval` or `new Function`.
   Wire and REST data is rendered as text only.
+- **Content-Security-Policy.** Production builds carry a CSP `<meta>` (`vite.config.ts`):
+  inline scripts by hash only, no inline styles, `connect-src` limited to the gateway when
+  the build uses it. A new external origin (font, CDN, API) is added there deliberately.
+  **[enforced: `npm run check:bundle`]** `frame-ancestors` must be sent as a header when
+  the app is hosted (Phase 11).
 - **No secrets in the bundle.** `VITE_*` variables are public. Never put secrets in
   them. The future auth token never goes in a URL, a log line or `localStorage`.
 - **Simulated data is refused in production.** Production refuses the simulated source
@@ -193,4 +198,3 @@ Tracked items that the rules above would otherwise flag. Remove an entry when it
    clock during render. Revisit if the compiler is adopted.
 5. **Not Prettier-formatted.** A one-off `npm run format` commit is pending. Do it on its own,
    and add its SHA to `.git-blame-ignore-revs`.
-7. **No CSP yet.** Add one with the hosting and deploy setup (Phase 11).
