@@ -201,4 +201,11 @@ Tracked items that the rules above would otherwise flag. Remove an entry when it
    derived values, half the table and toolbar JSX; next step is `BoardToolbar`/`BoardTable`
    components) and `PriceChart` (~475 lines, mostly the landing tween and its comments,
    which share the `landing` state with the overlays). Both were split on 2026-09-28; see
-   the module docs for where each piece now lives.
+   the module docs for where each piece now lives.2. **The perf harness is stale** (found 2026-09-28, predates the Tailwind migration
+   `66c2f3b`). `perf/frame-timing.spec.ts:164` and `perf/layout-400.spec.ts` wait for
+   removed BEM classes (`.tckr-price-chart__canvas`, `.tckr-stocklist__table`), and a
+   production build can't use `VITE_TCKR_SIM_CLOCK`, so outside EGX hours there are no
+   ticks to measure. Fix: switch to stable hooks (`role="img"` / `data-testid`), add a
+   Date-only clock shift in an init script (never `performance.now`/rAF), and write
+   results to a scratch dir instead of the frozen `perf/raw/` baseline. Until then
+   `npm run test:perf` cannot run, and render-path changes rely on code review.
