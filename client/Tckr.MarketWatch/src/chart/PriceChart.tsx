@@ -84,15 +84,17 @@ import { onStreamDiscard } from '../data/store.ts';
 import { DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
 import { useTheme } from '../theme/useTheme.ts';
 import { RingBuffer, toPlotValue } from './ringBuffer.ts';
-import { PRICE_AXIS_SIZE_PX, TIME_AXIS_SIZE_PX } from './chartGeometry.ts';
 import {
-  decimalsForTickSize,
-  formatClockTime,
-  formatXAxisTick,
-  formatYAxisLabel,
-  timeAxisSplits,
-  X_AXIS_INCREMENTS_MS,
-} from './axes.ts';
+  LINE_TOKEN,
+  readChartColors,
+  type ChartColors,
+  type LineDirection,
+} from './chartColors.ts';
+import { createChartOverlays, LANDING_TWEEN_MS } from './chartOverlays.ts';
+import { buildPlotOptions } from './chartOptions.ts';
+import { chartYRange } from './chartScale.ts';
+import { seedBuffer, seedFlatPoint } from './chartSeed.ts';
+import { decimalsForTickSize, formatYAxisLabel } from './axes.ts';
 
 /** One point of session history, already converted to this component's own numeric/x
  * representation (`t`: epoch ms, matching `SymbolView.lastUpdate`'s convention) — the
@@ -166,17 +168,6 @@ export interface PriceChartProps {
   readonly direction?: 'up' | 'down' | null | undefined;
 }
 
-type LineDirection = 'up' | 'down' | 'flat';
-
-// The token that colours the line for each direction. The canvas reads it by name
-// (`readChartColors`); the DOM pieces (last-price tag, cursor dot) get it through
-// `--tckr-chart-line` on the container. Both follow light/dark with the tokens.
-const LINE_TOKEN: Record<LineDirection, string> = {
-  up: '--tckr-color-up',
-  down: '--tckr-color-down',
-  flat: '--tckr-color-text',
-};
-
 // Generous enough to hold `SimulatedSource`'s own session-history cap
 // (`HISTORY_MAX_POINTS`, `src/data/SimulatedSource.ts`) without this ring buffer
 // evicting anything a `history` seed just pushed into it — the whole point of the
@@ -187,124 +178,9 @@ const LINE_TOKEN: Record<LineDirection, string> = {
 const DEFAULT_CAPACITY = 4200;
 const DEFAULT_HEIGHT = 340;
 const DEFAULT_WIDTH = 400;
-/** How long a new sample takes to draw in, and the ring its landing plays on the
- * line's end. Long enough to read as travel, short against the 10s cadence. */
-const LANDING_TWEEN_MS = 720;
-const LANDING_RING_MS = 1100;
-/** `--tckr-ease-out`, for the Web Animations on the line's end. */
-const EASE_OUT = 'cubic-bezier(0.23, 1, 0.32, 1)';
 /** How long after a wall-clock paint slot opens the chart samples, so it reads the
  * price the header has just painted rather than the one before it. */
 const SAMPLE_AFTER_PAINT_MS = 120;
-
-/** Below this plot width the line draws finer (see the series `width`). */
-const NARROW_PLOT_PX = 480;
-// Axis labels are canvas text, so the font is spelled out rather than inherited; the
-// family matches every other number on the page (IBM Plex Mono, tabular by design).
-const AXIS_FONT = '500 11px "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
-// Top padding leaves room for the range chip so the line never runs underneath it; the
-// left padding lets the first time label (centred on the session's first point) fit.
-const PLOT_PADDING: [number, number, number, number] = [40, 6, 0, 30];
-// Price-axis tags (the last price and the reference): their height, which is also the
-// distance two tags keep apart and the clearance within which an axis label is left
-// blank rather than peeking out from under one.
-const AXIS_TAG_HEIGHT_PX = 18;
-
-// The area fill's strength, as a share of its colour.
-const FILL_TINT = '14%';
-
-/**
- * y range for the plotted values plus the reference price (when given). A span smaller
- * than 1% of the price (or 8 ticks) is widened around its midpoint, so a quiet session
- * reads as quiet instead of being stretched edge to edge like a crash; then 10% of the
- * span is added above and below so extremes never touch the frame.
- */
-export function chartYRange(
-  min: number | null,
-  max: number | null,
-  reference: number | null,
-  tick: number,
-): [number, number] {
-  let lo = min ?? reference;
-  let hi = max ?? reference;
-  if (lo === null || hi === null) {
-    return [0, 1];
-  }
-  if (reference !== null) {
-    lo = Math.min(lo, reference);
-    hi = Math.max(hi, reference);
-  }
-  const mid = (lo + hi) / 2;
-  const minSpan = Math.max(tick * 8, Math.abs(mid) * 0.01);
-  if (hi - lo < minSpan) {
-    lo = mid - minSpan / 2;
-    hi = mid + minSpan / 2;
-  }
-  const pad = (hi - lo) * 0.1;
-  return [lo - pad, hi + pad];
-}
-
-/**
- * Screen positions (CSS px from the plot top) of the price-axis tags. The last price
- * keeps its exact spot; when the reference would overlap it, the reference steps one
- * tag height away on the side it actually lies, so both stay readable.
- */
-export function placeAxisTags(
-  lastPos: number | null,
-  refPos: number | null,
-): { last: number | null; ref: number | null } {
-  if (refPos === null || lastPos === null || Math.abs(refPos - lastPos) >= AXIS_TAG_HEIGHT_PX) {
-    return { last: lastPos, ref: refPos };
-  }
-  return {
-    last: lastPos,
-    ref: refPos >= lastPos ? lastPos + AXIS_TAG_HEIGHT_PX : lastPos - AXIS_TAG_HEIGHT_PX,
-  };
-}
-
-/** Whether an axis label at `pos` would sit under one of the tags at `tagPositions`. */
-export function isUnderAxisTag(pos: number, tagPositions: readonly (number | null)[]): boolean {
-  return tagPositions.some((tag) => tag !== null && Math.abs(pos - tag) < AXIS_TAG_HEIGHT_PX);
-}
-
-function tint(color: string): string {
-  return `color-mix(in srgb, ${color} ${FILL_TINT}, transparent)`;
-}
-
-function readCssVar(el: Element, name: string, fallback: string): string {
-  const value = getComputedStyle(el).getPropertyValue(name).trim();
-  return value.length > 0 ? value : fallback;
-}
-
-interface ChartColors {
-  /** The line's (and its fill's) colour, by session direction — see `LINE_TOKEN`. */
-  readonly accent: string;
-  readonly border: string;
-  readonly muted: string;
-}
-
-/** Canvas can't read CSS custom properties, so the line and gridline colours are
- * resolved from the tokens here: once at mount, and again on every theme switch. */
-function readChartColors(el: Element, direction: LineDirection): ChartColors {
-  return {
-    accent: readCssVar(el, LINE_TOKEN[direction], '#14181f'),
-    border: readCssVar(el, '--tckr-color-border', '#d8dbe1'),
-    muted: readCssVar(el, '--tckr-color-text-muted', '#5b6472'),
-  };
-}
-
-/** A single point cannot render a visible line — uPlot needs two x-values to draw a
- * segment, and `points: { show: false }` means there is no marker fallback either. The
- * very first time this chart ever has exactly one price for its symbol, a synthetic
- * second point one second earlier at that same price is pushed first, so the first
- * paint is already a (flat) line instead of nothing or a single dot. Module-level (not
- * a closure inside the mount effect) because two call sites need it: the mount effect's
- * own single-point fallback, and the separate "wait for the first live price" effect
- * below, which cannot see the mount effect's local variables. */
-function seedFlatPoint(buffer: RingBuffer, timeMs: number, price: number): void {
-  buffer.push(timeMs - 1000, price);
-  buffer.push(timeMs, price);
-}
 
 export function PriceChart({
   symbol,
@@ -400,262 +276,38 @@ export function PriceChart({
       return ref === undefined ? null : toPlotValue(ref);
     };
 
-    // The last-price and reference tags are plain DOM in uPlot's own plot-area overlay
-    // (`plot.over`), hung off its right edge onto the price axis and repositioned by the
-    // draw hook below, so following the line costs a style write per redraw rather
-    // than a React render. On the axis, never inside the plot, so the line can't run
-    // through them.
-    const lastTag = document.createElement('span');
-    lastTag.setAttribute('aria-hidden', 'true');
-    lastTag.dataset.testid = 'price-chart-last-tag';
-    lastTag.className =
-      'absolute left-full ml-1.5 -translate-y-1/2 font-mono text-caption font-semibold tabular-nums px-1.5 py-px rounded-[5px] bg-[var(--tckr-chart-line)] text-surface pointer-events-none whitespace-nowrap';
-    const referenceTag = document.createElement('span');
-    referenceTag.setAttribute('aria-hidden', 'true');
-    referenceTag.dataset.testid = 'price-chart-reference-tag';
-    // A hairline border (in place of the last tag's 1px vertical padding, so both tags
-    // keep one height): Paper Raised alone barely separates from the light glass.
-    referenceTag.className =
-      'absolute left-full ml-1.5 -translate-y-1/2 font-mono text-caption tabular-nums px-1.5 py-0 rounded-[5px] border border-border bg-surface-raised text-text-muted pointer-events-none whitespace-nowrap';
-
-    // The crosshair's readout: the hovered sample's Cairo time and price, in a chip that
-    // follows the cursor above the line (below it near the top edge), clamped inside the
-    // plot. Without it the crosshair drew a line and a dot but never said what they meant.
-    const readout = document.createElement('span');
-    readout.setAttribute('aria-hidden', 'true');
-    readout.dataset.testid = 'price-chart-readout';
-    readout.hidden = true;
-    readout.className =
-      'absolute z-[1] inline-flex items-baseline gap-1.5 font-mono text-caption tabular-nums px-2 py-[3px] rounded-[7px] bg-surface text-text border border-border shadow-float pointer-events-none whitespace-nowrap';
-    const readoutTime = document.createElement('span');
-    readoutTime.className = 'text-text-muted';
-    const readoutPrice = document.createElement('span');
-    readoutPrice.className = 'font-semibold';
-    readout.append(readoutTime, readoutPrice);
-
-    const updateReadout = (u: uPlot): void => {
-      const idx = u.cursor.idx;
-      const t = idx == null ? undefined : u.data[0]?.[idx];
-      const v = idx == null ? undefined : u.data[1]?.[idx];
-      if (t == null || v == null) {
-        readout.hidden = true;
-        return;
-      }
-      const inFlight = landing !== null && idx === (u.data[0]?.length ?? 0) - 1;
-      readoutTime.textContent = formatClockTime(inFlight ? landing!.t : t);
-      readoutPrice.textContent = formatYAxisLabel(inFlight ? landing!.v : v, tickSizeRef.current);
-      readout.hidden = false;
-      const plotWidth = u.over.clientWidth;
-      const halfWidth = readout.offsetWidth / 2;
-      const x = u.valToPos(t, 'x');
-      const y = u.valToPos(v, 'y');
-      const left = Math.min(Math.max(x, halfWidth), Math.max(halfWidth, plotWidth - halfWidth));
-      const above = y - readout.offsetHeight - 10;
-      readout.style.left = `${left}px`;
-      readout.style.top = `${above >= 0 ? above : y + 10}px`;
-      readout.style.transform = 'translateX(-50%)';
-    };
-
     // While a new sample is drawing in (see `sampleAndDraw`), the plotted last point is
     // in flight between the previous price and the new one. Only its position is in
     // flight: every number shown as text (the last-price tag, the readout) reads the
     // real sample from here, so the chart never prints a price that was not traded.
     let landing: { t: number; v: number } | null = null;
 
-    // The line's live end: a dot in the line colour that rides the last point, and
-    // rings once when a new price lands on it.
-    const head = document.createElement('span');
-    head.setAttribute('aria-hidden', 'true');
-    head.dataset.testid = 'price-chart-head';
-    head.hidden = true;
-    head.className =
-      'absolute size-[7px] -translate-1/2 rounded-full bg-[var(--tckr-chart-line)] shadow-[0_0_0_2px_var(--tckr-color-surface)] pointer-events-none';
-    const headRing = document.createElement('span');
-    headRing.className = 'absolute inset-0 rounded-full bg-[var(--tckr-chart-line)] opacity-0';
-    head.append(headRing);
-
-    const lastValue = (u: uPlot): number | null => {
-      const values = u.data[1] ?? [];
-      return values.length > 0 ? (values[values.length - 1] ?? null) : null;
-    };
-    const lastTime = (u: uPlot): number | null => {
-      const times = u.data[0] ?? [];
-      return times.length > 0 ? (times[times.length - 1] ?? null) : null;
-    };
-    const tagPositions = (u: uPlot): { last: number | null; ref: number | null } => {
-      const last = lastValue(u);
-      const ref = referenceValue();
-      return placeAxisTags(
-        last === null ? null : u.valToPos(last, 'y'),
-        ref === null ? null : u.valToPos(ref, 'y'),
-      );
-    };
-
-    const drawOverlays = (u: uPlot): void => {
-      const last = lastValue(u);
-      const positions = tagPositions(u);
-      if (last === null || positions.last === null) {
-        lastTag.hidden = true;
-      } else {
-        lastTag.hidden = false;
-        lastTag.textContent = formatYAxisLabel(landing?.v ?? last, tickSizeRef.current);
-        lastTag.style.top = `${positions.last}px`;
-      }
-      const headT = lastTime(u);
-      if (last === null || headT === null || positions.last === null) {
-        head.hidden = true;
-      } else {
-        head.hidden = false;
-        head.style.left = `${u.valToPos(headT, 'x')}px`;
-        head.style.top = `${u.valToPos(last, 'y')}px`;
-      }
-
-      const ref = referencePriceRef.current;
-      if (ref === undefined || last === null || positions.ref === null) {
-        referenceTag.hidden = true;
-        return;
-      }
-      const refValue = toPlotValue(ref);
-      const { ctx, bbox } = u;
-      const y = Math.round(u.valToPos(refValue, 'y', true)) + 0.5;
-      ctx.save();
-      ctx.strokeStyle = colorsRef.current!.muted;
-      ctx.lineWidth = uPlot.pxRatio;
-      ctx.setLineDash([4 * uPlot.pxRatio, 4 * uPlot.pxRatio]);
-      ctx.beginPath();
-      ctx.moveTo(bbox.left, y);
-      ctx.lineTo(bbox.left + bbox.width, y);
-      ctx.stroke();
-      ctx.restore();
-      referenceTag.hidden = false;
-      referenceTag.textContent = `${referenceLabelRef.current} ${format(ref, { decimals: decimalsForTickSize(tickSizeRef.current) })}`;
-      referenceTag.style.top = `${positions.ref}px`;
-    };
+    const overlays = createChartOverlays({
+      tickSize: () => tickSizeRef.current,
+      referencePrice: () => referencePriceRef.current,
+      referenceLabel: () => referenceLabelRef.current,
+      mutedColor: () => colorsRef.current!.muted,
+      landing: () => landing,
+    });
 
     const plot = new uPlot(
-      {
+      buildPlotOptions({
+        symbol,
         width: container.clientWidth || DEFAULT_WIDTH,
         height: heightRef.current,
-        padding: PLOT_PADDING,
-        scales: {
-          x: { time: false },
-          y: {
-            range: (_u, min, max) =>
-              chartYRange(min, max, referenceValue(), toPlotValue(tickSizeRef.current)),
-          },
-        },
-        series: [
-          {},
-          {
-            label: symbol,
-            stroke: accent,
-            // A phone-width plot packs a whole session (~540 samples) into ~250px, so a
-            // 2.5px line overlaps itself into a solid band; a finer line keeps its shape.
-            width: (container.clientWidth || DEFAULT_WIDTH) < NARROW_PLOT_PX ? 1.5 : 2.5,
-            // The whole area under the line, in a tint of the line's own colour: one
-            // colour for the whole session, by its direction (see `direction`).
-            fill: () => tint(accent()),
-            points: { show: false },
-          },
-        ],
-        // A sparse Cairo-time axis along the bottom and a price axis on the right, the
-        // side the eye lands on after reading the line left to right. Labels are canvas
-        // text in the muted token; horizontal gridlines only, no tick marks.
-        axes: [
-          {
-            side: 2,
-            stroke: muted,
-            font: AXIS_FONT,
-            size: TIME_AXIS_SIZE_PX,
-            gap: 8,
-            space: 88,
-            incrs: [...X_AXIS_INCREMENTS_MS],
-            // Both ends always labelled, interior steps only where they fit (see
-            // `timeAxisSplits`); `space` in CSS px converted to the scale's ms.
-            splits: (u, _axisIdx, min, max, incr, space) =>
-              timeAxisSplits(
-                min,
-                max,
-                incr,
-                (space * (max - min)) / Math.max(1, u.bbox.width / uPlot.pxRatio),
-              ),
-            grid: { show: false },
-            ticks: { show: false },
-            values: (_u, splits, _axisIdx, _space, incr) =>
-              splits.map((v) => formatXAxisTick(v, incr)),
-          },
-          {
-            side: 1,
-            stroke: muted,
-            font: AXIS_FONT,
-            size: PRICE_AXIS_SIZE_PX,
-            gap: 8,
-            space: 44,
-            grid: { show: true, stroke: border, width: 1 },
-            ticks: { show: false },
-            values: (u, splits) => {
-              const { last, ref } = tagPositions(u);
-              // On a narrow plot the two tags already give the scale two exact anchors;
-              // axis labels between them only crowd a ~90px strip of a ~250px chart.
-              if (last !== null && ref !== null && u.bbox.width / uPlot.pxRatio < NARROW_PLOT_PX) {
-                return splits.map(() => '');
-              }
-              return splits.map((v) =>
-                isUnderAxisTag(u.valToPos(v, 'y'), [last, ref])
-                  ? ''
-                  : formatYAxisLabel(v, tickSizeRef.current),
-              );
-            },
-          },
-        ],
-        legend: { show: false },
-        hooks: { draw: [drawOverlays], setCursor: [updateReadout] },
-        cursor: {
-          show: true,
-          x: true,
-          y: false,
-          points: { show: true },
-        },
-      },
+        colors: { accent, border, muted },
+        referenceValue,
+        tickSize: () => tickSizeRef.current,
+        tagPositions: overlays.tagPositions,
+        hooks: { draw: [overlays.draw], setCursor: [overlays.updateReadout] },
+      }),
       [buffer.times.subarray(0, buffer.length), buffer.values.subarray(0, buffer.length)],
       container,
     );
     plotRef.current = plot;
-    plot.over.append(head, lastTag, referenceTag, readout);
+    plot.over.append(...overlays.elements);
 
-    // Seed the buffer with the full session history *before* anything live — `history`
-    // is fetched once by the parent page (task 06) and gates this component's own
-    // mount (a fresh `PriceChart` instance is only ever created once history is ready),
-    // so it is safe to read once here via `historyRef` rather than as an effect
-    // dependency (same pattern as `tickSizeRef`/`heightRef`/`capacityRef` above). This
-    // is what makes a symbol opened mid-session (e.g. noon, for a 9:30 open) show its
-    // whole line immediately instead of only whatever arrives after this mount.
-    for (const point of historyRef.current ?? []) {
-      buffer.push(point.t, toPlotValue(point.p));
-    }
-
-    const seed = livePriceRef.current;
-    if (seed) {
-      if (buffer.length === 0) {
-        // No history at all (a brand-new symbol, or a history fetch that came back
-        // empty) — fall back to the single-point doubling trick.
-        seedFlatPoint(buffer, seed.t, toPlotValue(seed.p));
-      } else if (seed.t > buffer.times[buffer.length - 1]!) {
-        // History's own trailing edge (see `SimulatedSource.getHistory`) is normally
-        // already at "now", but append the live price too if it is strictly newer, so a
-        // slow history fetch can never leave a visible gap at the right edge of the
-        // line.
-        buffer.push(seed.t, toPlotValue(seed.p));
-      }
-    } else if (buffer.length === 1) {
-      // Exactly one historical sample exists (the session has just started) — a single
-      // point cannot render a visible line, so double it the same way `seedFlatPoint`
-      // does for a single live point.
-      const onlyT = buffer.times[0]!;
-      const onlyV = buffer.values[0]!;
-      buffer.clear();
-      seedFlatPoint(buffer, onlyT, onlyV);
-    }
+    seedBuffer(buffer, historyRef.current, livePriceRef.current);
 
     if (buffer.length > 0) {
       // `resetScales` deliberately left at its default (`true`) here only: this is the
@@ -709,21 +361,6 @@ export function PriceChart({
       landing = null;
     };
     settleRef.current = settle;
-
-    const ringHead = (direction: 1 | -1): void => {
-      headRing.animate(
-        [
-          { opacity: 0.45, transform: 'scale(1)' },
-          { opacity: 0, transform: 'scale(3.6)' },
-        ],
-        { duration: LANDING_RING_MS, easing: EASE_OUT },
-      );
-      head.animate(
-        // `transform` composes with the dot's own centring `translate`.
-        [{ transform: `translateY(${direction * -3}px) scale(1.35)` }, { transform: 'none' }],
-        { duration: LANDING_TWEEN_MS, easing: EASE_OUT },
-      );
-    };
 
     // Takes exactly one sample of `livePriceRef`'s *current* value and appends it —
     // never a queue of every notification since the last sample (see module doc for
@@ -825,7 +462,7 @@ export function PriceChart({
           landing = null;
           redraw();
           if (v1 !== v0) {
-            ringHead(v1 > v0 ? 1 : -1);
+            overlays.ring(v1 > v0 ? 1 : -1);
           }
           return;
         }

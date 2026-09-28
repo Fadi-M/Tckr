@@ -5,7 +5,7 @@ vi.mock('uplot', async () => {
   return { default: mod.FakeUPlot };
 });
 
-import { chartYRange } from '../PriceChart.tsx';
+import { chartYRange } from '../chartScale.ts';
 
 describe('chartYRange', () => {
   it('keeps the reference price inside the range even when every value sits above it', () => {
