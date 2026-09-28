@@ -86,6 +86,8 @@ import { useMarketStatus } from '../components/useMarketStatus.ts';
 import { isHeld, useConnectionState } from '../components/useConnectionState.ts';
 import { HeldTag } from '../components/HeldTag.tsx';
 import { useViewTransitionNavigate } from '../components/useViewTransitionNavigate.ts';
+import { APP_TITLE, useDocumentTitle } from '../components/useDocumentTitle.ts';
+import { usePriceAnnouncements } from '../components/usePriceAnnouncements.ts';
 import { PriceChart, type ChartHistoryPoint } from '../chart/PriceChart.tsx';
 import { ChartSkeleton } from '../chart/ChartSkeleton.tsx';
 import {
@@ -145,6 +147,17 @@ function formatExchangeTime(iso: IsoUtc): string {
  * indicator's persistent colour and the raw price's flash colour key off of (see
  * `PriceCell`'s `flashDirectionOverride` doc for why the price must not compute its
  * own, different, tick-to-tick answer to that question). */
+/** What the opt-in live region reads: "COMI 85.42, up 1.24 percent", plus the held state. */
+function priceAnnouncement(symbol: string, quote: DetailQuote, held: boolean): string {
+  const direction = deltaDirection(quote.change);
+  const size = quote.changePercentText.replace(/^[+-]/, '');
+  const move = direction === null ? 'unchanged' : `${direction} ${size} percent`;
+  return `${symbol} ${quote.price}, ${move}${held ? ', stream down, price not moving' : ''}`;
+}
+
+const ANNOUNCE_TOGGLE_CLASS =
+  'font-sans text-caption text-text-muted underline decoration-dotted underline-offset-2 cursor-pointer rounded-[4px] fine-hover:text-text aria-pressed:text-text aria-pressed:no-underline focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-accent focus-visible:outline-offset-2';
+
 function deltaDirection(change: DecimalString): 'up' | 'down' | null {
   const direction = compare(change, ZERO_DECIMAL);
   if (direction > 0) return 'up';
@@ -737,6 +750,13 @@ export function StockDetail({ symbol }: { symbol: string }) {
     [symbol, hasQuote],
   );
 
+  useDocumentTitle(
+    phase === 'not-found'
+      ? `Unknown symbol ${symbol} · ${APP_TITLE}`
+      : `${symbol}${universeDef ? ` · ${universeDef.name}` : ''} · ${APP_TITLE}`,
+  );
+  const [announcePrice, toggleAnnouncePrice] = usePriceAnnouncements();
+
   if (phase === 'not-found') {
     return (
       <div className={`${DETAIL_PANEL_CLASS} gap-3 text-text`} data-testid="stock-detail-not-found">
@@ -781,6 +801,11 @@ export function StockDetail({ symbol }: { symbol: string }) {
 
   return (
     <div ref={revealRef} className="flex flex-col gap-3">
+      {/* Opt-in (the "Announce price" toggle): present in the DOM from the start so the
+          first update is announced, and only ever fed at the display beat, never per tick. */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {announcePrice && quote ? priceAnnouncement(symbol, quote, held) : ''}
+      </div>
       <div
         className={`${DETAIL_PANEL_CLASS} gap-4 [transition:border-color_250ms_ease,outline-color_250ms_ease]${held ? ` ${DETAIL_HELD_EDGE}` : ''}`}
         data-held={held || undefined}
@@ -863,6 +888,16 @@ export function StockDetail({ symbol }: { symbol: string }) {
                   {held ? (
                     <span className="text-text"> · stream down, price not moving</span>
                   ) : null}
+                  {' · '}
+                  <button
+                    type="button"
+                    className={ANNOUNCE_TOGGLE_CLASS}
+                    aria-pressed={announcePrice}
+                    onClick={toggleAnnouncePrice}
+                  >
+                    {announcePrice ? <span aria-hidden="true">✓ </span> : null}
+                    Announce price
+                  </button>
                 </p>
               </>
             )}
