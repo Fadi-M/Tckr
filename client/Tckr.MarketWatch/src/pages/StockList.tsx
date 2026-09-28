@@ -12,6 +12,7 @@
  * - `useBoardUniverse.ts`: fetching the universe, subscriptions, sparkline history, retry.
  * - `useBoardSearch.ts` / `useBoardSort.ts`: the search box and sort state.
  * - `useRowReorderGlide.ts`: the re-rank motion.
+ * - `useBoardKeyboard.ts`: page shortcuts (⌘K, /, Escape) and focus restore on open/close.
  * - `BoardBanners.tsx`: delayed, connection, market-closed and moment banners.
  * - `HeroCards.tsx`: the highlight cards and their sparkline.
  * - `StockListRow.tsx`: one row (the per-symbol subscription).
@@ -84,7 +85,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Outlet, useMatch } from 'react-router-dom';
 import { decimalPlaces } from '../contracts/decimal.ts';
-import { BOARD_ID, DETAIL_HEADING_ID } from './pageAnchors.ts';
+import { BOARD_ID } from './pageAnchors.ts';
 import { SYMBOL_ROUTE_PATTERN, symbolPath } from './routes.ts';
 import {
   formatCairoClock,
@@ -101,7 +102,7 @@ import {
   SearchIcon,
 } from '../components/icons.tsx';
 import { FormingCandle } from '../motion/FormingCandle.tsx';
-import { isEditableTarget, modifierKeyLabel } from '../components/keyboard.ts';
+import { modifierKeyLabel } from '../components/keyboard.ts';
 import { useMarketStatus } from '../components/useMarketStatus.ts';
 import { isHeld } from '../components/useConnectionState.ts';
 import { HeldTag } from '../components/HeldTag.tsx';
@@ -137,6 +138,7 @@ import { HeroCards } from './HeroCards.tsx';
 import { CELL_BASE, StockListRow } from './StockListRow.tsx';
 import { useBoardUniverse } from './useBoardUniverse.ts';
 import { useRowReorderGlide } from './useRowReorderGlide.ts';
+import { useBoardShortcuts, useDetailFocusRestore } from './useBoardKeyboard.ts';
 import { useBoardSearch } from './useBoardSearch.ts';
 import { useBoardSort } from './useBoardSort.ts';
 import {
@@ -213,60 +215,6 @@ export function StockList() {
     useBoardSearch(universe);
   const { sortState, setSortState, sorted, handleSort } = useBoardSort(filtered);
 
-  // Page shortcuts: ⌘K / Ctrl+K and "/" focus the search box; Escape closes the open
-  // detail pane. None of them fire while the user is typing in a field, where Escape
-  // already means "clear this field" and "/" is a character.
-  useEffect(() => {
-    function handleGlobalKeyDown(event: globalThis.KeyboardEvent): void {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        searchInputRef.current?.focus();
-        return;
-      }
-      if (event.defaultPrevented || isEditableTarget(event.target)) {
-        return;
-      }
-      if (event.key === '/' && !event.metaKey && !event.ctrlKey && !event.altKey) {
-        event.preventDefault();
-        searchInputRef.current?.focus();
-        return;
-      }
-      if (event.key === 'Escape' && selectedSymbol !== null) {
-        event.preventDefault();
-        navigate('/');
-      }
-    }
-    window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [navigate, selectedSymbol]);
-
-  // Keeps keyboard focus somewhere visible whenever the detail opens, switches or
-  // closes — however that happened (a row, Escape, the pane's close button, the logo).
-  // Only steps in when the focused element has gone: opening hides the list column
-  // below 800px (focus moves to the detail's heading), and closing unmounts the pane
-  // (focus returns to the row of the symbol that was open). On desktop a focused row
-  // stays visible and keeps focus, so the arrow keys keep browsing the board.
-  const previousSelectedRef = useRef(selectedSymbol);
-  useEffect(() => {
-    const previous = previousSelectedRef.current;
-    previousSelectedRef.current = selectedSymbol;
-    const id = requestAnimationFrame(() => {
-      const active = document.activeElement as HTMLElement | null;
-      const focusLost = !active || active === document.body || active.getClientRects().length === 0;
-      if (!focusLost) {
-        return;
-      }
-      if (selectedSymbol !== null) {
-        document.getElementById(DETAIL_HEADING_ID)?.focus();
-      } else if (previous !== null) {
-        tbodyRef.current
-          ?.querySelector<HTMLTableRowElement>(`tr[data-symbol="${CSS.escape(previous)}"]`)
-          ?.focus();
-      }
-    });
-    return () => cancelAnimationFrame(id);
-  }, [selectedSymbol]);
-
   const priceDecimalsBySymbol = useMemo(() => {
     const map = new Map<string, number>();
     for (const def of universe ?? []) {
@@ -332,6 +280,8 @@ export function StockList() {
 
   // Re-rank motion: rows that changed rank glide to their new place (see
   // `useRowReorderGlide`).
+  useBoardShortcuts(searchInputRef, selectedSymbol, navigate);
+  useDetailFocusRestore(tbodyRef, selectedSymbol);
   useRowReorderGlide(tbodyRef, sorted.map((def) => def.symbol).join(','));
 
   if (universe === null) {
