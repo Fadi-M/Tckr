@@ -83,7 +83,7 @@ describe('StockDetail DELAYED labelling', () => {
     // receipt time. Displayed in Cairo market time, not raw UTC (see
     // StockDetail.tsx's `formatExchangeTime`) — 2026-09-12 falls within Egypt's DST
     // window, so 10:15:00 UTC renders as 13:15:00 Cairo (UTC+3).
-    expect(asOf.textContent).toContain('13:15:00');
+    expect(asOf.textContent).toContain('1:15:00 PM');
     // The DELAYED context — and that it is a simulation artifact — must be stated on
     // screen, not just implied by a badge colour.
     expect(asOf.textContent).toContain('DELAYED');

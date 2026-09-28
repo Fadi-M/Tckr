@@ -84,7 +84,7 @@ describe('StockList moments', () => {
     vi.setSystemTime(cairoEpochFor('2026-01-15', 16, 0));
     await renderList();
     const banner = screen.getByText(/market closed/i).closest('[role="status"]');
-    expect(banner?.textContent).toMatch(/Reopens Sun 10:00 Cairo time, in 2d 18h\./);
+    expect(banner?.textContent).toMatch(/Reopens Sun 10:00 AM Cairo time, in 2d 18h\./);
   });
 
   it('marks the opening bell once when EGX opens while the page is open, never on load', async () => {

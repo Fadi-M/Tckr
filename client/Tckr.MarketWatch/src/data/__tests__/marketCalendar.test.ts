@@ -149,17 +149,17 @@ describe('getMarketStatus', () => {
 });
 
 describe('formatCairoClock / formatCairoTimeShort', () => {
-  it('formats HH:MM:SS in Cairo time', () => {
-    expect(formatCairoClock(Date.UTC(2026, 0, 15, 10, 5, 3))).toBe('12:05:03');
+  it('formats 12-hour h:MM:SS AM/PM in Cairo time', () => {
+    expect(formatCairoClock(Date.UTC(2026, 0, 15, 10, 5, 3))).toBe('12:05:03 PM');
   });
 
-  it('formats HH:MM (no seconds) in Cairo time', () => {
-    expect(formatCairoTimeShort(Date.UTC(2026, 0, 15, 10, 5, 3))).toBe('12:05');
+  it('formats 12-hour h:MM AM/PM (no seconds) in Cairo time', () => {
+    expect(formatCairoTimeShort(Date.UTC(2026, 0, 15, 10, 5, 3))).toBe('12:05 PM');
   });
 
   it("agrees with getMarketStatus's own Cairo-time boundaries", () => {
     const openAt = cairoEpochFor('2026-08-13', 10, 0);
-    expect(formatCairoTimeShort(openAt)).toBe('10:00');
+    expect(formatCairoTimeShort(openAt)).toBe('10:00 AM');
   });
 });
 
@@ -175,12 +175,12 @@ describe('formatCairoDateShort', () => {
 });
 
 describe('formatNextOpen', () => {
-  it('composes "{Weekday} {HH:MM}" (no "Cairo" suffix) for a closed status\'s nextOpenAt', () => {
+  it('composes "{Weekday} {h:MM AM}" (no "Cairo" suffix) for a closed status\'s nextOpenAt', () => {
     // 2026-01-15 (Thursday) before open: closed, reopens later the same day at 10:00.
     const status = getMarketStatus(Date.UTC(2026, 0, 15, 6, 0, 0)); // 08:00 Cairo, before 10:00
     expect(status.state).toBe('closed');
     if (status.state === 'closed') {
-      expect(formatNextOpen(status)).toBe('Thu 10:00');
+      expect(formatNextOpen(status)).toBe('Thu 10:00 AM');
     }
   });
 
@@ -197,9 +197,9 @@ describe('formatNextOpen', () => {
     if (sunday.state !== 'closed' || thursday.state !== 'closed' || monday.state !== 'closed') {
       throw new Error('expected all three instants to be outside continuous trading');
     }
-    expect(formatNextOpen(sunday, sundayNight)).toBe('today 10:00');
-    expect(formatNextOpen(monday, mondayAfternoon)).toBe('tomorrow 10:00');
-    expect(formatNextOpen(thursday, thursdayAfternoon)).toBe('Sun 10:00');
+    expect(formatNextOpen(sunday, sundayNight)).toBe('today 10:00 AM');
+    expect(formatNextOpen(monday, mondayAfternoon)).toBe('tomorrow 10:00 AM');
+    expect(formatNextOpen(thursday, thursdayAfternoon)).toBe('Sun 10:00 AM');
   });
 
   it('reflects the weekend-skipping nextOpenAt (reopens Sunday)', () => {
@@ -207,7 +207,7 @@ describe('formatNextOpen', () => {
     const status = getMarketStatus(Date.UTC(2026, 0, 16, 10, 0, 0));
     expect(status.state).toBe('closed');
     if (status.state === 'closed') {
-      expect(formatNextOpen(status)).toBe('Sun 10:00');
+      expect(formatNextOpen(status)).toBe('Sun 10:00 AM');
     }
   });
 });

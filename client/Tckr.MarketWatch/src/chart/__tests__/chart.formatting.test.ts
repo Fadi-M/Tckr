@@ -38,16 +38,16 @@ describe('axis time formatting', () => {
   // Fixture timestamps verified against `Intl` ground truth in marketCalendar.test.ts:
   // 2026-01-15 is Egypt-DST-off (UTC+2), 2026-08-13 is Egypt-DST-on (UTC+3).
 
-  it('formats an epoch-ms value as zero-padded HH:MM:SS, in Cairo time (winter, UTC+2)', () => {
-    expect(formatClockTime(Date.UTC(2026, 0, 15, 7, 5, 3))).toBe('09:05:03');
+  it('formats an epoch-ms value as 12-hour h:MM:SS AM/PM, in Cairo time (winter, UTC+2)', () => {
+    expect(formatClockTime(Date.UTC(2026, 0, 15, 7, 5, 3))).toBe('9:05:03 AM');
   });
 
-  it('formats an epoch-ms value as zero-padded HH:MM:SS, in Cairo time (summer, UTC+3)', () => {
-    expect(formatClockTime(Date.UTC(2026, 7, 13, 6, 5, 3))).toBe('09:05:03');
+  it('formats an epoch-ms value as 12-hour h:MM:SS AM/PM, in Cairo time (summer, UTC+3)', () => {
+    expect(formatClockTime(Date.UTC(2026, 7, 13, 6, 5, 3))).toBe('9:05:03 AM');
   });
 
-  it('pads all components to two digits', () => {
-    expect(formatClockTime(Date.UTC(2026, 0, 15, 22, 0, 0))).toBe('00:00:00');
+  it('shows midnight as 12 AM and pads minutes and seconds', () => {
+    expect(formatClockTime(Date.UTC(2026, 0, 15, 22, 0, 0))).toBe('12:00:00 AM');
   });
 
   it("uses Cairo time (EGX's own market timezone), not UTC and not the viewer's local timezone — must match StockDetail's header timestamp regardless of where the viewer is", () => {
@@ -56,7 +56,7 @@ describe('axis time formatting', () => {
     // silently disagrees with StockDetail's header (both must call the same shared
     // `marketCalendar.formatCairoClock` — see this function's own doc).
     const epochMs = Date.UTC(2026, 0, 1, 23, 30, 0); // 2026-01-01 (winter, UTC+2)
-    expect(formatClockTime(epochMs)).toBe('01:30:00'); // next day in Cairo
+    expect(formatClockTime(epochMs)).toBe('1:30:00 AM'); // next day in Cairo
   });
 });
 
@@ -142,14 +142,14 @@ describe('timeAxisSplits', () => {
     // Half-hour steps, but nothing within 45 minutes of either end.
     const splits = timeAxisSplits(open, close, HALF_HOUR, 45 * 60_000);
     expect(splits.map((t) => formatXAxisTick(t, HALF_HOUR))).toEqual([
-      '10:00',
-      '11:00',
-      '11:30',
-      '12:00',
-      '12:30',
-      '13:00',
-      '13:30',
-      '14:30',
+      '10:00 AM',
+      '11:00 AM',
+      '11:30 AM',
+      '12:00 PM',
+      '12:30 PM',
+      '1:00 PM',
+      '1:30 PM',
+      '2:30 PM',
     ]);
   });
 

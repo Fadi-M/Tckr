@@ -247,13 +247,21 @@ export function getMarketStatus(nowMs: number): MarketStatus {
   };
 }
 
-/** Zero-padded `HH:MM:SS` in Cairo time — the one shared formatter `axes.ts` (the
- * chart's x-axis/hover readout) and `StockDetail.tsx` (the header's "as of" timestamp)
- * both call, so those two displays can never drift into two different timezones again
- * (see this module's doc and the git history of this exact bug). */
+/** A 24-hour clock hour as the 12-hour clock shows it: 0 is 12 AM, 12 is 12 PM. */
+function twelveHour(hour: number): { readonly hour: number; readonly period: 'AM' | 'PM' } {
+  return { hour: hour % 12 === 0 ? 12 : hour % 12, period: hour < 12 ? 'AM' : 'PM' };
+}
+
+const pad2 = (value: number): string => value.toString().padStart(2, '0');
+
+/** `h:MM:SS AM` in Cairo time (12-hour, e.g. `"2:30:05 PM"`): the one shared formatter
+ * `axes.ts` (the chart's x-axis/hover readout) and `StockDetail.tsx` (the header's "as
+ * of" timestamp) both call, so those two displays can never drift into two different
+ * timezones again (see this module's doc and the git history of this exact bug). */
 export function formatCairoClock(epochMs: number): string {
   const { hour, minute, second } = getCairoParts(epochMs);
-  return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:${second.toString().padStart(2, '0')}`;
+  const clock = twelveHour(hour);
+  return `${clock.hour}:${pad2(minute)}:${pad2(second)} ${clock.period}`;
 }
 
 const MONTH_SHORT_NAMES = [
@@ -278,14 +286,15 @@ export function formatCairoDateShort(epochMs: number): string {
   return `${CAIRO_WEEKDAY_SHORT_NAMES[weekday]} ${day} ${MONTH_SHORT_NAMES[month - 1]}`;
 }
 
-/** `HH:MM` in Cairo time, no seconds — for "opens at" copy where second-level
- * precision would be noise (e.g. "opens Sun 10:00 Cairo"). */
+/** `h:MM AM` in Cairo time (12-hour), no seconds — for "opens at" copy where
+ * second-level precision would be noise (e.g. "opens Sun 10:00 AM Cairo"). */
 export function formatCairoTimeShort(epochMs: number): string {
   const { hour, minute } = getCairoParts(epochMs);
-  return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+  const clock = twelveHour(hour);
+  return `${clock.hour}:${pad2(minute)} ${clock.period}`;
 }
 
-/** `"{Weekday} {HH:MM}"` for a closed market's next-open instant (e.g. `"Sun 10:00"`) —
+/** `"{Weekday} {HH:MM}"` for a closed market's next-open instant (e.g. `"Sun 10:00 AM"`) —
  * the single shared "next open" composition `StockDetail.tsx`'s MARKET CLOSED badge and
  * `StockList.tsx`'s `MarketClosedBanner` both call, instead of each independently
  * combining `CAIRO_WEEKDAY_SHORT_NAMES[getCairoParts(...).weekday]` with
