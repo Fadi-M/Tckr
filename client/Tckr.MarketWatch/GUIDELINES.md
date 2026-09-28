@@ -1,0 +1,199 @@
+# Tckr.MarketWatch engineering guidelines
+
+This is the single source of truth for how work in this package is done and judged. Every
+task starts with `/preflight` against this file and ends with `/postflight` against its
+[Definition of done](#definition-of-done). When a rule here and any other guidance disagree
+(a skill, a habit, a generic best practice), this file wins, then the ADRs in
+`docs/decisions/`, then `DESIGN.md` for visual matters.
+
+Rules marked **[enforced: …]** are checked by a machine. The rest rely on review. When you
+learn a new rule, add it here in the same change. When a rule can be machine-checked, add
+the check and mark it.
+
+## 1. Architecture
+
+- **One seam.** Only `src/data/config.ts` names `SimulatedSource` or `TckrGatewaySource`.
+  Everything else uses the `MarketDataSource` type and `getSharedSource()` /
+  `createMarketDataSource()`. **[enforced: ESLint `no-restricted-imports`]**
+- **Connection lifecycle belongs to `getSharedSource()`.** Never call `.connect()` on the
+  returned source. A user-initiated retry goes through `reconnectSharedSource()`, which
+  disconnects first so at most one socket is ever in flight.
+- **`App.tsx` never imports `src/data/**`.** Resolved values come from `main.tsx`, the
+  composition root. **[enforced: ESLint + `shell.no-data-import.test.ts`]**
+- **Heavy libraries stay lazy.** `uplot` is imported only under `src/chart/`, and `StockDetail`
+  is lazy-loaded from `App.tsx`. `gsap` is imported only by `src/motion/gsap.ts`, and is
+  reached through `loadMotion()` / `useMotion()`. Don't use `@gsap/react`.
+  **[enforced: ESLint + `gsap.lazy-chunk.test.ts` + `npm run check:bundle`]**
+- **Both sources behave identically.** A data-layer change passes the conformance suite
+  (`src/data/__tests__/conformance/`) against both implementations.
+- **Test support stays local.** Put it in the module's own `__tests__/testSupport.ts`, not in a
+  shared global fixture file.
+- **Record why.** A decision that changes the wire contract, the seam, or a
+  cross-cutting pattern gets an ADR in `docs/decisions/` before the code merges.
+- **Design lens.** Prefer deep modules: a small interface over substantial behaviour.
+  Information that more than one module needs has one owner (`software-design-philosophy`).
+
+## 2. Correctness on the price path
+
+- **No floats on a price.** No JS `number` or float parsing on any price that reaches a
+  user or the wire. Use `DecimalString` and `src/contracts/decimal.ts`. Numbers are for
+  plotting only (`toPlotValue`). **[enforced: `decimal.no-float.test.ts`]**
+- **One formatter per quantity.** A percentage becomes text only through
+  `src/display/percent.ts`. The same move must never read differently on two surfaces.
+- **LIVE/DELAYED is a security property.** It comes only from the server's `identity()`,
+  and is never computed, inferred or overridable on the client. DELAYED means 15 minutes
+  behind; the simulator's 15-second offset is a local convenience, not the benchmark.
+- **Display cadence.** Prices, board re-rank and hero picks share one beat,
+  `DISPLAY_REFRESH_INTERVAL_MS` (10 s). Don't add a second clock.
+- **Stale is visible.** When the stream drops, prices freeze visibly (the held state). They
+  never keep animating as if live.
+
+## 3. Code quality
+
+- **Strict TypeScript.** Keep the `tsconfig.json` strictness settings. No `any`.
+  **[enforced: `tsc` + ESLint type-checked rules]** A non-null `!` is only for a lookup
+  whose presence an invariant guarantees (e.g. an index taken from the same array). Use
+  `as unknown as` only at a platform boundary (the `WebSocket` factory, the simulated
+  clock), with a comment.
+- **Suppressions carry a reason.** Every `eslint-disable` states why on the same line or the
+  line above. An unused directive is an error. **[enforced: ESLint]**
+- **Comments explain why.** Doc comments give the reason and the constraint, not a
+  restatement of the code. This repo's long "why" comments are intentional; keep them
+  accurate when the code changes.
+- **Size is a smell, not a rule.** A component over ~300 lines, or a hook-heavy
+  function over ~150 lines, is a candidate for extraction through named, test-green
+  steps (`refactoring-patterns`). Don't split code to hit a number.
+- **No dead code.** No commented-out code, and no TODO without a tracked item in §Known debt.
+- **Formatting.** Prettier config is in `.prettierrc.json`. The codebase hasn't been
+  reformatted yet (see §Known debt), so format only the lines you touch until then.
+
+## 4. Testing
+
+- **Every behaviour change ships with a test** in the per-behaviour style (use the `gen-test`
+  skill or the `test-writer` agent). Test files are named for the behaviour they cover, not
+  the source file.
+- **Bugs get a regression test first.** Reproduce the bug in a test, then fix it.
+- **Market-hours behaviour** (ticks, re-rank, opening bell, close) is checked in the running
+  app with `npm run dev:open`, `npm run dev:bell` or `npm run dev -- --market HH:MM`.
+- **Perf specs (`npm run test:perf`)** are run deliberately, not in CI. Re-run them and
+  update `docs/phase-3-web-client/results.md` when a change touches `src/chart/**`,
+  `TickDispatcher`, `store`, or the board's render path.
+
+## 5. Performance
+
+- **Frame budget.** The tick-to-paint path stays far below the 16.7 ms frame. Today the rAF
+  callback p95 is 0.1 ms (see `results.md`). A regression of 2x or more needs a written
+  justification.
+- **One tick, one row.** A tick re-renders only its own row. Ticks are coalesced
+  through `TickDispatcher`, never painted per event.
+- **Entry bundle.** Under 125 KB gzip, with uplot and gsap absent.
+  **[enforced: `npm run check:bundle`]**
+- **Motion runs on the compositor.** Animate only transform and opacity on anything
+  that runs per tick.
+
+## 6. Security
+
+- **No raw HTML.** No `dangerouslySetInnerHTML`, `innerHTML`, `eval` or `new Function`.
+  Wire and REST data is rendered as text only.
+- **No secrets in the bundle.** `VITE_*` variables are public. Never put secrets in
+  them. The future auth token never goes in a URL, a log line or `localStorage`.
+- **Simulated data is refused in production.** Production refuses the simulated source
+  unless the build explicitly opts in (`resolveClientConfig`). Don't weaken this guard.
+- **Dependencies.** Versions are pinned exactly. `npm audit --omit=dev` must be clean at
+  high severity. **[enforced: CI]** A new runtime dependency needs a stated reason and
+  a bundle-size check.
+
+## 7. Accessibility and UI/UX
+
+- **DESIGN.md is the visual authority**, and `PRODUCT.md` is the product authority.
+  `impeccable` is the primary UI tool: `shape` before a new surface, `critique` + `audit`
+  before merging UI, `harden` before release.
+- **Colour plus signal.** No price direction is shown by colour alone: ▲/▼ or an explicit
+  sign always accompanies it.
+- **Keyboard and focus.** Every interaction is keyboard-reachable, with a visible
+  `focus-visible` ring. **[partly enforced: `eslint-plugin-jsx-a11y`]**
+- **Reduced motion.** Every moment honours `prefers-reduced-motion`. Colour and opacity
+  fades may remain; movement may not.
+- **Motion.** `emil-design-eng` is the rulebook, and `review-animations` reviews any
+  diff that touches motion.
+- **Conceptual model.** Connection and entitlement states (connecting, reconnecting, held,
+  DELAYED, unknown symbol) must each be distinguishable and explained where they
+  appear (`design-everyday-things`).
+
+## 8. Engagement ethics
+
+The price feed is already a variable reward, and the design must not amplify it.
+
+- **Facilitator test.** Every engagement mechanic passes the Manipulation Matrix
+  Facilitator test (`hooked-ux`).
+- **Nothing rewards movement.** Nothing celebrates, rewards, or streaks price moves, gains
+  or checking frequency.
+- **Prompts fire on real events only:** market open or close, the auction, a user-set
+  level, or an entitlement change.
+- **No hidden cost or risk.** Fewer steps never means hiding cost or risk.
+
+## 9. Documentation
+
+- **Update docs in the same change.** When behaviour, configuration or a command changes,
+  update `README.md` (the human guide), `CLAUDE.md` (agent orientation), and this file
+  (rules) in that change.
+- **Don't duplicate; link.** The contract lives in
+  `docs/phase-3-web-client/client-contract.md`. Decisions live in ADRs.
+- **Write for the reader's task:** second person, present tense, active voice
+  (`technical-documentation` conventions).
+
+## Skill precedence
+
+These installed skills are lenses, not authorities. Where they conflict with this repo:
+
+| Skill | Ignore here |
+|---|---|
+| `refactoring-patterns` | Class and inheritance recipes (Replace Type Code with Subclasses and similar). This is hooks and function code. |
+| `software-design-philosophy` | Nothing, but prefer this repo's naming and comment style. |
+| `hooked-ux` | Variable rewards on market data (§8). |
+| `improve-retention` | Streaks, gamified progress, retention metrics that don't exist yet. |
+| `design-everyday-things` | Nothing; apply within DESIGN.md's visual language. |
+
+The global design-taste skills that conflict with DESIGN.md are turned off for this repo in
+`.claude/settings.json` (`skillOverrides`).
+
+## Definition of done
+
+Mechanical checks. The Stop hook runs the first three on every turn that changed code, and
+CI runs all of them:
+
+- [ ] `npm run typecheck`, `npm run lint` and `npm test` pass.
+- [ ] `npm run build` and `npm run check:bundle` pass.
+
+Review. `/postflight` walks these:
+
+- [ ] Behaviour change has a test. Bug fix has a regression test.
+- [ ] `/code-review` findings are fixed or answered. Run `/simplify` on non-trivial diffs.
+- [ ] `/security-review` if the change touches the data layer, config, env, or rendering of
+  external data.
+- [ ] UI change: `/impeccable critique` + `audit` are clean, and it was checked in the running
+  app, in both themes and at 400 px.
+- [ ] Motion change: `review-animations` is clean, and reduced motion was checked.
+- [ ] Chart, dispatcher, store or board render change: `performance-analyzer` was run, and
+  `results.md` updated if the numbers moved.
+- [ ] Docs, ADRs and this file are updated. Any new debt is logged below.
+
+## Known debt
+
+Tracked items that the rules above would otherwise flag. Remove an entry when it's fixed.
+
+1. **Unhandled universe fetch.** `StockList.tsx` doesn't handle a rejected
+   `getUniverse()`, so the board stays loading. The line carries an ESLint suppression.
+2. **Duplicated percent formatting.** `SimulatedSource.ts` formats `changePercent` with
+   `toFixed(2)`, the rounding path `display/percent.ts` exists to avoid. `decimalPlacesOf`
+   is also duplicated (`StockList.tsx`, `SimulatedSource.ts`).
+3. **Oversized components.** `StockList.tsx` (2,072 lines, the `StockList` component is
+   ~785), `PriceChart.tsx` (~667-line component) and `StockDetail.tsx` (~565).
+4. **React Compiler rules are off.** `react-hooks/refs`, `purity` and `set-state-in-effect`
+   are disabled (see `eslint.config.js`), because the hot path deliberately reads refs and the
+   clock during render. Revisit if the compiler is adopted.
+5. **Not Prettier-formatted.** A one-off `npm run format` commit is pending. Do it on its own,
+   and add its SHA to `.git-blame-ignore-revs`.
+6. **Accessibility gaps.** `document.title` doesn't change per symbol. The detail view has no
+   opt-in live price announcement.
+7. **No CSP yet.** Add one with the hosting and deploy setup (Phase 11).

@@ -25,7 +25,6 @@ describe('SimulatedSource message kind mix', () => {
     const bidShare = counts.BID / total;
     const askShare = counts.ASK / total;
 
-    // eslint-disable-next-line no-console
     console.info(
       `[simulated.mix] TRADE=${(tradeShare * 100).toFixed(2)}% BID=${(bidShare * 100).toFixed(2)}% ` +
         `ASK=${(askShare * 100).toFixed(2)}%`,

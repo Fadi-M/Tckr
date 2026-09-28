@@ -107,7 +107,7 @@ describe('StockList search', () => {
     await flushMicrotasks();
 
     expect(screen.queryByRole('button', { name: 'Clear search' })).toBeNull();
-    const input = screen.getByRole('searchbox', { name: /search/i }) as HTMLInputElement;
+    const input = screen.getByRole<HTMLInputElement>('searchbox', { name: /search/i });
     fireEvent.change(input, { target: { value: 'com' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));

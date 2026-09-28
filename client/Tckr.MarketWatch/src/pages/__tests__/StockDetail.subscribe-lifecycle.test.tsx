@@ -59,7 +59,6 @@ describe('StockDetail subscribe/unsubscribe lifecycle', () => {
 
     expect(unsubscribe).toHaveBeenCalledTimes(1);
     expect(unsubscribe).toHaveBeenCalledWith(['COMI']);
-    // eslint-disable-next-line no-console
     console.info(
       '[StockDetail.subscribe-lifecycle] plain mount call log:',
       JSON.stringify({ subscribe: subscribe.mock.calls, unsubscribe: unsubscribe.mock.calls }),
@@ -82,7 +81,6 @@ describe('StockDetail subscribe/unsubscribe lifecycle', () => {
 
     const net = subscribe.mock.calls.length - unsubscribe.mock.calls.length;
     expect(net).toBe(1);
-    // eslint-disable-next-line no-console
     console.info(
       '[StockDetail.subscribe-lifecycle] StrictMode call log:',
       JSON.stringify({ subscribe: subscribe.mock.calls, unsubscribe: unsubscribe.mock.calls }),

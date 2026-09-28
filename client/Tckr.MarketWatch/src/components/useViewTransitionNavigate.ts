@@ -55,7 +55,7 @@ export function useViewTransitionNavigate(): (to: string, options?: ViewTransiti
           new Promise<void>((resolve) => {
             resolveCommitted.current = resolve;
             setTimeout(resolve, COMMIT_TIMEOUT_MS);
-            navigate(to, { replace: options?.replace ?? false });
+            void navigate(to, { replace: options?.replace ?? false });
           }),
       );
     },

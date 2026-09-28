@@ -149,7 +149,7 @@ for (const run of [1, 2, 3] as const) {
           cb(ts);
           const t1 = performance.now();
           w.__tckrPerf.rafCallbackDurationsMs.push(t1 - t0);
-        })) as typeof window.requestAnimationFrame;
+        }));
 
       // Independent frame-cadence probe: one timestamp per actual browser animation
       // frame, via the native (unwrapped) RAF, decoupled from anything the app does.
@@ -252,7 +252,6 @@ for (const run of [1, 2, 3] as const) {
     mkdirSync(runDir, { recursive: true });
     writeFileSync(resolve(runDir, 'result.json'), JSON.stringify(result, null, 2));
 
-    // eslint-disable-next-line no-console
     console.log(
       `[frame-timing run ${run}] frames=${result.framesRendered} fps=${fps.toFixed(2)} ` +
         `p95Interval=${result.frameIntervalMs.p95.toFixed(2)}ms maxInterval=${result.frameIntervalMs.max.toFixed(2)}ms ` +

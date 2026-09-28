@@ -25,7 +25,6 @@ describe('SimulatedSource selection skew', () => {
     const top1Share = (sorted[0] ?? 0) / total;
     const top10Share = sorted.slice(0, 10).reduce((sum, n) => sum + n, 0) / total;
 
-    // eslint-disable-next-line no-console
     console.info(
       `[simulated.skew] top1=${(top1Share * 100).toFixed(2)}% top10=${(top10Share * 100).toFixed(2)}% ` +
         '(exchange measured: 14.4% / 59.1%)',

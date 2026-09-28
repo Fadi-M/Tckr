@@ -24,7 +24,7 @@ function block(pattern: RegExp): string {
   return match[1];
 }
 
-const rootBlock = block(/(?<!\S)\:root\s*\{([^}]*)\}/);
+const rootBlock = block(/(?<!\S):root\s*\{([^}]*)\}/);
 const darkMediaBlock = block(
   /@media\s*\(prefers-color-scheme:\s*dark\)\s*\{\s*:root:not\(\[data-theme="light"\]\)\s*\{([^}]*)\}/,
 );

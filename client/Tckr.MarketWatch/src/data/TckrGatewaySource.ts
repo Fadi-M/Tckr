@@ -143,7 +143,7 @@ function defaultCreateSocket(url: string): GatewaySocket {
   return new WebSocket(url) as unknown as GatewaySocket;
 }
 
-const defaultFetch: FetchLike = (url) => fetch(url) as unknown as Promise<FetchResponseLike>;
+const defaultFetch: FetchLike = (url) => fetch(url);
 
 // ---------------------------------------------------------------------------
 // REST body parsing — boundary validation for `GET /{market}/symbols` and

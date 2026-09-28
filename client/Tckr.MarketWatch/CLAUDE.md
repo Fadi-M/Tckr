@@ -15,17 +15,37 @@ walk) — there is no backend yet. See `README.md` for the full picture, includi
 LIVE/DELAYED simulation story and the env-var table; this file only covers what a coding
 agent needs that the README doesn't already say.
 
+## The rules, and the workflow around them
+
+`GUIDELINES.md` is the single source of truth for rules and the definition of done. It is
+imported here so it is always in context:
+
+@GUIDELINES.md
+
+For every code, UI, docs, or config task in this package:
+
+1. **Start** with the `preflight` skill. It classifies the task against GUIDELINES.md and
+   plans the reviews.
+2. **Plan** (plan mode for anything non-trivial), then build in small, test-green steps.
+   A PostToolUse hook typechecks and lints each edited file.
+3. **Finish** with the `postflight` skill before reporting done. A Stop hook
+   (`.claude/hooks/stop-definition-of-done.sh`) also blocks ending a turn while typecheck,
+   lint, or tests fail on changed code.
+
+Path-scoped rules in `.claude/rules/` add area-specific notes for `src/data`, the chart and
+render path, and motion. Vendored skills are listed in `.claude/skills/VENDORED.md`.
+
 ## Commands
 
-The standard scripts (`dev`, `typecheck`, `test`, `test:watch`, `build`, `preview`) are in
-`package.json`; run them from this directory.
+The scripts are in `package.json`; run them from this directory. `npm run check` runs
+everything CI runs (typecheck, lint, test, build, bundle budget).
 
-`npm run dev` goes through `scripts/dev.mjs`. `npm run dev:open` (12:00 Cairo) and
-`npm run dev:bell` (09:59:45 Cairo) run the app on a simulated clock during EGX trading
-hours. For any other Cairo time, use `npm run dev -- --market HH:MM[:SS]` (see README, "Testing during
-EGX trading hours"), and passes every other argument to Vite. Use it to check anything
-that only happens while the market is open (ticks, re-ranks, the opening bell, the
-close).
+`npm run dev` goes through `scripts/dev.mjs`, which passes every other argument to Vite.
+`npm run dev:open` (12:00 Cairo) and `npm run dev:bell` (09:59:45 Cairo) run the app on a
+simulated clock during EGX trading hours; for any other Cairo time use
+`npm run dev -- --market HH:MM[:SS]` (see README, "Testing during EGX trading hours"). Use
+these to check anything that only happens while the market is open (ticks, re-ranks, the
+opening bell, the close).
 
 Performance tests (`perf/frame-timing.spec.ts`, `perf/layout-400.spec.ts`) are **not** run
 in the normal test suite or CI — they need a real Chromium and a built app, and are run
@@ -37,62 +57,41 @@ npm run build
 npm run test:perf
 ```
 
-## Architecture — the one seam
+## Architecture — why the rules are shaped this way
 
-**The one seam that matters**: `src/data/config.ts`'s `createMarketDataSource()` is the
-only place `SimulatedSource` or `TckrGatewaySource` is named. No page or component imports
-either concrete class — only the `MarketDataSource` type and `getSharedSource()` /
-`createMarketDataSource()` from `config.ts`. This is enforced by a test
-(`grep -rn "SimulatedSource\|TckrGatewaySource" src/` outside `src/data/` must return
-nothing), not just convention — don't break it when adding a new call site.
+The rules themselves are GUIDELINES.md §1; this is the context behind the non-obvious ones.
 
-`getSharedSource()` owns connection lifecycle: it calls `.connect()` itself, exactly once,
-at first access. Call sites must never call `.connect()` directly on the returned instance
-— only `subscribe`/`unsubscribe`/`getUniverse`/`getSnapshot`, and read `identity()`/
-`on.status` to observe health. This is deliberately safe under React StrictMode's
-double-invoked effects. The one exception is a user-initiated manual retry (StockList's
-`ConnectionBanner` "Retry now"/"Reconnect" buttons), which must go through
-`reconnectSharedSource()` (also in `config.ts`) rather than a bare `.connect()` — a bare
-call is not safe to expose to call sites, since `TckrGatewaySource.connect()`'s guard
-(`#socket`'s `readyState`) does not cover the `reconnecting` state, where a direct
-`.connect()` call would race the pending automatic backoff timer and open a second socket.
-`reconnectSharedSource()` disconnects first (which cancels any pending backoff timer on
-either implementation) so at most one connection is ever in flight.
-
-`App.tsx` does not import anything from `src/data/**` (enforced by
-`shell.no-data-import.test.ts`) — it only renders `StockList`/`StockDetail`, which own their
-own data-layer wiring, and receives already-resolved presentational props (e.g. `simulated`)
-from the composition root (`main.tsx`) rather than resolving config itself.
-
-`StockDetail` (and therefore `uplot`) is lazy-loaded from `App.tsx` so the chart library is
-never in the initial bundle for users who only visit the list page.
-
-GSAP gets the same treatment: `src/motion/gsap.ts` is the only module that imports
-`gsap` (and registers its plugins), and it is only reached through `loadMotion()` /
-`useMotion()` in `src/motion/motion.ts`, which load it as a separate chunk (preloaded at
-idle from `main.tsx`). A static `import … from 'gsap'` anywhere else silently moves it
-into the entry chunk. `@gsap/react`'s `useGSAP` is deliberately not used for the same
-reason. `useMotion` does the same job. Motion tests use
-`src/motion/__tests__/motionTestSupport.ts` (`primeMotion`, then assert a moment's first
-frame synchronously; `finishMotion` for its end state).
+- **Why `reconnectSharedSource()` and never a bare `.connect()`.** `getSharedSource()`
+  calls `.connect()` exactly once at first access, which is what makes it safe under React
+  StrictMode's double-invoked effects. `TckrGatewaySource.connect()`'s guard (`#socket`'s
+  `readyState`) does not cover the `reconnecting` state, so a direct call there would race
+  the pending backoff timer and open a second socket. `reconnectSharedSource()` disconnects
+  first, which cancels any pending backoff timer on either implementation. The only caller
+  is StockList's `ConnectionBanner` "Retry now"/"Reconnect".
+- **Why `App.tsx` stays data-free.** It only renders `StockList`/`StockDetail`, which own
+  their own data wiring, and receives already-resolved presentational props (e.g.
+  `simulated`) from `main.tsx`, the composition root.
+- **Why the lazy chunks.** `StockDetail` (and so `uplot`) is lazy-loaded from `App.tsx` so
+  list-only visitors never download the chart library. GSAP gets the same treatment through
+  `src/motion/gsap.ts` → `loadMotion()`/`useMotion()` (preloaded at idle from `main.tsx`); a
+  static import anywhere else silently moves ~43 KB gzip into the entry chunk, which is also
+  why `@gsap/react`'s `useGSAP` is not used. Motion tests use
+  `src/motion/__tests__/motionTestSupport.ts` (`primeMotion`, then assert a moment's first
+  frame synchronously; `finishMotion` for its end state).
 
 ### Directory map (non-obvious parts only)
 
 - `src/contracts/` — the wire contract (`messages.ts`, `rest.ts`, `decimal.ts`,
   `closeCodes.ts`) plus recorded fixture JSON in `contracts/fixtures/`, used both to
-  validate `TckrGatewaySource` and to drive the conformance suite below. `decimal.ts`
-  exists because prices must never go through float parsing — see its tests
-  (`decimal.no-float.test.ts`) before touching anything on a price path.
+  validate `TckrGatewaySource` and to drive the conformance suite below.
 - `src/data/__tests__/conformance/` — runs the *same* page-level test suite against both
-  `SimulatedSource` and `TckrGatewaySource` to prove behavioural equivalence between them.
-  If you change data-layer behavior, expect this suite to be the one that catches a
-  simulated/gateway divergence.
+  `SimulatedSource` and `TckrGatewaySource`. If you change data-layer behavior, expect this
+  suite to be the one that catches a simulated/gateway divergence.
 - `src/test-support/FakeWebSocket.ts` — the fake WS used to fixture-test
   `TckrGatewaySource` without a real gateway (Phase 11 hasn't built one yet).
-- Every module directory keeps its own `__tests__/testSupport.ts` (or equivalent, e.g.
-  `chart/__tests__/chartTestSupport.ts`, `chart/__tests__/uplotTestDouble.ts`) rather than
-  a shared global fixture file — follow that pattern for new test support code instead of
-  centralizing it.
+- `src/display/` — the one formatter per displayed quantity (`percent.ts`) and the shared
+  display cadence (`throttle.ts`).
+- `scripts/check-bundle.mjs` — the entry-chunk budget and lazy-library check.
 
 ### Env-driven config
 
@@ -113,3 +112,5 @@ Don't re-derive this from source — it's written down:
   ordering, the unwired heartbeat watchdog, etc.).
 - `README.md` (this directory) — the full "swap to a real gateway" story and the
   what-changes/what-doesn't table.
+- `DESIGN.md` / `PRODUCT.md` — the visual system and product constraints (impeccable reads
+  both).

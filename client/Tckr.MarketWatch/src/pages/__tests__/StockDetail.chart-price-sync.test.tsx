@@ -63,7 +63,7 @@ import { StockDetail } from '../StockDetail.tsx';
 /** The header's displayed price, as plain text (e.g. "84.50"), stripped of the
  * direction glyph `PriceCell` prepends. */
 function headerPriceText(): string {
-  return screen.getByTestId('stock-detail-price').textContent!.replace(/^[▲▼]/, '');
+  return screen.getByTestId('stock-detail-price').textContent.replace(/^[▲▼]/, '');
 }
 
 afterEach(() => {

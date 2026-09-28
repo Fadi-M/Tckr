@@ -837,7 +837,7 @@ export function PriceChart({
       plotRef.current = null;
       bufferRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: only `symbol`
+    // Intentional: only `symbol`
     // recreates the instance; tickSize/height/capacity/history/livePrice are read live
     // via refs above.
   }, [symbol]);

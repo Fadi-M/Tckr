@@ -1,0 +1,43 @@
+name: MarketWatch
+
+on:
+  pull_request:
+    paths:
+      - "client/Tckr.MarketWatch/**"
+      - ".github/workflows/marketwatch.yml"
+  push:
+    branches: [main]
+    paths:
+      - "client/Tckr.MarketWatch/**"
+      - ".github/workflows/marketwatch.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: marketwatch-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: client/Tckr.MarketWatch
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: client/Tckr.MarketWatch/.nvmrc
+          cache: npm
+          cache-dependency-path: client/Tckr.MarketWatch/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - run: npm run check:bundle
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high

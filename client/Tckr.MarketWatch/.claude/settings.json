@@ -1,1 +1,37 @@
-{}
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-check.sh",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-definition-of-done.sh",
+            "timeout": 180,
+            "statusMessage": "Checking definition of done (typecheck, lint, tests)"
+          }
+        ]
+      }
+    ]
+  },
+  "skillOverrides": {
+    "minimalist-ui": "off",
+    "industrial-brutalist-ui": "off",
+    "stitch-design-taste": "off",
+    "gpt-taste": "off",
+    "high-end-visual-design": "off",
+    "redesign-existing-projects": "off",
+    "design-taste-frontend-v1": "off"
+  }
+}

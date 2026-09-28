@@ -10,8 +10,7 @@ the full phase plan.
 > from `SimulatedSource`, a seeded random walk running entirely in your browser — no
 > backend exists in this phase. It is shaped like the mock exchange's tape but it is not
 > a market: the instruments are fictional, the moves are not real, and there is no
-> exchange behind them. A banner saying so is on every screen, permanently and
-> undismissably, by design.
+> exchange behind them.
 
 ---
 
@@ -21,6 +20,17 @@ the full phase plan.
 npm install
 npm run dev          # http://localhost:5173, hot-reloading
 ```
+
+### Checking your work
+
+```bash
+npm run check        # typecheck, lint, test, build, bundle budget: what CI runs
+npm run lint:fix     # apply ESLint autofixes
+```
+
+The rules these checks enforce, and the review steps that go with them, are in
+[`GUIDELINES.md`](GUIDELINES.md). CI (`.github/workflows/marketwatch.yml` at the repo root)
+runs the same checks plus `npm audit` on every pull request that touches this package.
 
 ### Testing during EGX trading hours
 

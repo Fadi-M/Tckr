@@ -23,7 +23,7 @@ export function stubMatchMedia(matches: boolean): void {
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
-  } as unknown as MediaQueryList);
+  });
 }
 
 /** Undoes `stubMatchMedia`, restoring jsdom's own "not implemented" state so a test that
