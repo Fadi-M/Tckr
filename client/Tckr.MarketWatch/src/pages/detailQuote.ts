@@ -58,7 +58,7 @@ export function quoteFromSnapshot(snapshot: Snapshot): DetailQuote {
  * (the 10s display throttle, or the single queued tick applied once the snapshot renders)
  * — an incremental `prev.volume + tick.q` would only ever count the one tick that reached
  * this function, silently dropping every other tick's quantity. Every raw tick is instead
- * counted into the accumulator the instant it arrives (see `source.on.tick` below),
+ * counted into the accumulator the instant it arrives (the `source.on.tick` handler in `useDetailQuote.ts`),
  * independent of whether it wins this merge, so the absolute recomputation here is always
  * correct even when this particular tick loses the price/timestamp merge. */
 export function mergeTickIntoQuote(

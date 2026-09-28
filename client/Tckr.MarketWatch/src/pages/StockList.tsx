@@ -278,10 +278,10 @@ export function StockList() {
     [navigate, selectedSymbol],
   );
 
-  // Re-rank motion: rows that changed rank glide to their new place (see
-  // `useRowReorderGlide`).
+  // ⌘K / "/" focus search, Escape closes the detail; focus follows the pane open/close.
   useBoardShortcuts(searchInputRef, selectedSymbol, navigate);
   useDetailFocusRestore(tbodyRef, selectedSymbol);
+  // Re-rank motion: rows that changed rank glide to their new place.
   useRowReorderGlide(tbodyRef, sorted.map((def) => def.symbol).join(','));
 
   if (universe === null) {
