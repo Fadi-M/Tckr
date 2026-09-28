@@ -1,8 +1,8 @@
 /**
  * What the daily greeting says. Two lines, both true at the moment it plays: a
- * salutation for the time of day in Cairo (EGX's clock, which is the clock this board
- * keeps), and the market's state from the same calendar the board and the simulator
- * use. It never mentions the stream (LIVE/DELAYED): that is the server's to say, and at
+ * salutation for the viewer's own time of day (it greets the person, wherever they are),
+ * and the market's state in Cairo time (EGX's clock, which is the clock this board keeps)
+ * from the same calendar the board and the simulator use. It never mentions the stream (LIVE/DELAYED): that is the server's to say, and at
  * first paint the server may not have said it yet.
  */
 import { formatUntil } from '../display/formatUntil.ts';
@@ -10,7 +10,6 @@ import {
   cairoDateKey,
   formatCairoTimeShort,
   formatNextOpen,
-  getCairoParts,
   isPreOpenAuction,
   type MarketStatus,
 } from '../data/marketCalendar.ts';
@@ -24,14 +23,19 @@ export interface GreetingCopy {
   readonly tone: GreetingTone;
 }
 
+/** The salutation for a local clock hour (0–23): morning 5 AM–noon, afternoon noon–5 PM,
+ * evening 5–9 PM, night 9 PM–5 AM. */
+export function salutationFor(hour: number): string {
+  if (hour >= 5 && hour < 12) return 'Good morning';
+  if (hour >= 12 && hour < 17) return 'Good afternoon';
+  if (hour >= 17 && hour < 21) return 'Good evening';
+  return 'Good night';
+}
+
 export function greetingCopy(status: MarketStatus, nowMs: number): GreetingCopy {
-  const hour = getCairoParts(nowMs).hour;
-  const salutation =
-    hour >= 5 && hour < 12
-      ? 'Good morning'
-      : hour >= 12 && hour < 17
-        ? 'Good afternoon'
-        : 'Good evening';
+  // The viewer's local hour. Under the development clock (`simulatedClock.ts`) `Date` is
+  // shifted too, so `npm run dev:open` greets for the simulated time of day.
+  const salutation = salutationFor(new Date(nowMs).getHours());
 
   if (status.state === 'open') {
     return {
