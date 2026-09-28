@@ -14,15 +14,14 @@
  * from decimal.ts's formatter, never that built-in, and it never touches the price the
  * user last saw the raw wire string for.
  */
-import { format, toDecimal, type DecimalString } from '../contracts/decimal.ts';
+import { decimalPlaces, format, toDecimal, type DecimalString } from '../contracts/decimal.ts';
 import { formatCairoClock, formatCairoTimeShort } from '../data/marketCalendar.ts';
 
 /** Digits after the decimal point in a tick-size string — `"0.05"` -> 2, `"0.005"` -> 3,
  * `"1"` -> 0. Pure string indexing, not a numeric parse: a tick size's own precision is
  * exactly its written fractional length. */
 export function decimalsForTickSize(tickSize: DecimalString): number {
-  const dot = tickSize.indexOf('.');
-  return dot === -1 ? 0 : tickSize.length - dot - 1;
+  return decimalPlaces(tickSize);
 }
 
 /**

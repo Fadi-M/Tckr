@@ -95,7 +95,10 @@ recover after a reconnect (DS-3).
 }
 ```
 
-`change` and `changePercent` are measured from `open`. `previousClose` (additive,
+`change` and `changePercent` are measured from `open`. `changePercent` is signed text at two decimals, rounded
+half away from zero from the exact decimal ratio (`-0.235%` is `"-0.24"`); a move that rounds
+to zero is `"0.00"`, never `"-0.00"` (the simulator's reference: `percentChangeText` in
+`src/contracts/decimal.ts`). `previousClose` (additive,
 optional in v1) is the previous session's closing price — on EGX, the instrument's
 reference price for this session. When it is present the client quotes Change and
 Change % from it, the way EGX and its brokers do, and shows the move since `open`

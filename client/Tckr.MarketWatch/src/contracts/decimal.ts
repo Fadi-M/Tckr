@@ -44,8 +44,10 @@ export function toDecimal(raw: string): DecimalString {
   return raw;
 }
 
-/** Digits after the decimal point in `value`, as written (0 if there is no `.`). */
-function decimalPlaces(value: string): number {
+/** Digits after the decimal point in `value`, as written (0 if there is no `.`). A price's
+ * or tick size's precision is exactly its written fractional length, so this is a string
+ * read, never a numeric parse. */
+export function decimalPlaces(value: string): number {
   const dotIndex = value.indexOf('.');
   return dotIndex === -1 ? 0 : value.length - dotIndex - 1;
 }
@@ -170,6 +172,38 @@ export function percentChange(from: DecimalString, to: DecimalString): number {
   const fracPart = (magnitude % PERCENT_PRECISION).toString().padStart(4, '0');
   const numeral = `${negative ? '-' : ''}${intPart.toString()}.${fracPart}`;
   return JSON.parse(numeral) as number;
+}
+
+/**
+ * Percentage change from `from` to `to` as signed text at `decimals` places, e.g. `"+1.24"`,
+ * `"-0.24"`, `"0.00"`: the wire shape of `changePercent` (client-contract.md). Computed
+ * exactly in BigInt space and rounded half away from zero, so −0.235% is `"-0.24"` (the
+ * rounding `display/percent.ts` uses on screen), and a move that rounds to zero is `"0.00"`,
+ * never `"-0.00"`. `"0.00"` when `from` is zero.
+ */
+export function percentChangeText(from: DecimalString, to: DecimalString, decimals = 2): string {
+  const fromScaled = toScaledInt(from);
+  const zero = decimals > 0 ? `0.${'0'.repeat(decimals)}` : '0';
+  if (fromScaled === 0n) {
+    return zero;
+  }
+  const diff = toScaledInt(to) - fromScaled;
+  const unit = 10n ** BigInt(decimals);
+  const numerator = diff * 100n * unit;
+  const negative = numerator < 0n !== fromScaled < 0n;
+  const absNumerator = numerator < 0n ? -numerator : numerator;
+  const absDenominator = fromScaled < 0n ? -fromScaled : fromScaled;
+  let units = absNumerator / absDenominator;
+  if ((absNumerator % absDenominator) * 2n >= absDenominator) {
+    units += 1n;
+  }
+  if (units === 0n) {
+    return zero;
+  }
+  const digits = units.toString().padStart(decimals + 1, '0');
+  const intPart = digits.slice(0, digits.length - decimals);
+  const body = decimals > 0 ? `${intPart}.${digits.slice(digits.length - decimals)}` : intPart;
+  return `${negative ? '-' : '+'}${body}`;
 }
 
 export function format(value: DecimalString, opts?: { decimals?: number; sign?: boolean }): string {

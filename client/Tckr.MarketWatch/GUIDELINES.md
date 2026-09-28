@@ -182,9 +182,6 @@ Review. `/postflight` walks these:
 
 Tracked items that the rules above would otherwise flag. Remove an entry when it's fixed.
 
-2. **Duplicated percent formatting.** `SimulatedSource.ts` formats `changePercent` with
-   `toFixed(2)`, the rounding path `display/percent.ts` exists to avoid. `decimalPlacesOf`
-   is also duplicated (`StockList.tsx`, `SimulatedSource.ts`).
 3. **Oversized components.** `StockList.tsx` (2,072 lines, the `StockList` component is
    ~785), `PriceChart.tsx` (~667-line component) and `StockDetail.tsx` (~565).
 4. **React Compiler rules are off.** `react-hooks/refs`, `purity` and `set-state-in-effect`
