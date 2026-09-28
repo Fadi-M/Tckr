@@ -86,6 +86,7 @@ import {
 import { Link, Outlet, useMatch } from 'react-router-dom';
 import {
   compare,
+  decimalPlaces,
   format,
   formatCompact,
   multiplyByQuantity,
@@ -344,11 +345,6 @@ export function describeOrder(sortState: SortState | null): string {
       ? 'A–Z'
       : 'Z–A';
   return `Sorted by ${column?.label ?? sortState.column}, ${way}`;
-}
-
-function decimalPlacesOf(value: string): number {
-  const dot = value.indexOf('.');
-  return dot === -1 ? 0 : value.length - dot - 1;
 }
 
 /** A symbol's traded value this session (last price × shares traded), exact — how
@@ -1666,10 +1662,7 @@ export function StockList() {
   const priceDecimalsBySymbol = useMemo(() => {
     const map = new Map<string, number>();
     for (const def of universe ?? []) {
-      map.set(
-        def.symbol,
-        Math.max(decimalPlacesOf(def.referencePrice), decimalPlacesOf(def.tickSize)),
-      );
+      map.set(def.symbol, Math.max(decimalPlaces(def.referencePrice), decimalPlaces(def.tickSize)));
     }
     return map;
   }, [universe]);

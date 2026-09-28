@@ -55,7 +55,13 @@
  * see `marketCalendar.ts`'s own doc for why it's a plain, source-agnostic function both
  * this class and the UI call directly.
  */
-import { percentChange, subtract, toDecimal, type DecimalString } from '../contracts/decimal.ts';
+import {
+  decimalPlaces,
+  percentChangeText,
+  subtract,
+  toDecimal,
+  type DecimalString,
+} from '../contracts/decimal.ts';
 import type {
   EntitlementChanged,
   ErrorMsg,
@@ -136,11 +142,6 @@ const SIM_SYMBOLS: readonly SimSymbol[] = (universeFile as RawUniverseFile).symb
 
 const SCALE_DIGITS = 4;
 
-function decimalPlacesOf(value: string): number {
-  const dot = value.indexOf('.');
-  return dot === -1 ? 0 : value.length - dot - 1;
-}
-
 function scaledFromDecimal(value: DecimalString): bigint {
   const negative = value.charAt(0) === '-';
   const hasSign = negative || value.charAt(0) === '+';
@@ -163,12 +164,6 @@ function decimalFromScaled(scaled: bigint, decimals: number): DecimalString {
   const body = decimals > 0 ? `${intPart}.${frac}` : intPart;
   const text = negative && magnitude !== 0n ? `-${body}` : body;
   return toDecimal(text);
-}
-
-function formatSignedPercent(value: number): string {
-  const normalized = Object.is(value, -0) ? 0 : value;
-  const rounded = normalized.toFixed(2);
-  return normalized > 0 ? `+${rounded}` : rounded;
 }
 
 // ---------------------------------------------------------------------------
@@ -506,7 +501,7 @@ export class SimulatedSource implements MarketDataSource {
     this.dispatcher = deps.dispatcher ?? new TickDispatcher();
     this.prng = mulberry32(config.seed);
     for (const def of SIM_SYMBOLS) {
-      const decimals = Math.max(decimalPlacesOf(def.referencePrice), decimalPlacesOf(def.tickSize));
+      const decimals = Math.max(decimalPlaces(def.referencePrice), decimalPlaces(def.tickSize));
       const scaledReference = scaledFromDecimal(def.referencePrice);
       this.runtimeBySymbol.set(def.symbol, {
         def,
@@ -1000,14 +995,13 @@ export class SimulatedSource implements MarketDataSource {
     const priceDecimal = decimalFromScaled(runtime.price, runtime.decimals);
     const openDecimal = decimalFromScaled(runtime.open, runtime.decimals);
     const change = subtract(priceDecimal, openDecimal);
-    const changePercentValue = percentChange(openDecimal, priceDecimal);
     return {
       v: 1,
       symbol,
       stream: this.currentStream(),
       price: priceDecimal,
       change,
-      changePercent: formatSignedPercent(changePercentValue),
+      changePercent: percentChangeText(openDecimal, priceDecimal),
       open: openDecimal,
       previousClose: runtime.def.referencePrice,
       high: decimalFromScaled(runtime.high, runtime.decimals),
