@@ -74,6 +74,10 @@ export function useRowReorderGlide(
     // The last glide's transforms are still inline; clear them so this one measures
     // the rows' true new places.
     glideRef.current?.kill();
+    if (rows.length === 0) {
+      // A search that matched nothing: the old flight is stopped and there is nothing to glide.
+      return;
+    }
     gsap.set(rows, { clearProps: 'transform,opacity' });
     const moved = rows.filter((row) => {
       const before = pending.state.getElementState(row);
