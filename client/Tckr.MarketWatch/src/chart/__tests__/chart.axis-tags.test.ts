@@ -10,7 +10,7 @@ vi.mock('uplot', async () => {
   return { default: mod.FakeUPlot };
 });
 
-import { isUnderAxisTag, placeAxisTags } from '../PriceChart.tsx';
+import { isUnderAxisTag, placeAxisTags } from '../chartScale.ts';
 
 describe('placeAxisTags', () => {
   it('leaves both tags on their own values when they are apart', () => {
