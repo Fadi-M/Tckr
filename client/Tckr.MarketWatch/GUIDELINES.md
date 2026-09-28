@@ -112,6 +112,10 @@ the check and mark it.
   sign always accompanies it.
 - **Keyboard and focus.** Every interaction is keyboard-reachable, with a visible
   `focus-visible` ring. **[partly enforced: `eslint-plugin-jsx-a11y`]**
+- **Page context.** Every view that shows one thing names it in the tab title with
+  `useDocumentTitle` (`src/components/useDocumentTitle.ts`).
+- **Live regions are opt-in.** Streaming values are never announced unasked. The detail
+  view's "Announce price" toggle feeds a polite region at the display beat, never per tick.
 - **Reduced motion.** Every moment honours `prefers-reduced-motion`. Colour and opacity
   fades may remain; movement may not.
 - **Motion.** `emil-design-eng` is the rulebook, and `review-animations` reviews any
@@ -189,6 +193,4 @@ Tracked items that the rules above would otherwise flag. Remove an entry when it
    clock during render. Revisit if the compiler is adopted.
 5. **Not Prettier-formatted.** A one-off `npm run format` commit is pending. Do it on its own,
    and add its SHA to `.git-blame-ignore-revs`.
-6. **Accessibility gaps.** `document.title` doesn't change per symbol. The detail view has no
-   opt-in live price announcement.
 7. **No CSP yet.** Add one with the hosting and deploy setup (Phase 11).
