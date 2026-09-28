@@ -804,12 +804,15 @@ The candlestick "T" plus "ckr" lockup (see Typography › Wordmark), themed thro
 `--tckr-logo-ink` / `--tckr-logo-candle`. The mark is 1.15× the wordmark height, the gap
 is about 0.06× the wordmark size, and the two are bottom-aligned.
 
-**Hover (header only): "a tick up."** Under a mouse, the candle's body rallies toward the
-crossbar (×1.1 from its bottom edge) while the upper wick shortens (×0.66 from the bar) so
-the two stay joined; the crossbar, lower wick and wordmark don't move, and the candle stays
-green. 260ms in on a strong ease-out, 180ms back, retargeting mid-flight. Fine pointers
-only, never on keyboard focus, nothing under reduced motion, and not while the daily
-greeting has the header logo hidden (`motion/useLogoHover.ts`).
+**Hover (header only): the candle comes to life and trades.** Under a mouse, the T's
+crossbar pops up and lands with an overshoot (a bell strike), "ckr" lifts with it, the body
+rallies and the lower wick dips (about 0.4s). Then, for as long as the pointer stays, the
+close moves to a new price level every ~0.45s: the body grows or shrinks from its open and
+the upper wick stretches to meet the crossbar, so the T stays whole while it trades. Leaving
+settles everything back to the resting mark in 0.22s, from wherever it is. The candle stays
+green throughout. Mouse on a fine pointer only, never on keyboard focus, nothing under
+reduced motion, and not while the daily greeting has the header logo hidden
+(`motion/useLogoHover.ts`).
 
 ## Do's and Don'ts
 
