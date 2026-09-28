@@ -17,7 +17,7 @@ export function heroSizeFor(viewportWidth: number, viewportHeight: number): numb
 }
 
 export interface GreetingScale {
-  /** "Good morning". */
+  /** "Hello, early bird". */
   readonly salutationPx: number;
   /** "EGX is trading · …". */
   readonly marketPx: number;
