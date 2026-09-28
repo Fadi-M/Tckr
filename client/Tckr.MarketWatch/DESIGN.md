@@ -624,16 +624,23 @@ starts, Tckr opens with "The Candle Prints" (`motion/Greeting.tsx`). It lasts ab
   three glows (`FrostGlows`), dimmed as if the lights are still coming up. The glows
   bloom to full strength using opacity only, never scale, because scaling a 70px blur
   re-rasterises it every frame.
-- **The candle:** at hero scale (96px wordmark, 60px on phones) the mark forms exactly as
+- **Scale:** the greeting is fitted to the screen once, as it starts. The hero wordmark is
+  about 9% of the viewport width or 13% of its height, whichever is smaller, from 64px
+  (phones) to 176px (very large monitors), and the salutation, market line, dot, spacing
+  and light all scale in proportion to it (`motion/greetingLayout.ts`), so it fills a large
+  monitor instead of sitting small in the middle of it.
+- **The candle:** at hero scale the mark forms exactly as
   the opening bell's does: the low wick dips, the body rallies, the high wick pushes,
   and the crossbar lands. A mint light (`--tckr-blob-a`, a plain radial gradient with no
   filter) swells behind it through the rally and settles to an ember. "ckr" then
   resolves in mono.
-- **The words:** a salutation for the hour in Cairo (Instrument Sans 500, Headline size)
+- **The words:** a salutation for the viewer's own time of day: "Good morning" (5 AM–noon),
+  "Good afternoon" (noon–5 PM), "Good evening" (5–9 PM), "Good night" (9 PM–5 AM), in
+  Instrument Sans 500
   rises word by word through a mask, coming into focus. Beneath it the market's true
   state prints left to right in a tracked mono caption, beside a dot that is green only
-  while EGX trades: "EGX is trading · closes 14:30 Cairo", "Pre-open auction · trading
-  starts 10:00 Cairo", "EGX opens in 1h 12m", "EGX reopens Sun 10:00 Cairo". It never
+  while EGX trades: "EGX is trading · closes 2:30 PM Cairo", "Pre-open auction · trading
+  starts 10:00 AM Cairo", "EGX opens in 1h 12m", "EGX reopens Sun 10:00 AM Cairo". It never
   names the stream. LIVE/DELAYED is the server's to say, and it may not have said it
   yet.
 - **The hand-off:** one continuous movement from its first frame, about 1.15s. The
@@ -770,9 +777,9 @@ stacked, it stays 340px.
 A uPlot line drawn straight onto the detail panel's glass, clipped to a 16px radius (no
 separate chart card): a 2.5px line (1.5px when the plot is under 480px wide, where a
 session's samples would otherwise overlap into a band) over a 14% area fill, and 1px hairline
-horizontal gridlines. A sparse Cairo-time axis runs along the bottom (`HH:MM` for
-SESSION, `HH:MM:SS` for 60S/5M), always labelling both ends of the plotted span (10:00
-and 14:30, even on a phone) with interior steps only where they fit, and a price axis sits on the right, both in 11px Plex
+horizontal gridlines. A sparse Cairo-time axis runs along the bottom, on the 12-hour clock
+like every time in the app (`10:00 AM` for SESSION, `10:00:30 AM` for 60S/5M), always
+labelling both ends of the plotted span (10:00 AM and 2:30 PM, even on a phone) with interior steps only where they fit, and a price axis sits on the right, both in 11px Plex
 Mono in the muted token with no tick marks. Two tags hang off the plot onto the price
 axis: the last plotted price, filled in the line colour, and on SESSION the previous close
 (the baseline the page's change figures use), "Prev 85.10" on Paper Raised with a hairline
@@ -785,7 +792,7 @@ the line is one 14% tint of the line's own colour, down to the frame, on every r
 fills the frame like a crash. The only corner chip names the slice of time plotted
 (`pages/chartRanges.ts`): "Last 60s" / "Last 5m" / "Today since 10:00" while EGX trades;
 once closed, the ranges end at the session's close and read as a recap ("Final 60s · Thu
-24 Sep", "Thu 24 Sep session · 10:00–14:30"). The session high and low live in the stat
+24 Sep", "Thu 24 Sep session · 10:00 AM–2:30 PM"). The session high and low live in the stat
 tiles.
 
 Hovering the plot shows a crosshair and a readout chip that follows it above the line
