@@ -91,7 +91,8 @@ The rules themselves are GUIDELINES.md §1; this is the context behind the non-o
   `TckrGatewaySource` without a real gateway (Phase 11 hasn't built one yet).
 - `src/display/` — the one formatter per displayed quantity (`percent.ts`) and the shared
   display cadence (`throttle.ts`).
-- `scripts/check-bundle.mjs` — the entry-chunk budget and lazy-library check.
+- `scripts/check-bundle.mjs` — the entry-chunk budget, lazy-library and CSP checks.
+- `vite.config.ts` — also generates the production Content-Security-Policy (build only).
 
 ### Env-driven config
 
