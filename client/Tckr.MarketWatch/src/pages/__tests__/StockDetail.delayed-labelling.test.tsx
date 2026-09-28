@@ -42,7 +42,12 @@ function createDelayedFakeSource() {
     identity: { userId: 'user-002', stream: 'DELAYED', sessionId: 'sess-2' },
     snapshotImpl: (symbol) =>
       Promise.resolve(
-        snapshotFixture({ symbol, stream: 'DELAYED', exchangeTimestamp: DELAYED_EXCHANGE_TIME, snapshotAge: 15000 }),
+        snapshotFixture({
+          symbol,
+          stream: 'DELAYED',
+          exchangeTimestamp: DELAYED_EXCHANGE_TIME,
+          snapshotAge: 15000,
+        }),
       ),
   });
 }

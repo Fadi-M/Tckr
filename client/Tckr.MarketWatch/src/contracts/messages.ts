@@ -64,11 +64,7 @@ export interface Heartbeat {
 }
 
 export type ErrorCode =
-  | 'UNKNOWN_SYMBOL'
-  | 'SUBSCRIPTION_LIMIT'
-  | 'NOT_ENTITLED'
-  | 'RATE_LIMITED'
-  | 'INTERNAL';
+  'UNKNOWN_SYMBOL' | 'SUBSCRIPTION_LIMIT' | 'NOT_ENTITLED' | 'RATE_LIMITED' | 'INTERNAL';
 
 export interface ErrorMsg {
   readonly v: 1;
@@ -99,7 +95,11 @@ export type ServerMessage =
 // Outbound. There is deliberately no stream, tier, delay or userId field anywhere here.
 export type ClientMessage =
   | { readonly type: 'subscribe'; readonly symbols: readonly string[]; readonly requestId?: string }
-  | { readonly type: 'unsubscribe'; readonly symbols: readonly string[]; readonly requestId?: string }
+  | {
+      readonly type: 'unsubscribe';
+      readonly symbols: readonly string[];
+      readonly requestId?: string;
+    }
   | { readonly type: 'ping'; readonly requestId?: string };
 
 // ---------------------------------------------------------------------------
@@ -186,7 +186,11 @@ function requireTickKind(record: Record<string, unknown>, key: string, context: 
   return value;
 }
 
-function requireErrorCode(record: Record<string, unknown>, key: string, context: string): ErrorCode {
+function requireErrorCode(
+  record: Record<string, unknown>,
+  key: string,
+  context: string,
+): ErrorCode {
   const value = requireString(record, key, context);
   switch (value) {
     case 'UNKNOWN_SYMBOL':
@@ -200,7 +204,11 @@ function requireErrorCode(record: Record<string, unknown>, key: string, context:
   }
 }
 
-function requirePrice(record: Record<string, unknown>, key: string, context: string): DecimalString {
+function requirePrice(
+  record: Record<string, unknown>,
+  key: string,
+  context: string,
+): DecimalString {
   const raw = requireString(record, key, context);
   try {
     return toDecimal(raw);
@@ -225,7 +233,9 @@ function parseSnapshot(value: unknown, context: string): Snapshot {
     change: requirePrice(value, 'change', context),
     changePercent: requireString(value, 'changePercent', context),
     open: requirePrice(value, 'open', context),
-    ...(value['previousClose'] === undefined ? {} : { previousClose: requirePrice(value, 'previousClose', context) }),
+    ...(value['previousClose'] === undefined
+      ? {}
+      : { previousClose: requirePrice(value, 'previousClose', context) }),
     high: requirePrice(value, 'high', context),
     low: requirePrice(value, 'low', context),
     volume: requireNumber(value, 'volume', context),

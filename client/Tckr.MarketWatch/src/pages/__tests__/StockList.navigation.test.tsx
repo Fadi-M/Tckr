@@ -95,7 +95,9 @@ describe('StockList navigation', () => {
     renderWithRoutes(universeSymbols);
 
     await screen.findAllByRole('row', { name: /^[A-Z]+,/ });
-    const rows = Array.from(document.querySelectorAll<HTMLTableRowElement>('tbody tr[data-symbol]'));
+    const rows = Array.from(
+      document.querySelectorAll<HTMLTableRowElement>('tbody tr[data-symbol]'),
+    );
     rows[0]!.focus();
 
     fireEvent.keyDown(rows[0]!, { key: 'ArrowDown' });
@@ -131,7 +133,10 @@ describe('StockList split view', () => {
       <MemoryRouter initialEntries={['/EGX/symbols/COMI']}>
         <Routes>
           <Route path="/" element={<StockList />}>
-            <Route path="EGX/symbols/:symbol" element={<div data-testid="detail-route">detail</div>} />
+            <Route
+              path="EGX/symbols/:symbol"
+              element={<div data-testid="detail-route">detail</div>}
+            />
           </Route>
         </Routes>
       </MemoryRouter>,
@@ -141,7 +146,9 @@ describe('StockList split view', () => {
     await screen.findAllByRole('row', { name: /^[A-Z]+,/ });
     // jsdom doesn't apply Tailwind's CSS, so assert the `hidden` (display: none) class
     // on the wrapper holding the hero-card buttons.
-    const heroButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('button[aria-label]')).filter((button) =>
+    const heroButtons = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('button[aria-label]'),
+    ).filter((button) =>
       /^(Top gainer|Top loser|Most active)/i.test(button.getAttribute('aria-label') ?? ''),
     );
     expect(heroButtons.length).toBeGreaterThan(0);

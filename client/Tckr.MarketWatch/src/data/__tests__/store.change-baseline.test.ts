@@ -7,7 +7,13 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { toDecimal } from '../../contracts/decimal.ts';
 import type { IsoUtc, Tick } from '../../contracts/messages.ts';
 import type { Snapshot } from '../../contracts/rest.ts';
-import { applySnapshot, applyTick, getSymbolSnapshot, primeUniverse, resetStore } from '../store.ts';
+import {
+  applySnapshot,
+  applyTick,
+  getSymbolSnapshot,
+  primeUniverse,
+  resetStore,
+} from '../store.ts';
 
 function snapshot(extra: Partial<Snapshot> = {}): Snapshot {
   return {
@@ -44,7 +50,13 @@ const tick: Tick = {
 describe('store change baseline', () => {
   beforeEach(() => {
     resetStore();
-    primeUniverse([{ symbol: 'COMI', name: 'Commercial International Holding', referencePrice: toDecimal('80.00') }]);
+    primeUniverse([
+      {
+        symbol: 'COMI',
+        name: 'Commercial International Holding',
+        referencePrice: toDecimal('80.00'),
+      },
+    ]);
   });
 
   it('measures change from the previous close when the snapshot carries it', () => {

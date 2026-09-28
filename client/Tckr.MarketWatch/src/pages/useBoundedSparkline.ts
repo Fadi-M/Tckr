@@ -39,7 +39,11 @@ export function useBoundedSparkline(currentValue: number, maxPoints: number): re
  * (and, before this extraction, independently re-derived identically by `HeroCard` and
  * `StockListRow`). `undefined` (no snapshot yet) and exactly `0` both read as `flat`. */
 export function sparklineDirection(changePercent: number | undefined): 'up' | 'down' | 'flat' {
-  return changePercent === undefined || changePercent === 0 ? 'flat' : changePercent > 0 ? 'up' : 'down';
+  return changePercent === undefined || changePercent === 0
+    ? 'flat'
+    : changePercent > 0
+      ? 'up'
+      : 'down';
 }
 
 /**
@@ -82,7 +86,10 @@ export function useSessionSparkline(
 ): readonly number[] {
   const live = useBoundedSparkline(currentValue, maxPoints);
   const seeded = useMemo(
-    () => (sessionSeries && sessionSeries.length > 1 ? downsampleSeries(sessionSeries, maxPoints).slice(0, -1) : null),
+    () =>
+      sessionSeries && sessionSeries.length > 1
+        ? downsampleSeries(sessionSeries, maxPoints).slice(0, -1)
+        : null,
     [sessionSeries, maxPoints],
   );
   return seeded ? [...seeded, currentValue] : live;

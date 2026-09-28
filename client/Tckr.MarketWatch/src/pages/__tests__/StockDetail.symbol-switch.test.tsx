@@ -2,7 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { resetStore } from '../../data/store.ts';
-import { cibDefinition, comiDefinition, createFakeSource, snapshotFixture, universeFixture } from './testSupport.ts';
+import {
+  cibDefinition,
+  comiDefinition,
+  createFakeSource,
+  snapshotFixture,
+  universeFixture,
+} from './testSupport.ts';
 import { toDecimal } from '../../contracts/decimal.ts';
 
 // Exposes the fake uPlot's constructor calls/instances to the test body, so a symbol
@@ -110,12 +116,14 @@ describe('StockDetail symbol switch', () => {
     expect(fakeUplotConstructorSpy).toHaveBeenCalledTimes(2);
   });
 
-  it('never renders the old symbol\'s figures under the new symbol', async () => {
+  it("never renders the old symbol's figures under the new symbol", async () => {
     // Distinct prices per symbol, so a stale carry-over would register as a change.
     const { source } = createFakeSource({
       universe: universeFixture({ symbols: [comiDefinition(), cibDefinition()] }),
       snapshotImpl: (symbol) =>
-        Promise.resolve(snapshotFixture(symbol === 'CIB' ? { symbol, price: toDecimal('70.25') } : { symbol })),
+        Promise.resolve(
+          snapshotFixture(symbol === 'CIB' ? { symbol, price: toDecimal('70.25') } : { symbol }),
+        ),
     });
     vi.mocked(getSharedSource).mockReturnValue(source);
 
@@ -143,7 +151,9 @@ describe('StockDetail symbol switch', () => {
 
     // Not one render under CIB may carry COMI's price: that stale render is what made
     // the cells "move" to CIB's figures and flash ▲/▼ when they stayed mounted.
-    const renderedAfterSwitch = vi.mocked(PriceCell).mock.calls.map((call) => String(call[0].value));
+    const renderedAfterSwitch = vi
+      .mocked(PriceCell)
+      .mock.calls.map((call) => String(call[0].value));
     expect(renderedAfterSwitch).not.toContain(comiPrice);
 
     // CIB's price differs from COMI's, but the switch is not a tick: had COMI's figures

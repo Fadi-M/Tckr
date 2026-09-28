@@ -25,7 +25,12 @@ function setUpColor(accent: string, border: string): void {
 afterEach(() => {
   cleanup();
   root.removeAttribute('data-theme');
-  for (const name of ['--tckr-color-up', '--tckr-color-down', '--tckr-color-text', '--tckr-color-border']) {
+  for (const name of [
+    '--tckr-color-up',
+    '--tckr-color-down',
+    '--tckr-color-text',
+    '--tckr-color-border',
+  ]) {
     root.style.removeProperty(name);
   }
 });
@@ -64,7 +69,9 @@ describe('PriceChart theme restyle', () => {
     root.style.setProperty('--tckr-color-up', '#0f7a4d');
     root.style.setProperty('--tckr-color-down', '#c0392b');
     root.style.setProperty('--tckr-color-text', '#14181f');
-    const { rerender, container } = render(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} direction="up" />);
+    const { rerender, container } = render(
+      <PriceChart symbol="COMI" tickSize={toDecimal('0.01')} direction="up" />,
+    );
     const opts = constructorSpy.mock.calls[0]![0] as CapturedOpts;
     const plot = instances[0]!;
     expect(opts.series[1].stroke()).toBe('#0f7a4d');
@@ -74,7 +81,9 @@ describe('PriceChart theme restyle', () => {
     expect(opts.series[1].stroke()).toBe('#c0392b');
     expect(opts.series[1].fill()).toBe('color-mix(in srgb, #c0392b 14%, transparent)');
     expect(plot.redraw).toHaveBeenCalled();
-    expect(container.querySelector('[data-direction]')?.getAttribute('data-direction')).toBe('down');
+    expect(container.querySelector('[data-direction]')?.getAttribute('data-direction')).toBe(
+      'down',
+    );
 
     rerender(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} direction={null} />);
     expect(opts.series[1].stroke()).toBe('#14181f');

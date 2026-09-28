@@ -34,7 +34,9 @@ import { StockList } from '../StockList.tsx';
 
 async function renderList(initialState: ConnectionState) {
   const universeSymbols = loadUniverseFixture();
-  const { source, connect, disconnect } = makeFakeSource(universeSymbols, { connectionState: initialState });
+  const { source, connect, disconnect } = makeFakeSource(universeSymbols, {
+    connectionState: initialState,
+  });
   mockGetSharedSource.mockReturnValue(source);
   // Mirrors `reconnectSharedSource()`'s real shape (`config.ts`): disconnect, then
   // connect, against whichever source `getSharedSource()` currently returns.
@@ -72,7 +74,11 @@ describe('StockList connection banner', () => {
   });
 
   it('shows a retry banner with a countdown while reconnecting, and Retry now reconnects via reconnectSharedSource()', async () => {
-    const { connect, disconnect } = await renderList({ kind: 'reconnecting', attempt: 2, nextRetryMs: 4000 });
+    const { connect, disconnect } = await renderList({
+      kind: 'reconnecting',
+      attempt: 2,
+      nextRetryMs: 4000,
+    });
 
     const banner = screen.getByRole('alert');
     expect(banner.textContent).toContain('retrying in');
@@ -88,7 +94,11 @@ describe('StockList connection banner', () => {
   });
 
   it('shows a disconnected banner while closed, and Reconnect reconnects via reconnectSharedSource()', async () => {
-    const { connect, disconnect } = await renderList({ kind: 'closed', code: CloseCode.Normal, reason: 'server shutdown' });
+    const { connect, disconnect } = await renderList({
+      kind: 'closed',
+      code: CloseCode.Normal,
+      reason: 'server shutdown',
+    });
 
     const banner = screen.getByRole('alert');
     expect(banner.textContent).toContain('Disconnected');

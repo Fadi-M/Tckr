@@ -24,7 +24,13 @@ import { connectAndAuthenticate, createHarness } from './gatewayHarness.ts';
 // COMI first, matching how the real sources always prime the universe before a
 // snapshot for a real symbol can arrive.
 function primeComi(): void {
-  primeUniverse([{ symbol: 'COMI', name: 'Commercial International Holding', referencePrice: toDecimal('85.10') }]);
+  primeUniverse([
+    {
+      symbol: 'COMI',
+      name: 'Commercial International Holding',
+      referencePrice: toDecimal('85.10'),
+    },
+  ]);
 }
 
 describe('gateway snapshot-path conformance', () => {

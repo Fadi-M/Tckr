@@ -73,7 +73,9 @@ describe('TickDispatcher coalescing', () => {
     const ratio = received / flushedCount;
     expect(ratio).toBeGreaterThanOrEqual(50);
     // Measured coalescing ratio for the phase record (task 09 reads this number):
-    console.info(`[dispatcher.coalescing] received=${received} flushed=${flushedCount} ratio=${ratio}x`);
+    console.info(
+      `[dispatcher.coalescing] received=${received} flushed=${flushedCount} ratio=${ratio}x`,
+    );
   });
 
   it('never flushes more than one pending tick per symbol between frames', () => {

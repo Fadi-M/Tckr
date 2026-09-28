@@ -50,7 +50,9 @@ export class FakeWebSocket {
 
   send(data: string): void {
     if (this.readyState !== FakeWebSocket.OPEN) {
-      throw new Error(`FakeWebSocket: send() called while not open (readyState=${this.readyState})`);
+      throw new Error(
+        `FakeWebSocket: send() called while not open (readyState=${this.readyState})`,
+      );
     }
     this.sent.push(data);
   }

@@ -65,7 +65,9 @@ describe('StockList search-first keyboard path', () => {
   it('the sortable headers are a single Tab stop, moved along with the arrow keys', async () => {
     renderAt('/');
     await screen.findAllByRole('row', { name: /^[A-Z]+,/ });
-    const headerButtons = screen.getAllByRole('columnheader').flatMap((th) => Array.from(th.querySelectorAll('button')));
+    const headerButtons = screen
+      .getAllByRole('columnheader')
+      .flatMap((th) => Array.from(th.querySelectorAll('button')));
     expect(headerButtons.filter((button) => button.tabIndex === 0)).toHaveLength(1);
     const first = headerButtons.find((button) => button.tabIndex === 0)!;
     first.focus();
@@ -81,9 +83,17 @@ describe('StockList search-first keyboard path', () => {
     const comi = rows.findIndex((row) => row.getAttribute('data-symbol') === 'COMI');
     rows[comi]!.focus();
     fireEvent.keyDown(rows[comi]!, { key: 'ArrowDown' });
-    await waitFor(() => expect(screen.getByTestId('detail-route').textContent).toBe(rows[comi + 1]!.getAttribute('data-symbol')));
+    await waitFor(() =>
+      expect(screen.getByTestId('detail-route').textContent).toBe(
+        rows[comi + 1]!.getAttribute('data-symbol'),
+      ),
+    );
     fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' });
-    await waitFor(() => expect(screen.getByTestId('detail-route').textContent).toBe(rows[comi + 2]!.getAttribute('data-symbol')));
+    await waitFor(() =>
+      expect(screen.getByTestId('detail-route').textContent).toBe(
+        rows[comi + 2]!.getAttribute('data-symbol'),
+      ),
+    );
 
     // One Back leaves the pane, rather than stepping back through each row passed.
     goBack();

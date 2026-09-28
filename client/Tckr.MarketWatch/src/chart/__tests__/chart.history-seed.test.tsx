@@ -29,7 +29,11 @@ beforeEach(() => {
 
 describe('PriceChart history seeding', () => {
   it('seeds the buffer with every history point, in order, before anything live', () => {
-    const history = [historyPoint(1000, '84.00'), historyPoint(2000, '84.50'), historyPoint(3000, '85.00')];
+    const history = [
+      historyPoint(1000, '84.00'),
+      historyPoint(2000, '84.50'),
+      historyPoint(3000, '85.00'),
+    ];
 
     render(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} history={history} />);
 
@@ -45,7 +49,14 @@ describe('PriceChart history seeding', () => {
     const history = [historyPoint(1000, '84.00'), historyPoint(2000, '84.50')];
     const livePrice = historyPoint(3000, '86.00');
 
-    render(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} history={history} livePrice={livePrice} />);
+    render(
+      <PriceChart
+        symbol="COMI"
+        tickSize={toDecimal('0.01')}
+        history={history}
+        livePrice={livePrice}
+      />,
+    );
 
     const instance = instances[0];
     const [xs, ys] = instance!.setData.mock.calls[0]![0] as [Float64Array, Float64Array];
@@ -53,14 +64,21 @@ describe('PriceChart history seeding', () => {
     expect(ys[2]).toBeCloseTo(86);
   });
 
-  it('does not duplicate the trailing point when history already ends at (or after) livePrice\'s time', () => {
+  it("does not duplicate the trailing point when history already ends at (or after) livePrice's time", () => {
     // `SimulatedSource.getHistory` always appends "now" as its own last point, so in
     // practice history's own tail is normally >= whatever livePrice has — this must
     // not double that point.
     const history = [historyPoint(1000, '84.00'), historyPoint(5000, '85.00')];
     const livePrice = historyPoint(3000, '86.00'); // older than history's own last point
 
-    render(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} history={history} livePrice={livePrice} />);
+    render(
+      <PriceChart
+        symbol="COMI"
+        tickSize={toDecimal('0.01')}
+        history={history}
+        livePrice={livePrice}
+      />,
+    );
 
     const instance = instances[0];
     const [xs] = instance!.setData.mock.calls[0]![0] as [Float64Array, Float64Array];
@@ -80,13 +98,21 @@ describe('PriceChart history seeding', () => {
   });
 
   it('falls back to the empty-state placeholder when history is empty and there is no livePrice', () => {
-    const { getByTestId } = render(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} history={[]} />);
+    const { getByTestId } = render(
+      <PriceChart symbol="COMI" tickSize={toDecimal('0.01')} history={[]} />,
+    );
     expect(getByTestId('price-chart-empty-state')).toBeDefined();
     expect(instances[0]?.setData).not.toHaveBeenCalled();
   });
 
   it('behaves exactly as before (single live-point doubling) when `history` is omitted entirely', () => {
-    render(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} livePrice={{ t: 1000, p: toDecimal('85.42') }} />);
+    render(
+      <PriceChart
+        symbol="COMI"
+        tickSize={toDecimal('0.01')}
+        livePrice={{ t: 1000, p: toDecimal('85.42') }}
+      />,
+    );
 
     const instance = instances[0];
     const [xs, ys] = instance!.setData.mock.calls[0]![0] as [Float64Array, Float64Array];

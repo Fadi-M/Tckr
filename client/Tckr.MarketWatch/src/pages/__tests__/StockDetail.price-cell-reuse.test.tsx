@@ -36,7 +36,9 @@ vi.mock('../../components/PriceCell.tsx', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../components/PriceCell.tsx')>();
   return {
     ...actual,
-    PriceCell: vi.fn((props: Parameters<typeof actual.PriceCell>[0]) => <actual.PriceCell {...props} />),
+    PriceCell: vi.fn((props: Parameters<typeof actual.PriceCell>[0]) => (
+      <actual.PriceCell {...props} />
+    )),
   };
 });
 
@@ -71,7 +73,9 @@ describe('StockDetail renders every price through PriceCell', () => {
     expect(screen.getByTestId('stock-detail-price')).toBeTruthy();
     expect(screen.getByTestId('stock-detail-footer')).toBeTruthy();
 
-    const renderedValues = vi.mocked(PriceCell).mock.calls.map((call) => String(call[0]?.value ?? ''));
+    const renderedValues = vi
+      .mocked(PriceCell)
+      .mock.calls.map((call) => String(call[0]?.value ?? ''));
 
     // Every DecimalString value shown on the page — price, change, open, high, low —
     // must have gone through PriceCell (by component, not by string).

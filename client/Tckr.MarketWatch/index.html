@@ -20,7 +20,10 @@
           var stored = localStorage.getItem(STORAGE_KEY);
           if (stored === 'light' || stored === 'dark') {
             theme = stored;
-          } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          } else if (
+            window.matchMedia &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches
+          ) {
             theme = 'dark';
           }
         } catch (e) {

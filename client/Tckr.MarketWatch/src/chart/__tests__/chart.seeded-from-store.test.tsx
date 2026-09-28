@@ -27,7 +27,13 @@ beforeEach(() => {
 
 describe('PriceChart seeds from an existing livePrice prop', () => {
   it('draws a visible line immediately on mount when livePrice is already provided', () => {
-    render(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} livePrice={{ t: Date.now(), p: toDecimal('85.42') }} />);
+    render(
+      <PriceChart
+        symbol="COMI"
+        tickSize={toDecimal('0.01')}
+        livePrice={{ t: Date.now(), p: toDecimal('85.42') }}
+      />,
+    );
 
     const instance = instances[0];
     expect(instance).toBeDefined();

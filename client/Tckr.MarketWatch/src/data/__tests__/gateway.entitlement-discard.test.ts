@@ -10,7 +10,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { toDecimal } from '../../contracts/decimal.ts';
 import type { Stream, Tick } from '../../contracts/messages.ts';
 import { FIXTURES } from '../../contracts/fixtures/index.ts';
-import { getSymbolSnapshot, onStreamDiscard, primeUniverse, applyTick, resetStore } from '../store.ts';
+import {
+  getSymbolSnapshot,
+  onStreamDiscard,
+  primeUniverse,
+  applyTick,
+  resetStore,
+} from '../store.ts';
 import { connectAndAuthenticate, createHarness } from './conformance/gatewayHarness.ts';
 
 function tick(symbol: string, price: string, id: string, stream: Stream = 'LIVE'): Tick {
@@ -33,7 +39,13 @@ describe('TckrGatewaySource — entitlement-change discard', () => {
   });
 
   it('calls resetStream() when an entitlementChanged frame actually flips the stream', async () => {
-    primeUniverse([{ symbol: 'COMI', name: 'Commercial International Holding', referencePrice: toDecimal('85.10') }]);
+    primeUniverse([
+      {
+        symbol: 'COMI',
+        name: 'Commercial International Holding',
+        referencePrice: toDecimal('85.10'),
+      },
+    ]);
     applyTick(tick('COMI', '90.00', 'evt-1'));
     expect(getSymbolSnapshot('COMI')).toBeDefined();
 
@@ -56,7 +68,13 @@ describe('TckrGatewaySource — entitlement-change discard', () => {
   });
 
   it('discards before notifying entitlement subscribers, so a synchronous listener already sees cleared state', async () => {
-    primeUniverse([{ symbol: 'COMI', name: 'Commercial International Holding', referencePrice: toDecimal('85.10') }]);
+    primeUniverse([
+      {
+        symbol: 'COMI',
+        name: 'Commercial International Holding',
+        referencePrice: toDecimal('85.10'),
+      },
+    ]);
     applyTick(tick('COMI', '90.00', 'evt-1'));
 
     const harness = createHarness();
@@ -73,7 +91,13 @@ describe('TckrGatewaySource — entitlement-change discard', () => {
   });
 
   it('does not call resetStream() for a redundant entitlementChanged that restates the same stream', async () => {
-    primeUniverse([{ symbol: 'COMI', name: 'Commercial International Holding', referencePrice: toDecimal('85.10') }]);
+    primeUniverse([
+      {
+        symbol: 'COMI',
+        name: 'Commercial International Holding',
+        referencePrice: toDecimal('85.10'),
+      },
+    ]);
     applyTick(tick('COMI', '90.00', 'evt-1'));
 
     const discardListener = vi.fn();
@@ -96,7 +120,13 @@ describe('TckrGatewaySource — entitlement-change discard', () => {
   });
 
   it('re-anchors the baseline to the pristine referencePrice, discarding the old stream tick', async () => {
-    primeUniverse([{ symbol: 'COMI', name: 'Commercial International Holding', referencePrice: toDecimal('85.10') }]);
+    primeUniverse([
+      {
+        symbol: 'COMI',
+        name: 'Commercial International Holding',
+        referencePrice: toDecimal('85.10'),
+      },
+    ]);
     applyTick(tick('COMI', '90.00', 'evt-1'));
 
     const harness = createHarness();

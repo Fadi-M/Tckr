@@ -45,7 +45,9 @@ vi.mock('../../chart/PriceChart.tsx', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../chart/PriceChart.tsx')>();
   return {
     ...actual,
-    PriceChart: vi.fn((props: Parameters<typeof actual.PriceChart>[0]) => <actual.PriceChart {...props} />),
+    PriceChart: vi.fn((props: Parameters<typeof actual.PriceChart>[0]) => (
+      <actual.PriceChart {...props} />
+    )),
   };
 });
 
@@ -99,7 +101,7 @@ describe('StockDetail session-history fetch', () => {
     expect(vi.mocked(PriceChart)).toHaveBeenCalled();
   });
 
-  it('converts each history point\'s ISO timestamp to epoch ms before handing it to PriceChart', async () => {
+  it("converts each history point's ISO timestamp to epoch ms before handing it to PriceChart", async () => {
     // `StockDetail` defaults to the "60S" range pill (design import), which filters
     // `history` down to points within the trailing 60 real-world seconds before
     // handing it to `PriceChart` — see `StockDetail.tsx`'s "Chart range selector"

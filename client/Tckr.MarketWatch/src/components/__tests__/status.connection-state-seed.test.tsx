@@ -23,7 +23,9 @@ describe('ConnectionStatus — seeding from connectionState()', () => {
     render(<ConnectionStatus />);
 
     // No `on.status` event was ever emitted — this is what the very first render shows.
-    expect(screen.getByTestId('connection-status').textContent).toBe('Reconnecting in 4s (attempt 3)');
+    expect(screen.getByTestId('connection-status').textContent).toBe(
+      'Reconnecting in 4s (attempt 3)',
+    );
   });
 
   it('reflects the "closed then reconnecting in the same call" detail: a read right after a reconnectable drop is reconnecting, not closed', () => {
@@ -37,7 +39,9 @@ describe('ConnectionStatus — seeding from connectionState()', () => {
     vi.mocked(getSharedSource).mockReturnValue(source);
 
     render(<ConnectionStatus />);
-    expect(screen.getByTestId('connection-status').textContent).toBe('Reconnecting in 1s (attempt 1)');
+    expect(screen.getByTestId('connection-status').textContent).toBe(
+      'Reconnecting in 1s (attempt 1)',
+    );
   });
 
   it('seeds a terminal closed state (4401) directly, with no auto-retry implied', () => {
@@ -47,7 +51,9 @@ describe('ConnectionStatus — seeding from connectionState()', () => {
     vi.mocked(getSharedSource).mockReturnValue(source);
 
     render(<ConnectionStatus />);
-    expect(screen.getByTestId('connection-status').textContent).toBe('Not authenticated — sign in again');
+    expect(screen.getByTestId('connection-status').textContent).toBe(
+      'Not authenticated — sign in again',
+    );
   });
 
   it('falls back to the identity()-based proxy when the source has no connectionState()', () => {

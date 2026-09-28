@@ -32,7 +32,7 @@ describe('StockList row aria-label', () => {
     vi.useRealTimers();
   });
 
-  it("includes the symbol and price even before any tick has arrived", async () => {
+  it('includes the symbol and price even before any tick has arrived', async () => {
     const universeSymbols = loadUniverseFixture();
     mockGetSharedSource.mockReturnValue(makeFakeSource(universeSymbols).source);
 
@@ -78,7 +78,9 @@ describe('StockList row aria-label', () => {
       applyTick(tickFixture({ s: 'COMI', p: toDecimal('90.00') }));
       beatNowForTests();
     });
-    const upRow = screen.getByRole('row', { name: /^COMI, 90(\.0+)?, up \d+(\.\d+)?%, change \+4\.90, volume [\d,]+$/ });
+    const upRow = screen.getByRole('row', {
+      name: /^COMI, 90(\.0+)?, up \d+(\.\d+)?%, change \+4\.90, volume [\d,]+$/,
+    });
     expect(upRow).toBeTruthy();
   });
 
@@ -102,7 +104,9 @@ describe('StockList row aria-label', () => {
       applyTick(tickFixture({ s: 'COMI', p: toDecimal('10.00') }));
       beatNowForTests();
     });
-    const downRow = screen.getByRole('row', { name: /^COMI, 10(\.0+)?, down \d+(\.\d+)?%, change -75\.10, volume [\d,]+$/ });
+    const downRow = screen.getByRole('row', {
+      name: /^COMI, 10(\.0+)?, down \d+(\.\d+)?%, change -75\.10, volume [\d,]+$/,
+    });
     expect(downRow).toBeTruthy();
   });
 });

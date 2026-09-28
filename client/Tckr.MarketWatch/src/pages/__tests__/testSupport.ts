@@ -147,7 +147,9 @@ export function makeFakeSource(
   };
 
   const source: MarketDataSource =
-    options.connectionState !== undefined ? { ...base, connectionState: () => options.connectionState! } : base;
+    options.connectionState !== undefined
+      ? { ...base, connectionState: () => options.connectionState! }
+      : base;
 
   return {
     source,
@@ -282,9 +284,12 @@ export function createFakeSource(options: CreateFakeSourceOptions = {}): FakeSou
   const errorHandlers = new Set<(e: ErrorMsg) => void>();
   const entitlementHandlers = new Set<(e: EntitlementChanged) => void>();
   const identityValue: Identity | null =
-    options.identity !== undefined ? options.identity : { userId: 'user-001', stream: 'LIVE', sessionId: 'sess-1' };
+    options.identity !== undefined
+      ? options.identity
+      : { userId: 'user-001', stream: 'LIVE', sessionId: 'sess-1' };
   const defaultSnapshotImpl = (symbol: string) => Promise.resolve(snapshotFixture({ symbol }));
-  const defaultHistoryImpl = (symbol: string) => Promise.resolve<SymbolHistoryResponse>({ v: 1, symbol, points: [] });
+  const defaultHistoryImpl = (symbol: string) =>
+    Promise.resolve<SymbolHistoryResponse>({ v: 1, symbol, points: [] });
   const callOrder: string[] = [];
 
   const subscribe = vi.fn((symbols: readonly string[]) => {

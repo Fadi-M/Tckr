@@ -59,9 +59,13 @@ test.beforeAll(() => {
 test.describe('400px viewport', () => {
   test.use({ viewport: VIEWPORT });
 
-  test('StockList has no horizontal overflow at 400px and shows the search box and rows', async ({ page }) => {
+  test('StockList has no horizontal overflow at 400px and shows the search box and rows', async ({
+    page,
+  }) => {
     await page.goto('/');
-    await page.waitForSelector('table.tckr-stocklist__table tbody tr[data-symbol]', { timeout: 15_000 });
+    await page.waitForSelector('table.tckr-stocklist__table tbody tr[data-symbol]', {
+      timeout: 15_000,
+    });
 
     const overflow = await page.evaluate(() => ({
       scrollWidth: document.documentElement.scrollWidth,
@@ -73,7 +77,11 @@ test.describe('400px viewport', () => {
 
     writeFileSync(
       resolve(RAW_DIR, 'stocklist-400-overflow.json'),
-      JSON.stringify({ viewport: VIEWPORT, ...overflow, capturedAt: new Date().toISOString() }, null, 2),
+      JSON.stringify(
+        { viewport: VIEWPORT, ...overflow, capturedAt: new Date().toISOString() },
+        null,
+        2,
+      ),
     );
 
     // clientWidth is the viewport's own layout width; scrollWidth must not exceed it
@@ -82,7 +90,9 @@ test.describe('400px viewport', () => {
     expect(overflow.bodyScrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1);
 
     await expect(page.locator('#tckr-stocklist-search')).toBeVisible();
-    const rowCount = await page.locator('table.tckr-stocklist__table tbody tr[data-symbol]').count();
+    const rowCount = await page
+      .locator('table.tckr-stocklist__table tbody tr[data-symbol]')
+      .count();
     expect(rowCount).toBe(34);
   });
 
@@ -145,7 +155,11 @@ test.describe('400px viewport', () => {
 
     writeFileSync(
       resolve(RAW_DIR, 'stockdetail-400-overflow.json'),
-      JSON.stringify({ viewport: VIEWPORT, ...overflow, capturedAt: new Date().toISOString() }, null, 2),
+      JSON.stringify(
+        { viewport: VIEWPORT, ...overflow, capturedAt: new Date().toISOString() },
+        null,
+        2,
+      ),
     );
 
     expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1);
@@ -186,7 +200,8 @@ test.describe('400px viewport', () => {
     const xLabelTexts = distinctText(xAxisCalls);
     const yLabelTexts = distinctText(yAxisCalls);
 
-    const visible = (c: FillTextCall): boolean => c.globalAlpha > 0 && c.fillStyle !== 'transparent' && c.fillStyle !== '';
+    const visible = (c: FillTextCall): boolean =>
+      c.globalAlpha > 0 && c.fillStyle !== 'transparent' && c.fillStyle !== '';
 
     const result = {
       viewport: VIEWPORT,

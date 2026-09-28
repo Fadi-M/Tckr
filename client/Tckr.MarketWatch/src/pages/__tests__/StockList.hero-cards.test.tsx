@@ -74,7 +74,10 @@ describe('StockList highlight cards', () => {
   });
 
   it('marks a card showing a delayed price, for sighted and screen-reader users alike', async () => {
-    await renderAfterTicks([...MOVERS, { s: 'COMI', p: toDecimal('85.10'), q: 100_000, st: 'DELAYED', id: 'evt-4' }]);
+    await renderAfterTicks([
+      ...MOVERS,
+      { s: 'COMI', p: toDecimal('85.10'), q: 100_000, st: 'DELAYED', id: 'evt-4' },
+    ]);
 
     const card = mostActiveCard();
     expect(card.getAttribute('aria-label')).toMatch(/, delayed stream$/);

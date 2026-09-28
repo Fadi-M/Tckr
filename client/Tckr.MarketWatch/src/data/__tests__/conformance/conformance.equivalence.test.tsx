@@ -58,18 +58,22 @@ vi.mock('uplot', () => {
 // rig below calls `connect()` on its own source itself (harmlessly redundant with
 // whatever the real `getSharedSource()` would also do), so this suite works whichever
 // of the two a page calls.
-const { mockCreateMarketDataSource, mockGetSharedSource, mockResolveClientConfig, mockResetSharedSource } =
-  vi.hoisted(() => ({
-    mockCreateMarketDataSource: vi.fn(),
-    mockGetSharedSource: vi.fn(),
-    mockResolveClientConfig: vi.fn(() => ({
-      source: 'simulated' as const,
-      gatewayUrl: 'ws://localhost:5000',
-      demoUser: 'user-001',
-      simulated: { eventsPerSecond: 4000, delayedOffsetMs: 15000, seed: 1 },
-    })),
-    mockResetSharedSource: vi.fn(),
-  }));
+const {
+  mockCreateMarketDataSource,
+  mockGetSharedSource,
+  mockResolveClientConfig,
+  mockResetSharedSource,
+} = vi.hoisted(() => ({
+  mockCreateMarketDataSource: vi.fn(),
+  mockGetSharedSource: vi.fn(),
+  mockResolveClientConfig: vi.fn(() => ({
+    source: 'simulated' as const,
+    gatewayUrl: 'ws://localhost:5000',
+    demoUser: 'user-001',
+    simulated: { eventsPerSecond: 4000, delayedOffsetMs: 15000, seed: 1 },
+  })),
+  mockResetSharedSource: vi.fn(),
+}));
 vi.mock('../../config.ts', () => ({
   createMarketDataSource: mockCreateMarketDataSource,
   getSharedSource: mockGetSharedSource,

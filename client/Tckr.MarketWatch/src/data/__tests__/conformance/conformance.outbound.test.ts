@@ -33,7 +33,10 @@ describe('gateway outbound frame conformance', () => {
     const socket = await connectAndAuthenticate(harness);
     harness.source.subscribe(['COMI']);
     harness.source.unsubscribe(['COMI']);
-    const frame = JSON.parse(socket.sent[socket.sent.length - 1] ?? '{}') as Record<string, unknown>;
+    const frame = JSON.parse(socket.sent[socket.sent.length - 1] ?? '{}') as Record<
+      string,
+      unknown
+    >;
     expect(Object.keys(frame).sort()).toEqual(['requestId', 'symbols', 'type']);
     expect(frame['type']).toBe('unsubscribe');
     expect(frame['symbols']).toEqual(['COMI']);

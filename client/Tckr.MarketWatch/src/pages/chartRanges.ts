@@ -14,14 +14,21 @@
  * Pure (no React, no clock of its own): the page passes in the market status and the
  * current time, so every case here is a plain unit test.
  */
-import { formatCairoDateShort, formatCairoTimeShort, type MarketStatus } from '../data/marketCalendar.ts';
+import {
+  formatCairoDateShort,
+  formatCairoTimeShort,
+  type MarketStatus,
+} from '../data/marketCalendar.ts';
 
 export type RangeKey = '60S' | '5M' | 'SESSION';
 
 export const RANGE_KEYS: readonly RangeKey[] = ['60S', '5M', 'SESSION'];
 
 /** The trailing windows; SESSION is the whole session and has no entry. */
-const TRAILING_WINDOWS: Record<Exclude<RangeKey, 'SESSION'>, { ms: number; short: string; spoken: string }> = {
+const TRAILING_WINDOWS: Record<
+  Exclude<RangeKey, 'SESSION'>,
+  { ms: number; short: string; spoken: string }
+> = {
   '60S': { ms: 60_000, short: '60s', spoken: '60 seconds' },
   '5M': { ms: 5 * 60_000, short: '5m', spoken: '5 minutes' },
 };
@@ -44,14 +51,29 @@ export function describeRange(key: RangeKey, status: MarketStatus, nowMs: number
 
   if (key === 'SESSION') {
     return live
-      ? { label: `Today since ${opens}`, description: `Today's session so far, since the ${opens} open`, from: null, to: null }
-      : { label: `${day} session · ${opens}–${closes}`, description: `The whole ${day} session, ${opens} to ${closes} Cairo`, from: null, to: null };
+      ? {
+          label: `Today since ${opens}`,
+          description: `Today's session so far, since the ${opens} open`,
+          from: null,
+          to: null,
+        }
+      : {
+          label: `${day} session · ${opens}–${closes}`,
+          description: `The whole ${day} session, ${opens} to ${closes} Cairo`,
+          from: null,
+          to: null,
+        };
   }
 
   const trailing = TRAILING_WINDOWS[key];
   const end = live ? nowMs : status.sessionCloseAt;
   return live
-    ? { label: `Last ${trailing.short}`, description: `Last ${trailing.spoken}`, from: end - trailing.ms, to: null }
+    ? {
+        label: `Last ${trailing.short}`,
+        description: `Last ${trailing.spoken}`,
+        from: end - trailing.ms,
+        to: null,
+      }
     : {
         label: `Final ${trailing.short} · ${day}`,
         description: `Final ${trailing.spoken} of the ${day} session, to the ${closes} close`,
@@ -61,10 +83,15 @@ export function describeRange(key: RangeKey, status: MarketStatus, nowMs: number
 }
 
 /** The points of `history` that fall inside `range`. */
-export function pointsInRange<T extends { readonly t: number }>(history: readonly T[], range: ChartRange): readonly T[] {
+export function pointsInRange<T extends { readonly t: number }>(
+  history: readonly T[],
+  range: ChartRange,
+): readonly T[] {
   const { from, to } = range;
   if (from === null && to === null) {
     return history;
   }
-  return history.filter((point) => (from === null || point.t >= from) && (to === null || point.t <= to));
+  return history.filter(
+    (point) => (from === null || point.t >= from) && (to === null || point.t <= to),
+  );
 }

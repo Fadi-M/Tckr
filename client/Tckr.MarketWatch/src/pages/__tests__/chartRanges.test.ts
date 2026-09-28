@@ -11,7 +11,12 @@ import { describeRange, pointsInRange } from '../chartRanges.ts';
 const OPEN_AT = cairoEpochFor('2026-09-24', 10, 0);
 const CLOSE_AT = cairoEpochFor('2026-09-24', 14, 30);
 
-const OPEN: MarketStatus = { state: 'open', sessionDateKey: '2026-09-24', sessionOpenAt: OPEN_AT, sessionCloseAt: CLOSE_AT };
+const OPEN: MarketStatus = {
+  state: 'open',
+  sessionDateKey: '2026-09-24',
+  sessionOpenAt: OPEN_AT,
+  sessionCloseAt: CLOSE_AT,
+};
 const CLOSED: MarketStatus = {
   state: 'closed',
   sessionDateKey: '2026-09-24',
@@ -24,12 +29,25 @@ describe('describeRange while trading', () => {
   const now = cairoEpochFor('2026-09-24', 12, 0);
 
   it('trails the short ranges back from now, open-ended', () => {
-    expect(describeRange('60S', OPEN, now)).toEqual({ label: 'Last 60s', description: 'Last 60 seconds', from: now - 60_000, to: null });
-    expect(describeRange('5M', OPEN, now)).toMatchObject({ label: 'Last 5m', from: now - 300_000, to: null });
+    expect(describeRange('60S', OPEN, now)).toEqual({
+      label: 'Last 60s',
+      description: 'Last 60 seconds',
+      from: now - 60_000,
+      to: null,
+    });
+    expect(describeRange('5M', OPEN, now)).toMatchObject({
+      label: 'Last 5m',
+      from: now - 300_000,
+      to: null,
+    });
   });
 
   it('names SESSION as today since the open', () => {
-    expect(describeRange('SESSION', OPEN, now)).toMatchObject({ label: 'Today since 10:00', from: null, to: null });
+    expect(describeRange('SESSION', OPEN, now)).toMatchObject({
+      label: 'Today since 10:00',
+      from: null,
+      to: null,
+    });
   });
 });
 
@@ -44,7 +62,11 @@ describe('describeRange once closed', () => {
       from: CLOSE_AT - 60_000,
       to: CLOSE_AT,
     });
-    expect(describeRange('5M', CLOSED, now)).toMatchObject({ label: 'Final 5m · Thu 24 Sep', from: CLOSE_AT - 300_000, to: CLOSE_AT });
+    expect(describeRange('5M', CLOSED, now)).toMatchObject({
+      label: 'Final 5m · Thu 24 Sep',
+      from: CLOSE_AT - 300_000,
+      to: CLOSE_AT,
+    });
   });
 
   it('names SESSION as a dated recap with its hours', () => {

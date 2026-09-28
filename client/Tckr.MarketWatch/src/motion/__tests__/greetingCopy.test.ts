@@ -21,15 +21,24 @@ describe('greetingCopy', () => {
   });
 
   it('says EGX is trading, and when it closes, during the session — the only green dot', () => {
-    expect(at('2026-09-27', 11, 15)).toMatchObject({ market: 'EGX is trading · closes 14:30 Cairo', tone: 'trading' });
+    expect(at('2026-09-27', 11, 15)).toMatchObject({
+      market: 'EGX is trading · closes 14:30 Cairo',
+      tone: 'trading',
+    });
   });
 
   it('names the pre-open auction', () => {
-    expect(at('2026-09-27', 9, 40)).toMatchObject({ market: 'Pre-open auction · trading starts 10:00 Cairo', tone: 'waiting' });
+    expect(at('2026-09-27', 9, 40)).toMatchObject({
+      market: 'Pre-open auction · trading starts 10:00 Cairo',
+      tone: 'waiting',
+    });
   });
 
   it('counts down to a same-day open the way the board banner does', () => {
-    expect(at('2026-09-27', 8, 48)).toMatchObject({ market: 'EGX opens in 1h 12m', tone: 'closed' });
+    expect(at('2026-09-27', 8, 48)).toMatchObject({
+      market: 'EGX opens in 1h 12m',
+      tone: 'closed',
+    });
   });
 
   it('names the next session after the close and over the weekend', () => {

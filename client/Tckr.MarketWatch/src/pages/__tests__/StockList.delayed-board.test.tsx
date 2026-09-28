@@ -58,7 +58,9 @@ describe('StockList delayed-stream banner', () => {
     // It comes before every price on the page: the first highlight card and the board.
     const firstPrice = document.querySelector('button[aria-label], table');
     expect(firstPrice).not.toBeNull();
-    expect(banner.compareDocumentPosition(firstPrice!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      banner.compareDocumentPosition(firstPrice!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it('shows no note on the LIVE stream', async () => {

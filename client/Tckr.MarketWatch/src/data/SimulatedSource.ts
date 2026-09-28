@@ -64,7 +64,13 @@ import type {
   Tick,
   TickKind,
 } from '../contracts/messages.ts';
-import type { HistoryPoint, Snapshot, SymbolDefinition, SymbolHistoryResponse, SymbolUniverseResponse } from '../contracts/rest.ts';
+import type {
+  HistoryPoint,
+  Snapshot,
+  SymbolDefinition,
+  SymbolHistoryResponse,
+  SymbolUniverseResponse,
+} from '../contracts/rest.ts';
 import { CloseCode } from '../contracts/closeCodes.ts';
 import type { ConnectionState, Identity, MarketDataSource } from './MarketDataSource.ts';
 import { applySnapshot, primeUniverse, resetStream } from './store.ts';
@@ -393,7 +399,12 @@ function auctionOpen(def: SimSymbol, seed: number): bigint {
  * Pure and side-effect-free: easy to unit-test in isolation, and safe to call from
  * `ensureSessionFor` as often as a session/state transition requires.
  */
-function computeBackfilledSession(def: SimSymbol, sessionOpenAt: number, targetTime: number, seed: number): BackfilledSession {
+function computeBackfilledSession(
+  def: SimSymbol,
+  sessionOpenAt: number,
+  targetTime: number,
+  seed: number,
+): BackfilledSession {
   const rng = mulberry32(seed);
   const tickSizeScaled = scaledFromDecimal(def.tickSize);
   const open = auctionOpen(def, seed);
@@ -402,7 +413,10 @@ function computeBackfilledSession(def: SimSymbol, sessionOpenAt: number, targetT
   let low = open;
   let volume = 0;
   const history: HistorySample[] = [];
-  const totalSlots = Math.max(0, Math.floor((targetTime - sessionOpenAt) / HISTORY_SAMPLE_INTERVAL_MS));
+  const totalSlots = Math.max(
+    0,
+    Math.floor((targetTime - sessionOpenAt) / HISTORY_SAMPLE_INTERVAL_MS),
+  );
 
   for (let slot = 0; slot <= totalSlots; slot += 1) {
     if (slot > 0) {
@@ -507,7 +521,13 @@ export class SimulatedSource implements MarketDataSource {
         history: [],
       });
     }
-    primeUniverse(SIM_SYMBOLS.map((s) => ({ symbol: s.symbol, name: s.name, referencePrice: s.referencePrice })));
+    primeUniverse(
+      SIM_SYMBOLS.map((s) => ({
+        symbol: s.symbol,
+        name: s.name,
+        referencePrice: s.referencePrice,
+      })),
+    );
   }
 
   async connect(): Promise<void> {
@@ -525,7 +545,10 @@ export class SimulatedSource implements MarketDataSource {
     // `getHistory()` call issued the instant this promise resolves already sees
     // correctly day-scoped, market-hours-gated state — never a placeholder.
     this.ensureSessionFor(Date.now());
-    this.marketClockHandle = setInterval(() => this.ensureSessionFor(Date.now()), MARKET_CLOCK_INTERVAL_MS);
+    this.marketClockHandle = setInterval(
+      () => this.ensureSessionFor(Date.now()),
+      MARKET_CLOCK_INTERVAL_MS,
+    );
     this.backoffAttempt = 0;
     this.emitStatus({ kind: 'connected', since: Date.now() });
   }
@@ -630,7 +653,10 @@ export class SimulatedSource implements MarketDataSource {
     if (getMarketStatus(now).state === 'open') {
       const last = points[points.length - 1];
       if (!last || Date.parse(last.t) < now) {
-        points.push({ t: new Date(now).toISOString() as IsoUtc, p: decimalFromScaled(runtime.price, runtime.decimals) });
+        points.push({
+          t: new Date(now).toISOString() as IsoUtc,
+          p: decimalFromScaled(runtime.price, runtime.decimals),
+        });
       }
     }
     return { v: 1, symbol, points };
@@ -783,7 +809,10 @@ export class SimulatedSource implements MarketDataSource {
       this.sampleHistory(now);
       this.lastHistorySampleAt = now;
     }
-    const perBatch = Math.max(1, Math.round((this.config.eventsPerSecond * BATCH_INTERVAL_MS) / 1000));
+    const perBatch = Math.max(
+      1,
+      Math.round((this.config.eventsPerSecond * BATCH_INTERVAL_MS) / 1000),
+    );
     for (let i = 0; i < perBatch; i += 1) {
       this.generateOne();
     }
@@ -836,7 +865,11 @@ export class SimulatedSource implements MarketDataSource {
   /** Overwrites every symbol's runtime state from an instant backfill of the session
    * identified by `sessionDateKey`/`sessionOpenAt`, up through `targetTime` — see
    * `computeBackfilledSession`'s doc for the "why 30s slots, not raw ticks" reasoning. */
-  private backfillAllSymbols(sessionDateKey: string, sessionOpenAt: number, targetTime: number): void {
+  private backfillAllSymbols(
+    sessionDateKey: string,
+    sessionOpenAt: number,
+    targetTime: number,
+  ): void {
     for (const runtime of this.runtimeBySymbol.values()) {
       const seed = hashSeed(this.config.seed, runtime.def.symbol, sessionDateKey);
       const result = computeBackfilledSession(runtime.def, sessionOpenAt, targetTime, seed);
@@ -872,7 +905,12 @@ export class SimulatedSource implements MarketDataSource {
       return;
     }
 
-    const signedSteps = pickSignedSteps(this.prng, runtime.price, runtime.open, LIVE_MAX_STEPS_PER_TICK); // 0..3 ticks, per spec
+    const signedSteps = pickSignedSteps(
+      this.prng,
+      runtime.price,
+      runtime.open,
+      LIVE_MAX_STEPS_PER_TICK,
+    ); // 0..3 ticks, per spec
     const tickSizeScaled = scaledFromDecimal(def.tickSize);
     let nextPrice = runtime.price + tickSizeScaled * BigInt(signedSteps);
     if (nextPrice < tickSizeScaled) {

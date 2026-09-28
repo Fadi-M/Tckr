@@ -6,5 +6,7 @@
  * `src/components/viewTransition.ts`). Delete this file once the DOM lib ships it.
  */
 interface Element {
-  startViewTransition?(callbackOptions?: ViewTransitionUpdateCallback | StartViewTransitionOptions): ViewTransition;
+  startViewTransition?(
+    callbackOptions?: ViewTransitionUpdateCallback | StartViewTransitionOptions,
+  ): ViewTransition;
 }

@@ -12,7 +12,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { resetStore } from '../../data/store.ts';
-import { flushMotion, stubReducedMotion, unstubReducedMotion } from '../../motion/__tests__/motionTestSupport.ts';
+import {
+  flushMotion,
+  stubReducedMotion,
+  unstubReducedMotion,
+} from '../../motion/__tests__/motionTestSupport.ts';
 import { createFakeSource } from './testSupport.ts';
 
 vi.mock('uplot', () => {
@@ -68,7 +72,9 @@ async function renderReady() {
 }
 
 function touchedByMotion(container: HTMLElement): Element[] {
-  return Array.from(container.querySelectorAll('[data-reveal]')).filter((el) => (el as HTMLElement).style.opacity !== '');
+  return Array.from(container.querySelectorAll('[data-reveal]')).filter(
+    (el) => (el as HTMLElement).style.opacity !== '',
+  );
 }
 
 describe('StockDetail prefers-reduced-motion guard', () => {

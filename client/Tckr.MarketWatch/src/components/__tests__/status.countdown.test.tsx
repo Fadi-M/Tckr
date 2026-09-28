@@ -29,28 +29,38 @@ describe('ConnectionStatus — reconnecting countdown', () => {
     act(() => {
       source.emitStatus({ kind: 'reconnecting', attempt: 1, nextRetryMs: 5000 });
     });
-    expect(screen.getByTestId('connection-status').textContent).toBe('Reconnecting in 5s (attempt 1)');
+    expect(screen.getByTestId('connection-status').textContent).toBe(
+      'Reconnecting in 5s (attempt 1)',
+    );
 
     // Well under one second: must not have changed yet.
     act(() => {
       vi.advanceTimersByTime(400);
     });
-    expect(screen.getByTestId('connection-status').textContent).toBe('Reconnecting in 5s (attempt 1)');
+    expect(screen.getByTestId('connection-status').textContent).toBe(
+      'Reconnecting in 5s (attempt 1)',
+    );
 
     act(() => {
       vi.advanceTimersByTime(600); // total 1000ms
     });
-    expect(screen.getByTestId('connection-status').textContent).toBe('Reconnecting in 4s (attempt 1)');
+    expect(screen.getByTestId('connection-status').textContent).toBe(
+      'Reconnecting in 4s (attempt 1)',
+    );
 
     act(() => {
       vi.advanceTimersByTime(1000); // total 2000ms
     });
-    expect(screen.getByTestId('connection-status').textContent).toBe('Reconnecting in 3s (attempt 1)');
+    expect(screen.getByTestId('connection-status').textContent).toBe(
+      'Reconnecting in 3s (attempt 1)',
+    );
 
     act(() => {
       vi.advanceTimersByTime(3000); // total 5000ms — countdown floors at 0, not negative
     });
-    expect(screen.getByTestId('connection-status').textContent).toBe('Reconnecting in 0s (attempt 1)');
+    expect(screen.getByTestId('connection-status').textContent).toBe(
+      'Reconnecting in 0s (attempt 1)',
+    );
   });
 
   it('a new reconnecting event (a fresh attempt) restarts the countdown from its own nextRetryMs', () => {
@@ -65,12 +75,16 @@ describe('ConnectionStatus — reconnecting countdown', () => {
     act(() => {
       vi.advanceTimersByTime(1000);
     });
-    expect(screen.getByTestId('connection-status').textContent).toBe('Reconnecting in 0s (attempt 1)');
+    expect(screen.getByTestId('connection-status').textContent).toBe(
+      'Reconnecting in 0s (attempt 1)',
+    );
 
     act(() => {
       source.emitStatus({ kind: 'reconnecting', attempt: 2, nextRetryMs: 2000 });
     });
-    expect(screen.getByTestId('connection-status').textContent).toBe('Reconnecting in 2s (attempt 2)');
+    expect(screen.getByTestId('connection-status').textContent).toBe(
+      'Reconnecting in 2s (attempt 2)',
+    );
   });
 
   it('shows elapsed connected time, also throttled to once per second', () => {

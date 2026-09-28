@@ -52,7 +52,9 @@ vi.mock('../../chart/PriceChart.tsx', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../chart/PriceChart.tsx')>();
   return {
     ...actual,
-    PriceChart: vi.fn((props: Parameters<typeof actual.PriceChart>[0]) => <actual.PriceChart {...props} />),
+    PriceChart: vi.fn((props: Parameters<typeof actual.PriceChart>[0]) => (
+      <actual.PriceChart {...props} />
+    )),
   };
 });
 
@@ -102,7 +104,13 @@ describe('StockDetail keeps the price header and the chart in sync', () => {
     // A post-ready tick, once the beat paints it, updates both the header and the
     // chart's prop together, in the same render — never one without the other.
     act(() => {
-      emitTick(tickFixture({ p: toDecimal('85.75'), t: '2026-09-12T10:30:35.000Z' as IsoUtc, id: 'evt-x' }));
+      emitTick(
+        tickFixture({
+          p: toDecimal('85.75'),
+          t: '2026-09-12T10:30:35.000Z' as IsoUtc,
+          id: 'evt-x',
+        }),
+      );
       beatNowForTests();
     });
     await act(async () => {

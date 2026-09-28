@@ -46,7 +46,8 @@ describe('StockList table precision', () => {
 
   it('right-aligns numeric column headers and left-aligns text ones', async () => {
     await renderList();
-    const header = (label: string) => screen.getByRole('columnheader', { name: new RegExp(`^${label}$`) });
+    const header = (label: string) =>
+      screen.getByRole('columnheader', { name: new RegExp(`^${label}$`) });
     for (const label of ['Price', 'Change', 'Change %', 'Volume', 'Value EGP']) {
       expect(header(label).className).toContain('text-right');
     }
@@ -62,7 +63,9 @@ describe('StockList table precision', () => {
       applyTick(tickFixture({ s: 'COMI', p: toDecimal('85.104') }));
       beatNowForTests();
     });
-    const row = screen.getByRole('row', { name: /^COMI, 85\.104, unchanged 0\.00%, change \+0\.00, volume [\d,]+$/ });
+    const row = screen.getByRole('row', {
+      name: /^COMI, 85\.104, unchanged 0\.00%, change \+0\.00, volume [\d,]+$/,
+    });
     const chip = Array.from(row.querySelectorAll('span')).find((el) => el.textContent === '0.00%');
     expect(chip).toBeDefined();
     expect(chip?.className).toContain('bg-surface-raised');
@@ -80,7 +83,8 @@ describe('StockList table precision', () => {
 
     const row = screen.getByRole('row', { name: /^COMI,/ });
     await waitFor(() => {
-      const coords = row.querySelector('polyline')?.getAttribute('points')?.trim().split(/\s+/) ?? [];
+      const coords =
+        row.querySelector('polyline')?.getAttribute('points')?.trim().split(/\s+/) ?? [];
       expect(coords).toHaveLength(20);
     });
     const ys = new Set(

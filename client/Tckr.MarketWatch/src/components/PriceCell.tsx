@@ -102,7 +102,9 @@ export function PriceCell({
   alignDecimals,
   flashGlyph = true,
 }: PriceCellProps): ReactNode {
-  const previousRef = useRef<{ readonly value: DecimalString; readonly since: number } | null>(null);
+  const previousRef = useRef<{ readonly value: DecimalString; readonly since: number } | null>(
+    null,
+  );
   const previous = previousRef.current?.value ?? null;
   // The change currently landing. Kept across re-renders that don't change `value`
   // (a board row re-renders every second for its "Last update" clock), so an unrelated
@@ -150,11 +152,7 @@ export function PriceCell({
           : ''
       : '';
 
-  const wrapperClassName = [
-    'font-mono tabular-nums',
-    muted ? 'text-text-muted' : '',
-    signClass,
-  ]
+  const wrapperClassName = ['font-mono tabular-nums', muted ? 'text-text-muted' : '', signClass]
     .filter(Boolean)
     .join(' ');
 
@@ -164,7 +162,11 @@ export function PriceCell({
   // arrow variant colours the `::before` glyph only.
   const flashClassName = flashDirection
     ? [
-        indicateSign ? '' : flashDirection === 'up' ? 'animate-price-flash-up' : 'animate-price-flash-down',
+        indicateSign
+          ? ''
+          : flashDirection === 'up'
+            ? 'animate-price-flash-up'
+            : 'animate-price-flash-down',
         indicateSign || !flashGlyph
           ? ''
           : flashDirection === 'up'
@@ -191,7 +193,9 @@ export function PriceCell({
           direction={flashDirection ?? 'up'}
         />
       </span>
-      {padCh > 0 ? <span aria-hidden="true" className="inline-block" style={{ width: `${padCh}ch` }} /> : null}
+      {padCh > 0 ? (
+        <span aria-hidden="true" className="inline-block" style={{ width: `${padCh}ch` }} />
+      ) : null}
     </span>
   );
 }

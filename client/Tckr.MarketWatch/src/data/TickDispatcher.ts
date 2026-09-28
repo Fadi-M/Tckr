@@ -42,7 +42,10 @@ export class TickDispatcher {
    *   from a source implementation. Tests may override it to observe flushed values
    *   directly without touching the shared store singleton.
    */
-  constructor(scheduleFrame: ScheduleFrame = defaultScheduleFrame, onFlush: (tick: Tick) => void = applyTick) {
+  constructor(
+    scheduleFrame: ScheduleFrame = defaultScheduleFrame,
+    onFlush: (tick: Tick) => void = applyTick,
+  ) {
     this.scheduleFrame = scheduleFrame;
     this.onFlush = onFlush;
   }

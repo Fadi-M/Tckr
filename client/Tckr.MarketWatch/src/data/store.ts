@@ -150,7 +150,11 @@ export function onStreamDiscard(listener: () => void): () => void {
  * object reference. Does not touch an already-tracked baseline (a snapshot's `open`
  * takes precedence once one has been seen for that symbol). */
 export function primeUniverse(
-  symbols: readonly { readonly symbol: string; readonly name: string; readonly referencePrice: DecimalString }[],
+  symbols: readonly {
+    readonly symbol: string;
+    readonly name: string;
+    readonly referencePrice: DecimalString;
+  }[],
 ): void {
   for (const def of symbols) {
     const existing = meta.get(def.symbol);

@@ -46,7 +46,9 @@ afterEach(() => {
 describe('PriceChart stream-discard correctness', () => {
   it('keeps no old-stream point after a discard: only post-discard points survive', () => {
     let live: ChartHistoryPoint = { t: 1000, p: priceAt(0) };
-    const { rerender } = render(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} livePrice={live} />);
+    const { rerender } = render(
+      <PriceChart symbol="COMI" tickSize={toDecimal('0.01')} livePrice={live} />,
+    );
     const instance = instances[0];
     expect(instance).toBeDefined();
     // The initial livePrice paints immediately (buffer was empty, so it's preceded by
@@ -77,7 +79,10 @@ describe('PriceChart stream-discard correctness', () => {
       resetStream();
     });
     expect(instance!.setData.mock.calls.length).toBe(callsBeforeDiscard + 1);
-    const [clearedXs, clearedYs] = instance!.setData.mock.calls.at(-1)![0] as [Float64Array, Float64Array];
+    const [clearedXs, clearedYs] = instance!.setData.mock.calls.at(-1)![0] as [
+      Float64Array,
+      Float64Array,
+    ];
     expect(clearedXs.length).toBe(0);
     expect(clearedYs.length).toBe(0);
 
@@ -94,7 +99,10 @@ describe('PriceChart stream-discard correctness', () => {
       vi.advanceTimersByTime(DISPLAY_REFRESH_INTERVAL_MS);
     });
 
-    const [postXs, postYs] = instance!.setData.mock.calls.at(-1)![0] as [Float64Array, Float64Array];
+    const [postXs, postYs] = instance!.setData.mock.calls.at(-1)![0] as [
+      Float64Array,
+      Float64Array,
+    ];
 
     // 2 re-seeded points (from the first post-discard livePrice) plus exactly 1
     // sampled point from the new-stream burst — none of the old-stream ones.
@@ -110,7 +118,11 @@ describe('PriceChart stream-discard correctness', () => {
 
   it('unsubscribes from the discard seam on unmount', () => {
     const { unmount } = render(
-      <PriceChart symbol="COMI" tickSize={toDecimal('0.01')} livePrice={{ t: 1000, p: priceAt(0) }} />,
+      <PriceChart
+        symbol="COMI"
+        tickSize={toDecimal('0.01')}
+        livePrice={{ t: 1000, p: priceAt(0) }}
+      />,
     );
     const instance = instances[0];
     const callsBeforeUnmount = instance?.setData.mock.calls.length ?? 0;

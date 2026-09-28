@@ -9,7 +9,8 @@ export function isApplePlatform(): boolean {
   if (typeof navigator === 'undefined') {
     return false;
   }
-  const hinted = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform;
+  const hinted = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData
+    ?.platform;
   return /mac|iphone|ipad|ipod/i.test(hinted ?? navigator.platform ?? '');
 }
 
@@ -22,5 +23,8 @@ export function modifierKeyLabel(): string {
  * select or editable region), so a page-level shortcut must leave it alone — Escape
  * clears a search box, "/" is typed into it. */
 export function isEditableTarget(target: EventTarget | null): boolean {
-  return target instanceof Element && target.closest('input, textarea, select, [contenteditable="true"]') !== null;
+  return (
+    target instanceof Element &&
+    target.closest('input, textarea, select, [contenteditable="true"]') !== null
+  );
 }

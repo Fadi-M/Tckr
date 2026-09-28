@@ -31,10 +31,41 @@ export function TckrMark({ height }: { readonly height: number }) {
       focusable="false"
       className="flex-none"
     >
-      <rect data-candle="bar" x="2" y="4" width="54" height="11" rx="5.5" fill="var(--tckr-logo-ink)" />
-      <rect data-candle="wick-high" x="27" y="15" width="4" height="10" fill="var(--tckr-logo-candle)" />
-      <rect data-candle="body" x="17" y="25" width="24" height="34" rx="6" fill="var(--tckr-logo-candle)" />
-      <rect data-candle="wick-low" x="27" y="59" width="4" height="11" rx="2" fill="var(--tckr-logo-candle)" />
+      <rect
+        data-candle="bar"
+        x="2"
+        y="4"
+        width="54"
+        height="11"
+        rx="5.5"
+        fill="var(--tckr-logo-ink)"
+      />
+      <rect
+        data-candle="wick-high"
+        x="27"
+        y="15"
+        width="4"
+        height="10"
+        fill="var(--tckr-logo-candle)"
+      />
+      <rect
+        data-candle="body"
+        x="17"
+        y="25"
+        width="24"
+        height="34"
+        rx="6"
+        fill="var(--tckr-logo-candle)"
+      />
+      <rect
+        data-candle="wick-low"
+        x="27"
+        y="59"
+        width="4"
+        height="11"
+        rx="2"
+        fill="var(--tckr-logo-candle)"
+      />
     </svg>
   );
 }
@@ -42,7 +73,11 @@ export function TckrMark({ height }: { readonly height: number }) {
 export function TckrLogo({ size = 24 }: TckrLogoProps) {
   const markHeight = Math.round(size * 1.15);
   return (
-    <span data-tckr-logo className="inline-flex items-end" style={{ gap: Math.max(1, Math.round(size * 0.06)) }}>
+    <span
+      data-tckr-logo
+      className="inline-flex items-end"
+      style={{ gap: Math.max(1, Math.round(size * 0.06)) }}
+    >
       <TckrMark height={markHeight} />
       <span
         data-wordmark

@@ -32,7 +32,11 @@ function num(el: Element, attr: string): number {
  * then draws it. Shared with the daily greeting (`Greeting.tsx`), which plays it at hero
  * scale inside its own timeline. `vars` are the timeline's own (delay, repeat, …).
  */
-export function candleTimeline({ gsap }: Motion, root: Element, vars: gsap.TimelineVars = {}): gsap.core.Timeline | null {
+export function candleTimeline(
+  { gsap }: Motion,
+  root: Element,
+  vars: gsap.TimelineVars = {},
+): gsap.core.Timeline | null {
   const bar = part(root, 'bar');
   const high = part(root, 'wick-high');
   const body = part(root, 'body');
@@ -67,12 +71,22 @@ export function candleTimeline({ gsap }: Motion, root: Element, vars: gsap.Timel
   return tl;
 }
 
-export function FormingCandle({ height, loop = false }: { readonly height: number; readonly loop?: boolean }) {
+export function FormingCandle({
+  height,
+  loop = false,
+}: {
+  readonly height: number;
+  readonly loop?: boolean;
+}) {
   const ref = useRef<HTMLSpanElement | null>(null);
   useMotion(
     ref,
     (motion, root) => {
-      candleTimeline(motion, root, loop ? { repeat: -1, yoyo: true, repeatDelay: 0.5, delay: 0.1 } : { delay: 0.18 });
+      candleTimeline(
+        motion,
+        root,
+        loop ? { repeat: -1, yoyo: true, repeatDelay: 0.5, delay: 0.1 } : { delay: 0.18 },
+      );
     },
     [loop],
   );

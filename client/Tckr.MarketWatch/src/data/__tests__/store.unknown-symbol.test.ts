@@ -16,7 +16,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { toDecimal } from '../../contracts/decimal.ts';
 import type { Snapshot } from '../../contracts/rest.ts';
 import type { Tick } from '../../contracts/messages.ts';
-import { applySnapshot, applyTick, getSymbolList, getSymbolSnapshot, primeUniverse, resetStore, subscribeSymbol } from '../store.ts';
+import {
+  applySnapshot,
+  applyTick,
+  getSymbolList,
+  getSymbolSnapshot,
+  primeUniverse,
+  resetStore,
+  subscribeSymbol,
+} from '../store.ts';
 
 function tick(symbol: string, price: string, id: string): Tick {
   return {
@@ -75,7 +83,13 @@ describe('store drops ticks/snapshots for a symbol outside the primed universe',
   });
 
   it('applyTick still works normally for a symbol that IS in the primed universe', () => {
-    primeUniverse([{ symbol: 'COMI', name: 'Commercial International Holding', referencePrice: toDecimal('85.10') }]);
+    primeUniverse([
+      {
+        symbol: 'COMI',
+        name: 'Commercial International Holding',
+        referencePrice: toDecimal('85.10'),
+      },
+    ]);
 
     applyTick(tick('COMI', '86.00', 'evt-1'));
 
@@ -86,7 +100,13 @@ describe('store drops ticks/snapshots for a symbol outside the primed universe',
     applyTick(tick('COMI', '86.00', 'evt-1')); // dropped: not primed yet
     expect(getSymbolSnapshot('COMI')).toBeUndefined();
 
-    primeUniverse([{ symbol: 'COMI', name: 'Commercial International Holding', referencePrice: toDecimal('85.10') }]);
+    primeUniverse([
+      {
+        symbol: 'COMI',
+        name: 'Commercial International Holding',
+        referencePrice: toDecimal('85.10'),
+      },
+    ]);
     applyTick(tick('COMI', '86.00', 'evt-2'));
 
     expect(getSymbolSnapshot('COMI')).toMatchObject({ symbol: 'COMI', price: '86.00' });
@@ -110,7 +130,13 @@ describe('store drops ticks/snapshots for a symbol outside the primed universe',
   });
 
   it('applySnapshot still works normally for a symbol that IS in the primed universe', () => {
-    primeUniverse([{ symbol: 'COMI', name: 'Commercial International Holding', referencePrice: toDecimal('85.10') }]);
+    primeUniverse([
+      {
+        symbol: 'COMI',
+        name: 'Commercial International Holding',
+        referencePrice: toDecimal('85.10'),
+      },
+    ]);
 
     applySnapshot(snapshot('COMI', '86.00'));
 

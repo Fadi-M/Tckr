@@ -17,6 +17,19 @@ import type { CSSProperties } from 'react';
 const SKELETON_CLASS =
   "relative block overflow-hidden rounded-[6px] bg-[color-mix(in_oklab,var(--tckr-color-text)_7%,transparent)] after:absolute after:inset-0 after:content-[''] after:bg-[linear-gradient(90deg,transparent,var(--tckr-glass-border-card),transparent)] after:animate-skeleton-sweep motion-reduce:after:hidden contrast-more:bg-[color-mix(in_oklab,var(--tckr-color-text)_14%,transparent)]";
 
-export function Skeleton({ className = '', style }: { readonly className?: string; readonly style?: CSSProperties }) {
-  return <span aria-hidden="true" data-skeleton className={`${SKELETON_CLASS} ${className}`} style={style} />;
+export function Skeleton({
+  className = '',
+  style,
+}: {
+  readonly className?: string;
+  readonly style?: CSSProperties;
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      data-skeleton
+      className={`${SKELETON_CLASS} ${className}`}
+      style={style}
+    />
+  );
 }

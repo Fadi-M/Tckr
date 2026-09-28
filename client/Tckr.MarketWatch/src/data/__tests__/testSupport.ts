@@ -33,7 +33,9 @@ export function baseConfig(overrides: Partial<SimulatedSourceConfig> = {}): Simu
  * Requires fake timers to already be installed (`vi.useFakeTimers()`) — pins the fake
  * clock to `KNOWN_OPEN_NOW_MS` before connecting so ticks are guaranteed to flow,
  * regardless of real-world wall-clock time (see that constant's doc). */
-export async function createSubscribedSource(config: SimulatedSourceConfig): Promise<SimulatedSource> {
+export async function createSubscribedSource(
+  config: SimulatedSourceConfig,
+): Promise<SimulatedSource> {
   vi.setSystemTime(KNOWN_OPEN_NOW_MS);
   const source = new SimulatedSource(config);
   const universe = await source.getUniverse();

@@ -77,8 +77,8 @@ describe('StockList market-closed banner', () => {
     });
     expect(screen.getByTestId('board-updated-at').textContent).toMatch(/updated \d{2}:\d{2}:\d{2}/);
     // The columns still fill the row.
-    const widths = Array.from(document.querySelectorAll<HTMLTableColElement>('colgroup col')).map((col) =>
-      Number.parseFloat(col.style.width),
+    const widths = Array.from(document.querySelectorAll<HTMLTableColElement>('colgroup col')).map(
+      (col) => Number.parseFloat(col.style.width),
     );
     expect(widths.reduce((sum, width) => sum + width, 0)).toBeCloseTo(100, 5);
   });

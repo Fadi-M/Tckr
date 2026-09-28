@@ -9,7 +9,13 @@ import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import type { IsoUtc } from '../../contracts/messages.ts';
-import { finishMotion, primeMotion, stubReducedMotion, resetMotion, unstubReducedMotion } from '../../motion/__tests__/motionTestSupport.ts';
+import {
+  finishMotion,
+  primeMotion,
+  stubReducedMotion,
+  resetMotion,
+  unstubReducedMotion,
+} from '../../motion/__tests__/motionTestSupport.ts';
 import { createFakeSource, fakeIdentity } from './testSupport.ts';
 
 vi.mock('../../data/config.ts', () => ({
@@ -20,7 +26,10 @@ vi.mock('../../data/config.ts', () => ({
 import { getSharedSource, resolveClientConfig } from '../../data/config.ts';
 import { StreamBadge } from '../StreamBadge.tsx';
 
-function mockSource(source: ReturnType<typeof createFakeSource>, sourceKind: 'simulated' | 'gateway' = 'simulated') {
+function mockSource(
+  source: ReturnType<typeof createFakeSource>,
+  sourceKind: 'simulated' | 'gateway' = 'simulated',
+) {
   vi.mocked(getSharedSource).mockReturnValue(source);
   vi.mocked(resolveClientConfig).mockReturnValue({
     source: sourceKind,
@@ -129,12 +138,16 @@ describe('StreamBadge', () => {
     });
     // Mid-scramble: the visible word is in flight, and it is aria-hidden, so the live
     // region never speaks an intermediate string.
-    const word = liveRegion.querySelector('[data-testid="stream-badge"] > span[aria-hidden="true"] > span[aria-hidden="true"]')!;
+    const word = liveRegion.querySelector(
+      '[data-testid="stream-badge"] > span[aria-hidden="true"] > span[aria-hidden="true"]',
+    )!;
     // Already scrambling on the first frame: the amber pill never paints the old word.
     expect(word.textContent).not.toBe('LIVE');
     expect(word.textContent).not.toBe('DELAYED');
     await finishMotion();
     expect(word.textContent).toBe('DELAYED');
-    expect(screen.getByTestId('stream-badge').querySelector('.sr-only')!.textContent).toContain('Delayed stream');
+    expect(screen.getByTestId('stream-badge').querySelector('.sr-only')!.textContent).toContain(
+      'Delayed stream',
+    );
   });
 });

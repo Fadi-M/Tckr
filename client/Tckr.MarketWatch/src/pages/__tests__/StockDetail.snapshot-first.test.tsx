@@ -41,7 +41,9 @@ vi.mock('../../components/PriceCell.tsx', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../components/PriceCell.tsx')>();
   return {
     ...actual,
-    PriceCell: vi.fn((props: Parameters<typeof actual.PriceCell>[0]) => <actual.PriceCell {...props} />),
+    PriceCell: vi.fn((props: Parameters<typeof actual.PriceCell>[0]) => (
+      <actual.PriceCell {...props} />
+    )),
   };
 });
 
@@ -149,9 +151,30 @@ describe('StockDetail snapshot-then-stream ordering', () => {
       vi.advanceTimersByTime(10);
     });
     act(() => {
-      emitTick(tickFixture({ p: toDecimal('85.10'), q: 50, t: '2026-09-12T10:30:05.000Z' as IsoUtc, id: 'evt-a' }));
-      emitTick(tickFixture({ p: toDecimal('85.20'), q: 75, t: '2026-09-12T10:30:05.001Z' as IsoUtc, id: 'evt-b' }));
-      emitTick(tickFixture({ p: toDecimal('85.75'), q: 25, t: '2026-09-12T10:30:05.002Z' as IsoUtc, id: 'evt-c' }));
+      emitTick(
+        tickFixture({
+          p: toDecimal('85.10'),
+          q: 50,
+          t: '2026-09-12T10:30:05.000Z' as IsoUtc,
+          id: 'evt-a',
+        }),
+      );
+      emitTick(
+        tickFixture({
+          p: toDecimal('85.20'),
+          q: 75,
+          t: '2026-09-12T10:30:05.001Z' as IsoUtc,
+          id: 'evt-b',
+        }),
+      );
+      emitTick(
+        tickFixture({
+          p: toDecimal('85.75'),
+          q: 25,
+          t: '2026-09-12T10:30:05.002Z' as IsoUtc,
+          id: 'evt-c',
+        }),
+      );
     });
 
     expect(screen.getByTestId('stock-detail-loading')).toBeTruthy();
@@ -170,7 +193,14 @@ describe('StockDetail snapshot-then-stream ordering', () => {
     // Once ready, a further tick's quantity accumulates normally on top of that fresh
     // baseline — the accumulator is not permanently stuck at 0 after the reset.
     act(() => {
-      emitTick(tickFixture({ p: toDecimal('85.80'), q: 60, t: '2026-09-12T10:30:06.000Z' as IsoUtc, id: 'evt-d' }));
+      emitTick(
+        tickFixture({
+          p: toDecimal('85.80'),
+          q: 60,
+          t: '2026-09-12T10:30:06.000Z' as IsoUtc,
+          id: 'evt-d',
+        }),
+      );
     });
     await act(async () => {
       vi.advanceTimersByTime(DISPLAY_REFRESH_INTERVAL_MS);

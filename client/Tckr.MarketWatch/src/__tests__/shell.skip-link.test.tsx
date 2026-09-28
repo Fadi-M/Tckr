@@ -35,7 +35,9 @@ describe('shell skip link', () => {
     );
     await screen.findAllByRole('row', { name: /^[A-Z]+,/ });
 
-    const firstFocusable = document.querySelector<HTMLElement>('a[href], button, input, [tabindex="0"]');
+    const firstFocusable = document.querySelector<HTMLElement>(
+      'a[href], button, input, [tabindex="0"]',
+    );
     expect(firstFocusable?.textContent).toBe('Skip to instruments');
 
     fireEvent.click(firstFocusable!);

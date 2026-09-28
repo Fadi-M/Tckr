@@ -17,8 +17,12 @@ import { describeOrder, StockList } from '../StockList.tsx';
 describe('describeOrder', () => {
   it('names the default, presets and plain column sorts', () => {
     expect(describeOrder(null)).toBe('Exchange order');
-    expect(describeOrder({ column: 'value', direction: 'desc' })).toBe('Most active · Highest traded value (EGP) this session first');
-    expect(describeOrder({ column: 'price', direction: 'asc' })).toBe('Sorted by Price, lowest first');
+    expect(describeOrder({ column: 'value', direction: 'desc' })).toBe(
+      'Most active · Highest traded value (EGP) this session first',
+    );
+    expect(describeOrder({ column: 'price', direction: 'asc' })).toBe(
+      'Sorted by Price, lowest first',
+    );
     expect(describeOrder({ column: 'name', direction: 'desc' })).toBe('Sorted by Name, Z–A');
   });
 });
@@ -45,13 +49,17 @@ describe('StockList order caption', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Gainers' }));
     expect(caption.textContent).toBe('Gainers · Biggest rise first');
 
-    fireEvent.click(within(screen.getByRole('columnheader', { name: /^Price/ })).getByRole('button'));
+    fireEvent.click(
+      within(screen.getByRole('columnheader', { name: /^Price/ })).getByRole('button'),
+    );
     expect(caption.textContent).toBe('Sorted by Price, highest first');
 
     // "Exchange order" is a lit preset: the named way back from any sort.
     fireEvent.click(screen.getByRole('button', { name: 'Exchange order' }));
     expect(caption.textContent).toBe('Exchange order');
-    expect(screen.getByRole('button', { name: 'Exchange order' }).getAttribute('aria-pressed')).toBe('true');
+    expect(
+      screen.getByRole('button', { name: 'Exchange order' }).getAttribute('aria-pressed'),
+    ).toBe('true');
   });
 
   it('counts the matches while a search filters the board, and announces the count', async () => {
@@ -63,13 +71,17 @@ describe('StockList order caption', () => {
       </MemoryRouter>,
     );
     await screen.findAllByRole('row', { name: /^[A-Z]+,/ });
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search symbol or name' }), { target: { value: 'bank' } });
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search symbol or name' }), {
+      target: { value: 'bank' },
+    });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500);
     });
     const matches = screen.getAllByRole('row', { name: /^[A-Z]+,/ }).length;
     expect(screen.getByTestId('board-order').textContent).toBe(`${matches} of 34 · Exchange order`);
-    expect(screen.getByTestId('search-result-count').textContent).toBe(`${matches} of 34 instruments match “bank”`);
+    expect(screen.getByTestId('search-result-count').textContent).toBe(
+      `${matches} of 34 instruments match “bank”`,
+    );
     vi.useRealTimers();
   });
 });

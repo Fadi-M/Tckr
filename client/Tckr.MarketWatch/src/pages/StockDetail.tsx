@@ -63,7 +63,13 @@
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react';
 import { Link } from 'react-router-dom';
 import { getSharedSource } from '../data/config.ts';
-import { compare, percentChange, subtract, toDecimal, type DecimalString } from '../contracts/decimal.ts';
+import {
+  compare,
+  percentChange,
+  subtract,
+  toDecimal,
+  type DecimalString,
+} from '../contracts/decimal.ts';
 import { formatCairoClock, formatCairoDateShort } from '../data/marketCalendar.ts';
 import { describeRange, pointsInRange, RANGE_KEYS, type RangeKey } from './chartRanges.ts';
 import { DETAIL_HEADING_ID } from './pageAnchors.ts';
@@ -220,7 +226,6 @@ function NoFigure(): JSX.Element {
   );
 }
 
-
 function deltaClassName(change: DecimalString): string {
   const direction = deltaDirection(change);
   return `${DELTA_PILL_BASE_CLASSES} ${DELTA_TONE_CLASSES[direction ?? 'flat']}`;
@@ -325,7 +330,6 @@ function mergeTickIntoQuote(
 
 type Phase = 'loading' | 'ready' | 'not-found';
 
-
 /** The price panel's edge while the stream is held — the board card's amber treatment. */
 const DETAIL_HELD_EDGE =
   'border-[color-mix(in_oklab,var(--tckr-color-warning)_45%,transparent)]! outline outline-offset-0 outline-[color-mix(in_oklab,var(--tckr-color-warning)_20%,transparent)]';
@@ -375,7 +379,9 @@ export function StockDetail({ symbol }: { symbol: string }) {
   // this is an array — see the render below — so a given `PriceChart` instance always
   // receives a stable `history` prop for its whole lifetime (its own doc explains why
   // that matters: it reads `history` once, via a ref, at mount).
-  const [historyPoints, setHistoryPoints] = useState<readonly ChartHistoryPoint[] | undefined>(undefined);
+  const [historyPoints, setHistoryPoints] = useState<readonly ChartHistoryPoint[] | undefined>(
+    undefined,
+  );
 
   const phaseRef = useRef<Phase>('loading');
   const baselineRef = useRef<DecimalString | undefined>(undefined);
@@ -504,7 +510,12 @@ export function StockDetail({ symbol }: { symbol: string }) {
       }
       pendingTick = undefined;
       setQuote((prev) =>
-        mergeTickIntoQuote(prev, tick, baselineRef.current, volumeBaselineRef.current + volumeSinceBaselineRef.current),
+        mergeTickIntoQuote(
+          prev,
+          tick,
+          baselineRef.current,
+          volumeBaselineRef.current + volumeSinceBaselineRef.current,
+        ),
       );
     });
 
@@ -633,7 +644,12 @@ export function StockDetail({ symbol }: { symbol: string }) {
     }
     queuedTickRef.current = undefined;
     setQuote((prev) =>
-      mergeTickIntoQuote(prev, queued, baselineRef.current, volumeBaselineRef.current + volumeSinceBaselineRef.current),
+      mergeTickIntoQuote(
+        prev,
+        queued,
+        baselineRef.current,
+        volumeBaselineRef.current + volumeSinceBaselineRef.current,
+      ),
     );
   }, [phase, symbol]);
 
@@ -674,9 +690,15 @@ export function StockDetail({ symbol }: { symbol: string }) {
   // range selector" module doc and `chartRanges.ts`. Recomputed on every render where `historyPoints`/`range` change, which is fine:
   // `PriceChart` only ever reads this once at mount (via the `key` below causing a
   // fresh mount per range), so a cheap recompute here does not cause extra chart work.
-  const chartRange = useMemo(() => describeRange(range, marketStatus, Date.now()), [range, marketStatus]);
+  const chartRange = useMemo(
+    () => describeRange(range, marketStatus, Date.now()),
+    [range, marketStatus],
+  );
   const rangeDescriptions = useMemo(
-    () => new Map(RANGE_KEYS.map((key) => [key, describeRange(key, marketStatus, Date.now()).description])),
+    () =>
+      new Map(
+        RANGE_KEYS.map((key) => [key, describeRange(key, marketStatus, Date.now()).description]),
+      ),
     [marketStatus],
   );
   const rangedHistory = useMemo(
@@ -703,7 +725,13 @@ export function StockDetail({ symbol }: { symbol: string }) {
     revealRef,
     hasQuote
       ? ({ gsap }) => {
-          gsap.from('[data-reveal="figures"]', { opacity: 0, y: 6, duration: 0.32, stagger: 0.04, delay: 0.06 });
+          gsap.from('[data-reveal="figures"]', {
+            opacity: 0,
+            y: 6,
+            duration: 0.32,
+            stagger: 0.04,
+            delay: 0.06,
+          });
         }
       : null,
     [symbol, hasQuote],
@@ -783,23 +811,40 @@ export function StockDetail({ symbol }: { symbol: string }) {
                     className="font-mono font-semibold text-display tracking-[-0.02em] tabular-nums"
                     data-testid="stock-detail-price"
                   >
-                    <PriceCell value={quote.price} flashDirectionOverride={deltaDirection(quote.change)} flashGlyph={false} />
+                    <PriceCell
+                      value={quote.price}
+                      flashDirectionOverride={deltaDirection(quote.change)}
+                      flashGlyph={false}
+                    />
                   </span>
                   {/* ▲/▼ leads the pair, as it does on the board's Change column: the
                       tint alone is colour-only (DESIGN.md, Color-Plus-Signal Rule). The
                       two pills wrap as one unit, so on a narrow pane the move reads as
                       one fact beneath the price instead of splitting across lines. */}
                   <span className="inline-flex items-center gap-2 whitespace-nowrap">
-                    <span className={deltaClassName(quote.change)} data-testid="stock-detail-change">
+                    <span
+                      className={deltaClassName(quote.change)}
+                      data-testid="stock-detail-change"
+                    >
                       {deltaGlyph(quote.change)}
                       <PriceCell value={quote.change} sign flashGlyph={false} />
                     </span>
-                    <span className={deltaClassName(quote.change)} data-testid="stock-detail-change-percent">
-                      <TickingText text={`${quote.changePercentText}%`} direction={deltaDirection(quote.change) ?? 'up'} />
+                    <span
+                      className={deltaClassName(quote.change)}
+                      data-testid="stock-detail-change-percent"
+                    >
+                      <TickingText
+                        text={`${quote.changePercentText}%`}
+                        direction={deltaDirection(quote.change) ?? 'up'}
+                      />
                     </span>
                   </span>
                 </div>
-                <p data-reveal="figures" className="mt-2 font-mono text-caption text-text-muted" data-testid="stock-detail-asof">
+                <p
+                  data-reveal="figures"
+                  className="mt-2 font-mono text-caption text-text-muted"
+                  data-testid="stock-detail-asof"
+                >
                   {held ? (
                     <>
                       <HeldTag testId="stock-detail-held" />{' '}
@@ -812,8 +857,12 @@ export function StockDetail({ symbol }: { symbol: string }) {
                     ? formatExchangeTime(quote.exchangeTimestamp)
                     : `${formatCairoDateShort(Date.parse(quote.exchangeTimestamp))}, ${formatExchangeTime(quote.exchangeTimestamp)}`}{' '}
                   Cairo
-                  {quote.stream === 'DELAYED' ? ` · DELAYED ${delay.short}${delay.simulated ? ' (simulated)' : ''}` : null}
-                  {held ? <span className="text-text"> · stream down, price not moving</span> : null}
+                  {quote.stream === 'DELAYED'
+                    ? ` · DELAYED ${delay.short}${delay.simulated ? ' (simulated)' : ''}`
+                    : null}
+                  {held ? (
+                    <span className="text-text"> · stream down, price not moving</span>
+                  ) : null}
                 </p>
               </>
             )}
@@ -870,7 +919,9 @@ export function StockDetail({ symbol }: { symbol: string }) {
             // windows it can sit far outside the recent range and would flatten the line.
             referencePrice={range === 'SESSION' ? extras?.baseline : undefined}
             referenceLabel={extras?.baselineIsPreviousClose === false ? 'Open' : 'Prev'}
-            referenceDescription={extras?.baselineIsPreviousClose === false ? 'open' : 'previous close'}
+            referenceDescription={
+              extras?.baselineIsPreviousClose === false ? 'open' : 'previous close'
+            }
             // Same up/down/unchanged the Change pills show: green, red, or ink.
             direction={quote ? deltaDirection(quote.change) : null}
           />
@@ -879,21 +930,48 @@ export function StockDetail({ symbol }: { symbol: string }) {
 
       {/* One set of tiles, loading or not: their labels are known before any figure,
           so only each value swaps from its skeleton to the figure (and staggers in). */}
-      <div className="flex flex-col gap-2.5" data-testid={quote ? 'stock-detail-footer' : 'stock-detail-footer-loading'}>
+      <div
+        className="flex flex-col gap-2.5"
+        data-testid={quote ? 'stock-detail-footer' : 'stock-detail-footer-loading'}
+      >
         <div className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] gap-2.5">
           <StatTile
             label="Open"
-            note={quote && extras?.baselineIsPreviousClose ? <SinceOpen open={extras.open} price={quote.price} /> : undefined}
+            note={
+              quote && extras?.baselineIsPreviousClose ? (
+                <SinceOpen open={extras.open} price={quote.price} />
+              ) : undefined
+            }
           >
-            {!quote ? <StatSkeleton /> : extras ? <PriceCell value={extras.open} flashGlyph={false} /> : <NoFigure />}
+            {!quote ? (
+              <StatSkeleton />
+            ) : extras ? (
+              <PriceCell value={extras.open} flashGlyph={false} />
+            ) : (
+              <NoFigure />
+            )}
           </StatTile>
           <StatTile label="High">
-            {!quote ? <StatSkeleton /> : extras ? <PriceCell value={extras.high} flashGlyph={false} /> : <NoFigure />}
+            {!quote ? (
+              <StatSkeleton />
+            ) : extras ? (
+              <PriceCell value={extras.high} flashGlyph={false} />
+            ) : (
+              <NoFigure />
+            )}
           </StatTile>
           <StatTile label="Low">
-            {!quote ? <StatSkeleton /> : extras ? <PriceCell value={extras.low} flashGlyph={false} /> : <NoFigure />}
+            {!quote ? (
+              <StatSkeleton />
+            ) : extras ? (
+              <PriceCell value={extras.low} flashGlyph={false} />
+            ) : (
+              <NoFigure />
+            )}
           </StatTile>
-          <StatTile label="Volume">{!quote ? <StatSkeleton /> : new Intl.NumberFormat('en-US').format(quote.volume)}</StatTile>
+          <StatTile label="Volume">
+            {!quote ? <StatSkeleton /> : new Intl.NumberFormat('en-US').format(quote.volume)}
+          </StatTile>
         </div>
       </div>
     </div>

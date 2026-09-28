@@ -6,7 +6,14 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { ScrambleWord } from '../ScrambleWord.tsx';
-import { finishMotion, flushMotion, primeMotion, stubReducedMotion, resetMotion, unstubReducedMotion } from './motionTestSupport.ts';
+import {
+  finishMotion,
+  flushMotion,
+  primeMotion,
+  stubReducedMotion,
+  resetMotion,
+  unstubReducedMotion,
+} from './motionTestSupport.ts';
 
 beforeEach(primeMotion);
 

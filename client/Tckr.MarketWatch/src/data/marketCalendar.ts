@@ -205,7 +205,12 @@ export function getMarketStatus(nowMs: number): MarketStatus {
   const closeAtToday = cairoEpochFor(today, MARKET_CLOSE.hour, MARKET_CLOSE.minute);
 
   if (isTradingDay(parts.weekday) && nowMs >= openAtToday && nowMs < closeAtToday) {
-    return { state: 'open', sessionDateKey: today, sessionOpenAt: openAtToday, sessionCloseAt: closeAtToday };
+    return {
+      state: 'open',
+      sessionDateKey: today,
+      sessionOpenAt: openAtToday,
+      sessionCloseAt: closeAtToday,
+    };
   }
 
   if (isTradingDay(parts.weekday) && nowMs < openAtToday) {
@@ -251,7 +256,20 @@ export function formatCairoClock(epochMs: number): string {
   return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:${second.toString().padStart(2, '0')}`;
 }
 
-const MONTH_SHORT_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+const MONTH_SHORT_NAMES = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const;
 
 /** `"{Weekday} {D} {Mon}"` in Cairo time (e.g. `"Thu 24 Sep"`) — for a timestamp that
  * may not be today's, such as the last trade shown while the market is closed. */
@@ -275,7 +293,10 @@ export function formatCairoTimeShort(epochMs: number): string {
  * call sites already say so themselves, in their own surrounding copy, and to differing
  * degrees ("... Cairo" vs "... Cairo time"). Pass `nowMs` to get "today"/"tomorrow" in
  * place of the weekday when the open falls on either. */
-export function formatNextOpen(status: Extract<MarketStatus, { state: 'closed' }>, nowMs?: number): string {
+export function formatNextOpen(
+  status: Extract<MarketStatus, { state: 'closed' }>,
+  nowMs?: number,
+): string {
   const time = formatCairoTimeShort(status.nextOpenAt);
   const open = getCairoParts(status.nextOpenAt);
   if (nowMs !== undefined) {
@@ -283,7 +304,8 @@ export function formatNextOpen(status: Extract<MarketStatus, { state: 'closed' }
     // "Sun" — which reads as next week's Sunday to someone who is already in it.
     const today = getCairoParts(nowMs);
     const tomorrow = getCairoParts(nowMs + 24 * 60 * 60 * 1000);
-    const sameDay = (a: CairoParts, b: CairoParts) => a.year === b.year && a.month === b.month && a.day === b.day;
+    const sameDay = (a: CairoParts, b: CairoParts) =>
+      a.year === b.year && a.month === b.month && a.day === b.day;
     if (sameDay(open, today)) {
       return `today ${time}`;
     }

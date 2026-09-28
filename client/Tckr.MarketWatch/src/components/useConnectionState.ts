@@ -34,7 +34,9 @@ function seedState(): ConnectionState {
     return current;
   }
   // A source without `connectionState()` — see `ConnectionStatus`'s module doc.
-  return source.identity() !== null ? { kind: 'connected', since: Date.now() } : { kind: 'connecting', attempt: 1 };
+  return source.identity() !== null
+    ? { kind: 'connected', since: Date.now() }
+    : { kind: 'connecting', attempt: 1 };
 }
 
 function seedView(): ConnectionView {

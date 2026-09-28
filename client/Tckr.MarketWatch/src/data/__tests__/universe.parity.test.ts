@@ -9,7 +9,10 @@ import { describe, expect, it } from 'vitest';
 // here only for comparison, never modified).
 const here = dirname(fileURLToPath(import.meta.url));
 const clientCopyPath = resolve(here, '../../../public/symbols.json');
-const exchangeOriginalPath = resolve(here, '../../../../../src/Tckr.MockExchange/Reference/symbols.json');
+const exchangeOriginalPath = resolve(
+  here,
+  '../../../../../src/Tckr.MockExchange/Reference/symbols.json',
+);
 
 describe('public/symbols.json parity with the mock exchange reference file', () => {
   it('is byte-identical to src/Tckr.MockExchange/Reference/symbols.json', () => {

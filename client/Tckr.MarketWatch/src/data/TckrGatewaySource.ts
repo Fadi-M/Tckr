@@ -37,13 +37,26 @@ import type {
   Tick,
 } from '../contracts/messages.ts';
 import { toDecimal, type DecimalString } from '../contracts/decimal.ts';
-import { SYMBOLS_PATH, type HistoryPoint, type Snapshot, type SymbolDefinition, type SymbolHistoryResponse, type SymbolUniverseResponse } from '../contracts/rest.ts';
+import {
+  SYMBOLS_PATH,
+  type HistoryPoint,
+  type Snapshot,
+  type SymbolDefinition,
+  type SymbolHistoryResponse,
+  type SymbolUniverseResponse,
+} from '../contracts/rest.ts';
 import { CloseCode } from '../contracts/closeCodes.ts';
 import type { ConnectionState, Identity, MarketDataSource } from './MarketDataSource.ts';
 import type { ClientConfig } from './config.ts';
 import { applySnapshot, primeUniverse, resetStream } from './store.ts';
 import { TickDispatcher } from './TickDispatcher.ts';
-import { createHeartbeatWatchdog, DEFAULT_BACKOFF_POLICY, nextDelay, shouldReconnect, type HeartbeatWatchdog } from './reconnect.ts';
+import {
+  createHeartbeatWatchdog,
+  DEFAULT_BACKOFF_POLICY,
+  nextDelay,
+  shouldReconnect,
+  type HeartbeatWatchdog,
+} from './reconnect.ts';
 
 // ---------------------------------------------------------------------------
 // Transport seams — real WebSocket/fetch by default, injectable for tests. Neither
@@ -63,7 +76,11 @@ export interface GatewaySocket {
   onclose: ((event: { code: number; reason: string }) => void) | null;
 }
 
-type FetchResponseLike = { readonly ok: boolean; readonly status: number; json(): Promise<unknown> };
+type FetchResponseLike = {
+  readonly ok: boolean;
+  readonly status: number;
+  json(): Promise<unknown>;
+};
 type FetchLike = (url: string) => Promise<FetchResponseLike>;
 
 export interface TckrGatewaySourceDeps {
@@ -210,7 +227,9 @@ function parseSnapshotBody(value: unknown): Snapshot {
     change: reqPrice(value, 'change', context),
     changePercent: reqString(value, 'changePercent', context),
     open: reqPrice(value, 'open', context),
-    ...(value['previousClose'] === undefined ? {} : { previousClose: reqPrice(value, 'previousClose', context) }),
+    ...(value['previousClose'] === undefined
+      ? {}
+      : { previousClose: reqPrice(value, 'previousClose', context) }),
     high: reqPrice(value, 'high', context),
     low: reqPrice(value, 'low', context),
     volume: reqNumber(value, 'volume', context),
@@ -296,7 +315,11 @@ export class TckrGatewaySource implements MarketDataSource {
    * `closed`/`Normal` state before `connect()` has ever been called — there is no
    * "never connected" member on `ConnectionState`, and `closed` is the nearest honest
    * fit for "nothing is happening yet". */
-  #lastStatus: ConnectionState = { kind: 'closed', code: CloseCode.Normal, reason: 'not yet connected' };
+  #lastStatus: ConnectionState = {
+    kind: 'closed',
+    code: CloseCode.Normal,
+    reason: 'not yet connected',
+  };
 
   #universeCache: SymbolUniverseResponse | undefined;
   #universeInFlight: Promise<SymbolUniverseResponse> | undefined;
@@ -337,7 +360,10 @@ export class TckrGatewaySource implements MarketDataSource {
   }
 
   async connect(): Promise<void> {
-    if (this.#socket && (this.#socket.readyState === SOCKET_OPEN || this.#socket.readyState === SOCKET_CONNECTING)) {
+    if (
+      this.#socket &&
+      (this.#socket.readyState === SOCKET_OPEN || this.#socket.readyState === SOCKET_CONNECTING)
+    ) {
       return;
     }
     this.#intentionalClose = false;
@@ -401,7 +427,9 @@ export class TckrGatewaySource implements MarketDataSource {
 
   async getSnapshot(symbol: string): Promise<Snapshot> {
     const base = httpBase(this.#config.gatewayUrl);
-    const res = await this.#fetchImpl(`${base}${SYMBOLS_PATH}/${encodeURIComponent(symbol)}/snapshot`);
+    const res = await this.#fetchImpl(
+      `${base}${SYMBOLS_PATH}/${encodeURIComponent(symbol)}/snapshot`,
+    );
     if (!res.ok) {
       throw new Error(`getSnapshot(${symbol}): HTTP ${res.status}`);
     }
@@ -418,7 +446,9 @@ export class TckrGatewaySource implements MarketDataSource {
    * `src/data/store.ts` tracks per symbol. */
   async getHistory(symbol: string): Promise<SymbolHistoryResponse> {
     const base = httpBase(this.#config.gatewayUrl);
-    const res = await this.#fetchImpl(`${base}${SYMBOLS_PATH}/${encodeURIComponent(symbol)}/history`);
+    const res = await this.#fetchImpl(
+      `${base}${SYMBOLS_PATH}/${encodeURIComponent(symbol)}/history`,
+    );
     if (!res.ok) {
       throw new Error(`getHistory(${symbol}): HTTP ${res.status}`);
     }
@@ -530,7 +560,11 @@ export class TckrGatewaySource implements MarketDataSource {
   }
 
   #handleConnected(message: Connected): void {
-    this.#identityValue = { userId: message.userId, stream: message.stream, sessionId: message.sessionId };
+    this.#identityValue = {
+      userId: message.userId,
+      stream: message.stream,
+      sessionId: message.sessionId,
+    };
     this.#heartbeatIntervalMs = message.heartbeatIntervalMs;
     this.#backoffAttempt = 0;
     this.#authenticated = true;
@@ -633,7 +667,12 @@ export class TckrGatewaySource implements MarketDataSource {
    * symmetrically for the client's own sends too) and are held during a `RATE_LIMITED`
    * backoff window. Both cases queue rather than drop. */
   #send(msg: ClientMessage): void {
-    if (!this.#authenticated || this.#now() < this.#throttledUntil || !this.#socket || this.#socket.readyState !== SOCKET_OPEN) {
+    if (
+      !this.#authenticated ||
+      this.#now() < this.#throttledUntil ||
+      !this.#socket ||
+      this.#socket.readyState !== SOCKET_OPEN
+    ) {
       this.#pendingOutbound.push(msg);
       if (this.#now() < this.#throttledUntil) {
         this.#scheduleThrottleFlush();
@@ -746,7 +785,9 @@ export class TckrGatewaySource implements MarketDataSource {
     this.#emitStatus({ kind: 'closed', code: closeCode, reason });
 
     if (resolvers) {
-      resolvers.reject(new Error(`TckrGatewaySource: connection closed before open (code ${code}: ${reason})`));
+      resolvers.reject(
+        new Error(`TckrGatewaySource: connection closed before open (code ${code}: ${reason})`),
+      );
     }
 
     if (this.#intentionalClose) {
@@ -814,7 +855,11 @@ export class TckrGatewaySource implements MarketDataSource {
     const body = await res.json();
     const universe = parseUniverseBody(body);
     primeUniverse(
-      universe.symbols.map((s) => ({ symbol: s.symbol, name: s.name, referencePrice: s.referencePrice })),
+      universe.symbols.map((s) => ({
+        symbol: s.symbol,
+        name: s.name,
+        referencePrice: s.referencePrice,
+      })),
     );
     return universe;
   }

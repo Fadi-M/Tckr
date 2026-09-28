@@ -56,7 +56,12 @@ describe('detail pane before its chunk loads', () => {
   });
 
   it('keeps the skeleton modules free of PriceChart and uPlot', () => {
-    for (const file of ['pages/detailChrome.tsx', 'chart/ChartSkeleton.tsx', 'chart/chartGeometry.ts', 'components/Skeleton.tsx']) {
+    for (const file of [
+      'pages/detailChrome.tsx',
+      'chart/ChartSkeleton.tsx',
+      'chart/chartGeometry.ts',
+      'components/Skeleton.tsx',
+    ]) {
       const source = readFileSync(resolve(__dirname, '..', file), 'utf8');
       expect(source, file).not.toMatch(/from\s+['"][^'"]*(PriceChart|uplot)[^'"]*['"]/);
     }

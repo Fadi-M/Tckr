@@ -149,7 +149,9 @@ function seedState(): ConnectionState {
   }
   // Fallback for a `MarketDataSource` implementation that hasn't added
   // `connectionState()` — see the module doc.
-  return source.identity() !== null ? { kind: 'connected', since: Date.now() } : { kind: 'connecting', attempt: 1 };
+  return source.identity() !== null
+    ? { kind: 'connected', since: Date.now() }
+    : { kind: 'connecting', attempt: 1 };
 }
 
 export function ConnectionStatus() {
@@ -178,7 +180,10 @@ export function ConnectionStatus() {
     return () => clearInterval(id);
   }, [state.kind]);
 
-  const remainingSecs = state.kind === 'reconnecting' ? remainingSeconds(state.nextRetryMs - (Date.now() - eventReceivedAt)) : 0;
+  const remainingSecs =
+    state.kind === 'reconnecting'
+      ? remainingSeconds(state.nextRetryMs - (Date.now() - eventReceivedAt))
+      : 0;
   const elapsedText = state.kind === 'connected' ? formatElapsed(Date.now() - state.since) : '';
 
   const idle = state.kind === 'connected' && marketStatus.state !== 'open';
@@ -211,10 +216,7 @@ export function ConnectionStatus() {
         // toggle on one row.
         <span data-testid="connection-status" aria-hidden="true">
           Connected
-          <span className="max-[640px]:hidden">
-            {' '}
-            · {elapsedText}
-          </span>
+          <span className="max-[640px]:hidden"> · {elapsedText}</span>
         </span>
       ) : (
         <span data-testid="connection-status" aria-hidden="true">

@@ -30,11 +30,16 @@ describe('SimulatedSource.simulateDrop', () => {
 
     source.simulateDrop(CloseCode.HeartbeatTimeout);
 
-    expect(states[0]).toEqual({ kind: 'closed', code: CloseCode.HeartbeatTimeout, reason: 'simulated drop' });
+    expect(states[0]).toEqual({
+      kind: 'closed',
+      code: CloseCode.HeartbeatTimeout,
+      reason: 'simulated drop',
+    });
     expect(states[1]?.kind).toBe('reconnecting');
 
     const reconnecting = states[1];
-    const delay = reconnecting && reconnecting.kind === 'reconnecting' ? reconnecting.nextRetryMs : 0;
+    const delay =
+      reconnecting && reconnecting.kind === 'reconnecting' ? reconnecting.nextRetryMs : 0;
     await vi.advanceTimersByTimeAsync(delay + 10);
 
     expect(states.some((s) => s.kind === 'connecting')).toBe(true);
@@ -53,7 +58,9 @@ describe('SimulatedSource.simulateDrop', () => {
 
     source.simulateDrop(CloseCode.Unauthenticated);
 
-    expect(states).toEqual([{ kind: 'closed', code: CloseCode.Unauthenticated, reason: 'simulated drop' }]);
+    expect(states).toEqual([
+      { kind: 'closed', code: CloseCode.Unauthenticated, reason: 'simulated drop' },
+    ]);
 
     await vi.advanceTimersByTimeAsync(60000);
     expect(states).toHaveLength(1); // no reconnecting/connecting ever follows
@@ -70,7 +77,8 @@ describe('SimulatedSource.simulateDrop', () => {
 
       source.simulateDrop(code);
       const reconnecting = states[1];
-      const delay = reconnecting && reconnecting.kind === 'reconnecting' ? reconnecting.nextRetryMs : 0;
+      const delay =
+        reconnecting && reconnecting.kind === 'reconnecting' ? reconnecting.nextRetryMs : 0;
       await vi.advanceTimersByTimeAsync(delay + 10);
 
       expect(states.some((s) => s.kind === 'connected')).toBe(true);

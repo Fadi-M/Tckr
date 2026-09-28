@@ -28,7 +28,11 @@ describe('PriceChart empty state', () => {
     expect(screen.queryByTestId('price-chart-empty-state')).not.toBeNull();
 
     rerender(
-      <PriceChart symbol="COMI" tickSize={toDecimal('0.01')} livePrice={{ t: Date.now(), p: toDecimal('85.42') }} />,
+      <PriceChart
+        symbol="COMI"
+        tickSize={toDecimal('0.01')}
+        livePrice={{ t: Date.now(), p: toDecimal('85.42') }}
+      />,
     );
 
     expect(screen.queryByTestId('price-chart-empty-state')).toBeNull();

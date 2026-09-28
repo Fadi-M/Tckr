@@ -22,7 +22,9 @@ vi.mock('../../data/config.ts', () => ({
 import { StockList } from '../StockList.tsx';
 
 async function renderConnectedList() {
-  const handle = makeFakeSource(loadUniverseFixture(), { connectionState: { kind: 'connected', since: Date.now() } });
+  const handle = makeFakeSource(loadUniverseFixture(), {
+    connectionState: { kind: 'connected', since: Date.now() },
+  });
   mockGetSharedSource.mockReturnValue(handle.source);
   render(
     <MemoryRouter>
@@ -65,7 +67,9 @@ describe('StockList held board', () => {
     const held = screen.getByTestId('board-held');
     expect(held.textContent).toContain('Held');
     expect(held.textContent).toContain(`since ${formatCairoClock(droppedAt)}`);
-    expect(screen.getByRole('grid', { name: 'Instruments' }).parentElement?.className).not.toMatch(/opacity-/);
+    expect(screen.getByRole('grid', { name: 'Instruments' }).parentElement?.className).not.toMatch(
+      /opacity-/,
+    );
 
     act(() => emitStatus({ kind: 'connected', since: Date.now() }));
     expect(screen.queryByTestId('board-held')).toBeNull();

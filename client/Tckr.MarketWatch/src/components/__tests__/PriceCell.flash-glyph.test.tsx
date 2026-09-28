@@ -31,7 +31,9 @@ describe('PriceCell flash glyph', () => {
   });
 
   it('flashes the tint only with flashGlyph={false}', () => {
-    const { container, rerender } = render(<PriceCell value={toDecimal('12.64')} flashGlyph={false} />);
+    const { container, rerender } = render(
+      <PriceCell value={toDecimal('12.64')} flashGlyph={false} />,
+    );
     vi.advanceTimersByTime(SETTLE_MS);
     rerender(<PriceCell value={toDecimal('12.58')} flashGlyph={false} />);
     const flash = flashSpan(container);

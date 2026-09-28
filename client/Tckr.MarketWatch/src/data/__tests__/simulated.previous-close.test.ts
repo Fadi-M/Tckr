@@ -38,7 +38,9 @@ describe('SimulatedSource previous close and auction open', () => {
       const snapshot = snapshots[i]!;
       expect(snapshot.previousClose).toBe(def.referencePrice);
       const gap = Math.abs(percentChange(def.referencePrice, snapshot.open));
-      expect(gap).toBeLessThanOrEqual(0.8 + 1e-9 + (100 * Number(def.tickSize)) / Number(def.referencePrice));
+      expect(gap).toBeLessThanOrEqual(
+        0.8 + 1e-9 + (100 * Number(def.tickSize)) / Number(def.referencePrice),
+      );
       if (compare(snapshot.open, def.referencePrice) !== 0) {
         gapped += 1;
       }

@@ -99,7 +99,14 @@ describe('reconnectSharedSource — the one safe way a call site forces a fresh 
     // Two full disconnect/connect cycles (one per click) — never more than that, and
     // the sequence stays a clean, well-formed alternation, never an overlapping/
     // duplicated status.
-    expect(events.map((e) => e.kind)).toEqual(['closed', 'connecting', 'connected', 'closed', 'connecting', 'connected']);
+    expect(events.map((e) => e.kind)).toEqual([
+      'closed',
+      'connecting',
+      'connected',
+      'closed',
+      'connecting',
+      'connected',
+    ]);
     expect(source.identity()).not.toBeNull();
   });
 });

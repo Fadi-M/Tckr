@@ -37,7 +37,13 @@ beforeEach(() => {
 describe('PriceChart crosshair readout', () => {
   it('shows the hovered time and price, and hides when the cursor leaves', () => {
     const t = Date.UTC(2026, 8, 24, 9, 31, 5);
-    render(<PriceChart symbol="COMI" tickSize={toDecimal('0.05')} history={[{ t, p: toDecimal('85.35') }]} />);
+    render(
+      <PriceChart
+        symbol="COMI"
+        tickSize={toDecimal('0.05')}
+        history={[{ t, p: toDecimal('85.35') }]}
+      />,
+    );
     const plot = instances[0]!;
     const readout = plot.over.querySelector<HTMLElement>('[data-testid="price-chart-readout"]')!;
     expect(readout.hidden).toBe(true);

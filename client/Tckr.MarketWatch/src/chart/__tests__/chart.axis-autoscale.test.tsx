@@ -54,7 +54,13 @@ function resetScalesArg(call: unknown[]): unknown {
 
 describe('PriceChart y-axis auto-scale is never suppressed after the first paint', () => {
   it('a periodic redraw() call never passes resetScales: false', () => {
-    render(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} history={[{ t: 1000, p: toDecimal('85.00') }]} />);
+    render(
+      <PriceChart
+        symbol="COMI"
+        tickSize={toDecimal('0.01')}
+        history={[{ t: 1000, p: toDecimal('85.00') }]}
+      />,
+    );
     const instance = instances[0];
     expect(instance).toBeDefined();
 
@@ -73,7 +79,11 @@ describe('PriceChart y-axis auto-scale is never suppressed after the first paint
     // Exactly one history sample — triggers the single-point-doubling fallback, the
     // exact degenerate (min === max) seed that exposed the bug.
     const { rerender } = render(
-      <PriceChart symbol="COMI" tickSize={toDecimal('0.01')} history={[{ t: 1000, p: toDecimal('85.00') }]} />,
+      <PriceChart
+        symbol="COMI"
+        tickSize={toDecimal('0.01')}
+        history={[{ t: 1000, p: toDecimal('85.00') }]}
+      />,
     );
     const instance = instances[0];
     const [, firstYs] = instance!.setData.mock.calls[0]![0] as [Float64Array, Float64Array];
@@ -102,7 +112,13 @@ describe('PriceChart y-axis auto-scale is never suppressed after the first paint
   });
 
   it('the onStreamDiscard clear never passes resetScales: false', () => {
-    render(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} history={[{ t: 1000, p: toDecimal('85.00') }]} />);
+    render(
+      <PriceChart
+        symbol="COMI"
+        tickSize={toDecimal('0.01')}
+        history={[{ t: 1000, p: toDecimal('85.00') }]}
+      />,
+    );
     const instance = instances[0];
 
     act(() => {

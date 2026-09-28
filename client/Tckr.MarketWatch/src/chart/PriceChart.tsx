@@ -85,7 +85,14 @@ import { DISPLAY_REFRESH_INTERVAL_MS } from '../display/throttle.ts';
 import { useTheme } from '../theme/useTheme.ts';
 import { RingBuffer, toPlotValue } from './ringBuffer.ts';
 import { PRICE_AXIS_SIZE_PX, TIME_AXIS_SIZE_PX } from './chartGeometry.ts';
-import { decimalsForTickSize, formatClockTime, formatXAxisTick, formatYAxisLabel, timeAxisSplits, X_AXIS_INCREMENTS_MS } from './axes.ts';
+import {
+  decimalsForTickSize,
+  formatClockTime,
+  formatXAxisTick,
+  formatYAxisLabel,
+  timeAxisSplits,
+  X_AXIS_INCREMENTS_MS,
+} from './axes.ts';
 
 /** One point of session history, already converted to this component's own numeric/x
  * representation (`t`: epoch ms, matching `SymbolView.lastUpdate`'s convention) — the
@@ -242,11 +249,17 @@ export function chartYRange(
  * keeps its exact spot; when the reference would overlap it, the reference steps one
  * tag height away on the side it actually lies, so both stay readable.
  */
-export function placeAxisTags(lastPos: number | null, refPos: number | null): { last: number | null; ref: number | null } {
+export function placeAxisTags(
+  lastPos: number | null,
+  refPos: number | null,
+): { last: number | null; ref: number | null } {
   if (refPos === null || lastPos === null || Math.abs(refPos - lastPos) >= AXIS_TAG_HEIGHT_PX) {
     return { last: lastPos, ref: refPos };
   }
-  return { last: lastPos, ref: refPos >= lastPos ? lastPos + AXIS_TAG_HEIGHT_PX : lastPos - AXIS_TAG_HEIGHT_PX };
+  return {
+    last: lastPos,
+    ref: refPos >= lastPos ? lastPos + AXIS_TAG_HEIGHT_PX : lastPos - AXIS_TAG_HEIGHT_PX,
+  };
 }
 
 /** Whether an axis label at `pos` would sit under one of the tags at `tagPositions`. */
@@ -472,7 +485,10 @@ export function PriceChart({
     const tagPositions = (u: uPlot): { last: number | null; ref: number | null } => {
       const last = lastValue(u);
       const ref = referenceValue();
-      return placeAxisTags(last === null ? null : u.valToPos(last, 'y'), ref === null ? null : u.valToPos(ref, 'y'));
+      return placeAxisTags(
+        last === null ? null : u.valToPos(last, 'y'),
+        ref === null ? null : u.valToPos(ref, 'y'),
+      );
     };
 
     const drawOverlays = (u: uPlot): void => {
@@ -523,7 +539,10 @@ export function PriceChart({
         padding: PLOT_PADDING,
         scales: {
           x: { time: false },
-          y: { range: (_u, min, max) => chartYRange(min, max, referenceValue(), toPlotValue(tickSizeRef.current)) },
+          y: {
+            range: (_u, min, max) =>
+              chartYRange(min, max, referenceValue(), toPlotValue(tickSizeRef.current)),
+          },
         },
         series: [
           {},
@@ -554,10 +573,16 @@ export function PriceChart({
             // Both ends always labelled, interior steps only where they fit (see
             // `timeAxisSplits`); `space` in CSS px converted to the scale's ms.
             splits: (u, _axisIdx, min, max, incr, space) =>
-              timeAxisSplits(min, max, incr, (space * (max - min)) / Math.max(1, u.bbox.width / uPlot.pxRatio)),
+              timeAxisSplits(
+                min,
+                max,
+                incr,
+                (space * (max - min)) / Math.max(1, u.bbox.width / uPlot.pxRatio),
+              ),
             grid: { show: false },
             ticks: { show: false },
-            values: (_u, splits, _axisIdx, _space, incr) => splits.map((v) => formatXAxisTick(v, incr)),
+            values: (_u, splits, _axisIdx, _space, incr) =>
+              splits.map((v) => formatXAxisTick(v, incr)),
           },
           {
             side: 1,
@@ -576,7 +601,9 @@ export function PriceChart({
                 return splits.map(() => '');
               }
               return splits.map((v) =>
-                isUnderAxisTag(u.valToPos(v, 'y'), [last, ref]) ? '' : formatYAxisLabel(v, tickSizeRef.current),
+                isUnderAxisTag(u.valToPos(v, 'y'), [last, ref])
+                  ? ''
+                  : formatYAxisLabel(v, tickSizeRef.current),
               );
             },
           },
@@ -634,7 +661,10 @@ export function PriceChart({
       // `resetScales` deliberately left at its default (`true`) here only: this is the
       // very first paint, there is no prior view/zoom yet for a reset to clobber, and an
       // initial auto-scale to the seeded range is exactly what should happen.
-      plot.setData([buffer.times.subarray(0, buffer.length), buffer.values.subarray(0, buffer.length)], true);
+      plot.setData(
+        [buffer.times.subarray(0, buffer.length), buffer.values.subarray(0, buffer.length)],
+        true,
+      );
     }
     recomputeStats(buffer);
 
@@ -663,7 +693,10 @@ export function PriceChart({
       // this by reintroducing a blanket `false` here; it should track whether the user
       // has manually zoomed and only then skip the reset (e.g. via `uplot`'s per-scale
       // `setScale`), leaving auto-scaling behavior intact otherwise.
-      activePlot.setData([current.times.subarray(0, current.length), current.values.subarray(0, current.length)]);
+      activePlot.setData([
+        current.times.subarray(0, current.length),
+        current.values.subarray(0, current.length),
+      ]);
       recomputeStats(current);
     };
 
@@ -741,7 +774,15 @@ export function PriceChart({
       const v1 = toPlotValue(view.p);
       buffer.push(t1, v1);
 
-      if (!canTween || !fromTimes || !fromValues || x0Min == null || x0Max == null || y0Min == null || y0Max == null) {
+      if (
+        !canTween ||
+        !fromTimes ||
+        !fromValues ||
+        x0Min == null ||
+        x0Max == null ||
+        y0Min == null ||
+        y0Max == null
+      ) {
         redraw();
         return;
       }
@@ -755,7 +796,12 @@ export function PriceChart({
         if (v < lo) lo = v;
         if (v > hi) hi = v;
       }
-      const [toYMin, toYMax] = chartYRange(lo, hi, referenceValue(), toPlotValue(tickSizeRef.current));
+      const [toYMin, toYMax] = chartYRange(
+        lo,
+        hi,
+        referenceValue(),
+        toPlotValue(tickSizeRef.current),
+      );
       const toXMin = buffer.times[0]!;
       const toXMax = buffer.times[count - 1]!;
       const x0 = [x0Min, x0Max] as const;
@@ -805,7 +851,9 @@ export function PriceChart({
     let intervalId: ReturnType<typeof setInterval> | undefined;
     const now = Date.now();
     const toPhase =
-      ((SAMPLE_AFTER_PAINT_MS - (now % DISPLAY_REFRESH_INTERVAL_MS)) % DISPLAY_REFRESH_INTERVAL_MS + DISPLAY_REFRESH_INTERVAL_MS) %
+      (((SAMPLE_AFTER_PAINT_MS - (now % DISPLAY_REFRESH_INTERVAL_MS)) %
+        DISPLAY_REFRESH_INTERVAL_MS) +
+        DISPLAY_REFRESH_INTERVAL_MS) %
         DISPLAY_REFRESH_INTERVAL_MS || DISPLAY_REFRESH_INTERVAL_MS;
     const phaseId = setTimeout(() => {
       sampleAndDraw();
@@ -858,7 +906,10 @@ export function PriceChart({
       return;
     }
     seedFlatPoint(buffer, livePrice.t, toPlotValue(livePrice.p));
-    plot.setData([buffer.times.subarray(0, buffer.length), buffer.values.subarray(0, buffer.length)]);
+    plot.setData([
+      buffer.times.subarray(0, buffer.length),
+      buffer.values.subarray(0, buffer.length),
+    ]);
     recomputeStats(buffer);
   }, [symbol, livePrice]);
 
@@ -918,7 +969,10 @@ export function PriceChart({
       // degenerate range. A discard clearing the series to empty is exactly a moment
       // the axis *should* reset (there is nothing left to scale against until the next
       // real point arrives).
-      plotRef.current?.setData([buffer.times.subarray(0, buffer.length), buffer.values.subarray(0, buffer.length)]);
+      plotRef.current?.setData([
+        buffer.times.subarray(0, buffer.length),
+        buffer.values.subarray(0, buffer.length),
+      ]);
       recomputeStats(buffer);
     });
     return unsubscribeDiscard;
@@ -928,7 +982,9 @@ export function PriceChart({
     <div className="flex flex-col w-full min-w-0">
       <div
         className="relative w-full min-w-0 rounded-2xl overflow-hidden"
-        style={{ height, '--tckr-chart-line': `var(${LINE_TOKEN[lineDirection]})` } as CSSProperties}
+        style={
+          { height, '--tckr-chart-line': `var(${LINE_TOKEN[lineDirection]})` } as CSSProperties
+        }
         data-direction={lineDirection}
       >
         {!hasData && (
@@ -953,7 +1009,10 @@ export function PriceChart({
           }
         />
         {stats ? (
-          <span aria-hidden="true" className="absolute z-2 font-mono text-caption text-text bg-surface border border-border px-2 py-[3px] rounded-[7px] pointer-events-none top-3 left-3.5">
+          <span
+            aria-hidden="true"
+            className="absolute z-2 font-mono text-caption text-text bg-surface border border-border px-2 py-[3px] rounded-[7px] pointer-events-none top-3 left-3.5"
+          >
             {rangeLabel}
           </span>
         ) : null}

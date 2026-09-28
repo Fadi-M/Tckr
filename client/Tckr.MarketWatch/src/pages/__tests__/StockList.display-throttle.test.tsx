@@ -23,7 +23,9 @@ vi.mock('../../data/config.ts', () => ({ getSharedSource: mockGetSharedSource })
 import { StockList } from '../StockList.tsx';
 
 function renderCountFor(symbol: string): number {
-  const row = screen.getAllByRole('row').find((candidate) => candidate.getAttribute('data-symbol') === symbol);
+  const row = screen
+    .getAllByRole('row')
+    .find((candidate) => candidate.getAttribute('data-symbol') === symbol);
   return Number(row?.getAttribute('data-render-count'));
 }
 
@@ -61,7 +63,13 @@ describe('StockListRow display-refresh throttle', () => {
     // A hot symbol's burst, including its very first tick: none of it paints mid-beat.
     act(() => {
       for (let i = 0; i < 20; i += 1) {
-        applyTick(tickFixture({ s: 'COMI', p: toDecimal((85 + i * 0.01).toFixed(2)), id: `evt-burst-${i}` }));
+        applyTick(
+          tickFixture({
+            s: 'COMI',
+            p: toDecimal((85 + i * 0.01).toFixed(2)),
+            id: `evt-burst-${i}`,
+          }),
+        );
       }
     });
     expect(renderCountFor('COMI')).toBe(before);
@@ -73,7 +81,9 @@ describe('StockListRow display-refresh throttle', () => {
     expect(renderCountFor('COMI')).toBe(before + 1);
 
     // The beat shows the *latest* tick of the burst, never a mid-burst value.
-    const comiRow = screen.getAllByRole('row').find((candidate) => candidate.getAttribute('data-symbol') === 'COMI');
+    const comiRow = screen
+      .getAllByRole('row')
+      .find((candidate) => candidate.getAttribute('data-symbol') === 'COMI');
     expect(comiRow?.textContent).toContain('85.19');
   });
 });

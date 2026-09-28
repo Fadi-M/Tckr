@@ -156,10 +156,14 @@ export function resolveClientConfig(overrides?: Partial<ClientConfig>): ClientCo
   const clock = resolved.simulated.clock;
   if (clock !== undefined) {
     if (resolved.source !== 'simulated') {
-      throw new Error('VITE_TCKR_SIM_CLOCK (npm run dev:open / dev:bell / --market) only works with the simulated source.');
+      throw new Error(
+        'VITE_TCKR_SIM_CLOCK (npm run dev:open / dev:bell / --market) only works with the simulated source.',
+      );
     }
     if (import.meta.env.PROD) {
-      throw new Error('VITE_TCKR_SIM_CLOCK (npm run dev:open / dev:bell / --market) is for development only; unset it for a production build.');
+      throw new Error(
+        'VITE_TCKR_SIM_CLOCK (npm run dev:open / dev:bell / --market) is for development only; unset it for a production build.',
+      );
     }
     // Validates the value now, so a typo fails at startup rather than at first use.
     resolveSimulatedClockTarget(clock, Date.now());

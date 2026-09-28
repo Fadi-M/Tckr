@@ -42,7 +42,15 @@
  * "header simulated-tape tag" tests in `shell.slots.test.tsx`. `git log` has all of
  * it verbatim if a future requirement needs it restored.
  */
-import { lazy, Suspense, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from 'react';
 import { Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { FrostGlows } from './components/FrostGlows';
 import { TckrLogo } from './components/TckrLogo';
@@ -74,7 +82,9 @@ const loadStockDetail = () =>
     loadedStockDetail = module.StockDetail;
     return module;
   });
-const LazyStockDetail = lazy(() => loadStockDetail().then((module) => ({ default: module.StockDetail })));
+const LazyStockDetail = lazy(() =>
+  loadStockDetail().then((module) => ({ default: module.StockDetail })),
+);
 
 function usePrefetchStockDetail(): void {
   useEffect(() => {
@@ -109,9 +119,7 @@ function AppHeader({ statusSlot, badgeSlot }: AppHeaderProps) {
   };
 
   return (
-    <header
-      className="sticky top-0 z-[5] flex items-center justify-between gap-3 w-full px-5 py-3.5 bg-glass backdrop-blur-tckr backdrop-saturate-[160%] border-b border-glass-border reduced-transparency:bg-surface contrast-more:bg-surface reduced-transparency:backdrop-blur-none contrast-more:backdrop-blur-none max-[640px]:px-4 max-[640px]:gap-2"
-    >
+    <header className="sticky top-0 z-[5] flex items-center justify-between gap-3 w-full px-5 py-3.5 bg-glass backdrop-blur-tckr backdrop-saturate-[160%] border-b border-glass-border reduced-transparency:bg-surface contrast-more:bg-surface reduced-transparency:backdrop-blur-none contrast-more:backdrop-blur-none max-[640px]:px-4 max-[640px]:gap-2">
       <Link
         to="/"
         onClick={handleLogoClick}
@@ -180,7 +188,10 @@ export function App({ statusSlot, badgeSlot, greet = false }: AppProps) {
             while a document-wide transition (the theme switch) captures <main> as part
             of the page instead of lifting those layers above the header. */}
         {greeting ? <Greeting onDone={() => setGreeting(false)} /> : null}
-        <main ref={mainRef} className="flex-1 w-full p-4 max-[640px]:p-3 [view-transition-scope:all]">
+        <main
+          ref={mainRef}
+          className="flex-1 w-full p-4 max-[640px]:p-3 [view-transition-scope:all]"
+        >
           <Routes>
             <Route path="/" element={<StockList />}>
               <Route path={SYMBOL_ROUTE} element={<StockDetailRoute />} />

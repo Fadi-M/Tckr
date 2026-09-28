@@ -69,6 +69,8 @@ describe('ConnectionStatus — live region stays quiet between state changes', (
     });
     expect(announcedText(region)).toBe('Reconnecting, attempt 2');
     // Sighted users still see the countdown.
-    expect(screen.getByTestId('connection-status').textContent).toBe('Reconnecting in 3s (attempt 2)');
+    expect(screen.getByTestId('connection-status').textContent).toBe(
+      'Reconnecting in 3s (attempt 2)',
+    );
   });
 });
