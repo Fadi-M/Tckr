@@ -12,7 +12,8 @@ import { loadUniverseFixture, makeFakeSource } from './testSupport.ts';
 const { mockGetSharedSource } = vi.hoisted(() => ({ mockGetSharedSource: vi.fn() }));
 vi.mock('../../data/config.ts', () => ({ getSharedSource: mockGetSharedSource }));
 
-import { describeOrder, StockList } from '../StockList.tsx';
+import { StockList } from '../StockList.tsx';
+import { describeOrder } from '../boardColumns.tsx';
 
 describe('describeOrder', () => {
   it('names the default, presets and plain column sorts', () => {
