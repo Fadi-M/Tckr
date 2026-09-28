@@ -270,7 +270,9 @@ with the border at 32%. The delayed note uses 9% with a 24% border. A solid fill
 reserved for the inverted Ink selection pattern.
 
 **The Always-Green Candle Rule.** The logo's candle is Exchange Green (mint on dark),
-whatever the market is doing.
+whatever the market is doing. One exception, by product decision (2026-09-28): while the
+header logo trades under a hover, a close below its resting level makes it a down candle in
+Brick Red (coral on dark). At rest it is always green again.
 
 ## Typography
 
@@ -804,15 +806,16 @@ The candlestick "T" plus "ckr" lockup (see Typography › Wordmark), themed thro
 `--tckr-logo-ink` / `--tckr-logo-candle`. The mark is 1.15× the wordmark height, the gap
 is about 0.06× the wordmark size, and the two are bottom-aligned.
 
-**Hover (header only): the candle comes to life and trades.** Under a mouse, the T's
-crossbar pops up and lands with an overshoot (a bell strike), "ckr" lifts with it, the body
-rallies and the lower wick dips (about 0.4s). Then, for as long as the pointer stays, the
-close moves to a new price level every ~0.45s: the body grows or shrinks from its open and
-the upper wick stretches to meet the crossbar, so the T stays whole while it trades. Leaving
-settles everything back to the resting mark in 0.22s, from wherever it is. The candle stays
-green throughout. Mouse on a fine pointer only, never on keyboard focus, nothing under
-reduced motion, and not while the daily greeting has the header logo hidden
-(`motion/useLogoHover.ts`).
+**Hover (header only): the candle comes to life and trades.** Only the T moves; "ckr"
+stays still. Under a mouse, the crossbar pops up and lands with an overshoot (a bell
+strike), the body rallies and the lower wick dips (about 0.4s). Then, for as long as the
+pointer stays, the close moves to a new price level every ~0.45s: the body grows or shrinks
+from its open and the upper wick stretches to meet the crossbar, so the T stays whole while
+it trades. A close below the resting level turns the candle Brick Red (coral on dark) in
+0.18s, and back to green when it recovers. Leaving settles everything back to the resting,
+green mark in 0.22s, from wherever it is. Mouse on a fine pointer only, never on keyboard
+focus, nothing under reduced motion, and not while the daily greeting has the header logo
+hidden (`motion/useLogoHover.ts`).
 
 ## Do's and Don'ts
 
@@ -851,8 +854,8 @@ reduced motion, and not while the daily greeting has the header logo hidden
 - **Don't** stack shadows or use them to express state. Card float and Table float are the
   only elevation shadows.
 - **Don't** use a sharp (0px) corner or a border thicker than 1px.
-- **Don't** colour the logo candle red or coral, or add "Market Watch" text to the lockup
-  (The Always-Green Candle Rule).
+- **Don't** colour the logo candle red or coral (outside the header hover's down candle),
+  or add "Market Watch" text to the lockup (The Always-Green Candle Rule).
 - **Don't** colour the price chart's line per segment or per tick. It takes the session's
   direction as one colour (The Session-Direction Line Rule).
 - **Don't** reintroduce the retired Night Terminal patterns: dark-only default, Roboto

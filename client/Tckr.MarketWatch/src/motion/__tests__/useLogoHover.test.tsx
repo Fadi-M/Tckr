@@ -1,8 +1,9 @@
 /**
  * The header logo's hover (`useLogoHover`): under a mouse the candle opens and trades,
- * with its body anchored at the open and its upper wick always meeting the crossbar;
- * leaving (or unmounting) returns it to the exact resting mark. Touch, reduced motion
- * and the greeting's hidden logo leave it at rest.
+ * with its body anchored at the open and its upper wick always meeting the crossbar. It
+ * turns the down colour exactly while the close is below rest; "ckr" never moves. Leaving
+ * (or unmounting) returns the exact, green, resting mark. Touch, reduced
+ * motion and the greeting's hidden logo leave it at rest.
  */
 import { act, useRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -95,6 +96,30 @@ describe('useLogoHover', () => {
     }
   });
 
+  it('is a down candle exactly while the close is below rest', async () => {
+    stubMedia({ fine: true, reduce: false });
+    const { container, link } = renderLogo();
+    const svg = container.querySelector('svg')!;
+    fireEvent.pointerEnter(link, { pointerType: 'mouse' });
+
+    for (const progress of [0.05, 0.2, 0.4, 0.55, 0.7, 0.9, 1]) {
+      await seekAll(progress);
+      const below = geometry(container).bodyTop > REST.bodyTop + 0.5;
+      expect(svg.dataset.candleTrend ?? 'up').toBe(below ? 'down' : 'up');
+    }
+  });
+
+  it('moves only the T: the wordmark stays still throughout', async () => {
+    stubMedia({ fine: true, reduce: false });
+    const { container, link } = renderLogo();
+    const wordmark = container.querySelector<HTMLElement>('[data-wordmark]')!;
+    fireEvent.pointerEnter(link, { pointerType: 'mouse' });
+    for (const progress of [0.1, 0.5, 1]) {
+      await seekAll(progress);
+      expect(wordmark.style.transform).toBe('');
+    }
+  });
+
   it('lands the crossbar and keeps trading while hovered', async () => {
     stubMedia({ fine: true, reduce: false });
     const { container, link } = renderLogo();
@@ -116,13 +141,43 @@ describe('useLogoHover', () => {
     await seekAll(0.5);
     fireEvent.pointerLeave(link, { pointerType: 'mouse' });
     await finishMotion();
+    await finishMotion();
 
     expect(geometry(container)).toEqual(REST);
     const { gsap } = await loadMotion();
+    expect(container.querySelector('svg')!.dataset.candleTrend ?? 'up').toBe('up');
+    expect(container.querySelector<SVGElement>('[data-candle="body"]')!.style.fill).toBe('');
     const stillTrading = gsap.globalTimeline
       .getChildren(true, true, false)
       .some((animation) => animation.repeat() === -1);
     expect(stillTrading).toBe(false);
+  });
+
+  it('hands the colour back to the theme token after recovering to green mid-hover', async () => {
+    stubMedia({ fine: true, reduce: false });
+    const { gsap } = await loadMotion();
+    const random = vi.spyOn(gsap.utils, 'random');
+    const { container, link } = renderLogo();
+    const body = container.querySelector<SVGElement>('[data-candle="body"]')!;
+
+    // Trades down (red) ...
+    random.mockReturnValue(30);
+    fireEvent.pointerEnter(link, { pointerType: 'mouse' });
+    await finishMotion();
+    expect(container.querySelector('svg')!.dataset.candleTrend).toBe('down');
+    // ... recovers to green while still hovered ...
+    fireEvent.pointerLeave(link, { pointerType: 'mouse' });
+    random.mockReturnValue(20);
+    fireEvent.pointerEnter(link, { pointerType: 'mouse' });
+    await finishMotion();
+    await finishMotion();
+    expect(container.querySelector('svg')!.dataset.candleTrend).toBe('up');
+    // ... then the pointer leaves: no inline colour may outlive the hover, or a theme
+    // switch at rest would keep the old theme's green.
+    fireEvent.pointerLeave(link, { pointerType: 'mouse' });
+    await finishMotion();
+    await finishMotion();
+    expect(body.style.fill).toBe('');
   });
 
   it('restores the resting mark if the header unmounts mid-trade', async () => {
