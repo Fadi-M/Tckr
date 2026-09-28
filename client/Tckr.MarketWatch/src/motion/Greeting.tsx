@@ -37,6 +37,7 @@ import { prefersReducedMotion } from '../components/prefersReducedMotion.ts';
 import { useMarketStatus } from '../components/useMarketStatus.ts';
 import { candleTimeline } from './FormingCandle.tsx';
 import { greetingCopy, type GreetingTone } from './greetingCopy.ts';
+import { greetingScale, heroSizeFor } from './greetingLayout.ts';
 import { markGreeted } from './greetingSchedule.ts';
 import { loadMotion, type Motion } from './motion.ts';
 
@@ -56,8 +57,11 @@ export function Greeting({ onDone }: { readonly onDone: () => void }) {
   // itself mid-performance if a minute ticks over.
   const status = useMarketStatus();
   const copy = useMemo(() => greetingCopy(status, Date.now()), []); // eslint-disable-line react-hooks/exhaustive-deps
-  // The hero lockup's wordmark size: the header's lockup (24px) scaled up.
-  const heroSize = useMemo(() => (window.innerWidth < 640 ? 60 : 96), []);
+  // The hero lockup's wordmark size, fitted to the screen once (the performance is a few
+  // seconds long), and the rest of the composition in proportion to it.
+  const heroSize = useMemo(() => heroSizeFor(window.innerWidth, window.innerHeight), []);
+  const scale = greetingScale(heroSize);
+  const glow = `min(78vw, ${scale.glowPx}px)`;
 
   useLayoutEffect(() => {
     const root = rootRef.current;
@@ -348,30 +352,41 @@ export function Greeting({ onDone }: { readonly onDone: () => void }) {
         <FrostGlows layer="overlay" />
         <span
           data-greet-light
-          className="absolute left-1/2 top-1/2 w-[min(78vw,640px)] aspect-square -mt-[calc(min(78vw,640px)*0.58)] -ml-[calc(min(78vw,640px)*0.5)] rounded-full opacity-0 bg-[radial-gradient(circle,var(--tckr-blob-a)_0%,color-mix(in_oklab,var(--tckr-blob-a)_40%,transparent)_30%,transparent_64%)]"
+          className="absolute left-1/2 top-1/2 aspect-square rounded-full opacity-0 bg-[radial-gradient(circle,var(--tckr-blob-a)_0%,color-mix(in_oklab,var(--tckr-blob-a)_40%,transparent)_30%,transparent_64%)]"
+          style={{
+            width: glow,
+            marginTop: `calc(${glow} * -0.58)`,
+            marginLeft: `calc(${glow} * -0.5)`,
+          }}
         />
       </div>
 
-      <div className="relative h-full flex flex-col items-center justify-center gap-7 px-6 text-center max-[640px]:gap-5">
+      <div
+        className="relative h-full flex flex-col items-center justify-center px-6 text-center"
+        style={{ gap: scale.gapPx }}
+      >
         {/* Hidden until GSAP has collapsed the candle, so the finished mark never shows
             first and then snaps shut. */}
         <span data-greet-lockup className="inline-flex invisible opacity-0">
           <TckrLogo size={heroSize} />
         </span>
-        <div className="flex flex-col items-center gap-3">
+        <div className="flex flex-col items-center" style={{ gap: scale.lineGapPx }}>
           <p
             data-greet-salutation
-            className="invisible font-sans font-medium text-headline tracking-[-0.01em] text-text"
+            className="invisible font-sans font-medium leading-[1.1] tracking-[-0.01em] text-text"
+            style={{ fontSize: scale.salutationPx }}
           >
             {copy.salutation}
           </p>
           <p
             data-greet-market
-            className="invisible inline-flex items-center gap-2.5 font-mono text-caption font-semibold tracking-[0.08em] uppercase text-text-muted"
+            className="invisible inline-flex items-center gap-[0.8em] font-mono font-semibold leading-[1.45] tracking-[0.08em] uppercase text-text-muted"
+            style={{ fontSize: scale.marketPx }}
           >
             <span
               data-greet-dot
-              className={`w-1.5 h-1.5 rounded-full flex-none ${TONE_DOT[copy.tone]}`}
+              className={`rounded-full flex-none ${TONE_DOT[copy.tone]}`}
+              style={{ width: scale.dotPx, height: scale.dotPx }}
             />
             {copy.market}
           </p>
