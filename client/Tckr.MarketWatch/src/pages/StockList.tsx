@@ -1486,6 +1486,10 @@ export function StockList() {
   const subscribedRef = useRef<readonly string[]>([]);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [universe, setUniverse] = useState<readonly SymbolDefinition[] | null>(null);
+  // A rejected `getUniverse()` leaves nothing to render, so the loading branch turns into
+  // an error with a retry. Bumping `universeAttempt` re-runs the fetch effect below.
+  const [universeFailed, setUniverseFailed] = useState(false);
+  const [universeAttempt, retryUniverse] = useReducer((n: number) => n + 1, 0);
   const [rawQuery, setRawQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [sortState, setSortState] = useState<SortState | null>(null);
@@ -1538,54 +1542,58 @@ export function StockList() {
     const source = getSharedSource();
     let cancelled = false;
 
-    // Known debt: a rejected universe fetch is unhandled and leaves the board loading
-    // (GUIDELINES.md §Known debt).
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    source.getUniverse().then((response) => {
-      if (cancelled) {
-        return;
-      }
-      const symbols = response.symbols.map((def) => def.symbol);
-      subscribedRef.current = symbols;
-      source.subscribe(symbols);
-      setUniverse(response.symbols);
-
-      // `subscribe()` above only starts *future* ticks flowing into the shared store —
-      // it does not backfill whatever volume the source had already accumulated before
-      // this page opened (the simulator/gateway tracks true cumulative volume
-      // independent of whether any page is watching). Without this, every row's volume
-      // would start from 0 and only reflect ticks received after mount, understating
-      // the true figure for as long as the page stays open. `getSnapshot()` already
-      // writes its result into the shared store via `applySnapshot` internally (see
-      // `SimulatedSource.getSnapshot`/`TckrGatewaySource.getSnapshot`), so there is
-      // nothing to do with these results beyond letting them resolve —
-      // `StockDetail.tsx` does the equivalent for its one symbol. Fired *after*
-      // `setUniverse` (not awaited before it) so the table paints immediately rather
-      // than waiting on 34 network/simulator round-trips, and `allSettled` (not `all`)
-      // so one symbol's rejected snapshot can never stop the others from applying.
-      void Promise.allSettled(symbols.map((s) => source.getSnapshot(s)));
-
-      // One history fetch per symbol, once, to seed every Session sparkline — table rows
-      // and hero cards (see `sessionSparkline`). A symbol whose history fails simply keeps the
-      // live-accumulating line — the column is decorative, so this never surfaces an error.
-      void Promise.allSettled(symbols.map((s) => source.getHistory(s))).then((results) => {
+    source
+      .getUniverse()
+      .then((response) => {
         if (cancelled) {
           return;
         }
-        const trends = new Map<string, readonly number[]>();
-        results.forEach((result, index) => {
-          if (result.status === 'fulfilled' && result.value.points.length > 1) {
-            trends.set(
-              symbols[index]!,
-              result.value.points.map((point) => toPlotValue(point.p)),
-            );
+        const symbols = response.symbols.map((def) => def.symbol);
+        subscribedRef.current = symbols;
+        source.subscribe(symbols);
+        setUniverse(response.symbols);
+
+        // `subscribe()` above only starts *future* ticks flowing into the shared store —
+        // it does not backfill whatever volume the source had already accumulated before
+        // this page opened (the simulator/gateway tracks true cumulative volume
+        // independent of whether any page is watching). Without this, every row's volume
+        // would start from 0 and only reflect ticks received after mount, understating
+        // the true figure for as long as the page stays open. `getSnapshot()` already
+        // writes its result into the shared store via `applySnapshot` internally (see
+        // `SimulatedSource.getSnapshot`/`TckrGatewaySource.getSnapshot`), so there is
+        // nothing to do with these results beyond letting them resolve —
+        // `StockDetail.tsx` does the equivalent for its one symbol. Fired *after*
+        // `setUniverse` (not awaited before it) so the table paints immediately rather
+        // than waiting on 34 network/simulator round-trips, and `allSettled` (not `all`)
+        // so one symbol's rejected snapshot can never stop the others from applying.
+        void Promise.allSettled(symbols.map((s) => source.getSnapshot(s)));
+
+        // One history fetch per symbol, once, to seed every Session sparkline — table rows
+        // and hero cards (see `sessionSparkline`). A symbol whose history fails simply keeps the
+        // live-accumulating line — the column is decorative, so this never surfaces an error.
+        void Promise.allSettled(symbols.map((s) => source.getHistory(s))).then((results) => {
+          if (cancelled) {
+            return;
+          }
+          const trends = new Map<string, readonly number[]>();
+          results.forEach((result, index) => {
+            if (result.status === 'fulfilled' && result.value.points.length > 1) {
+              trends.set(
+                symbols[index]!,
+                result.value.points.map((point) => toPlotValue(point.p)),
+              );
+            }
+          });
+          if (trends.size > 0) {
+            setSessionTrends(trends);
           }
         });
-        if (trends.size > 0) {
-          setSessionTrends(trends);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setUniverseFailed(true);
         }
       });
-    });
 
     return () => {
       cancelled = true;
@@ -1594,7 +1602,7 @@ export function StockList() {
         subscribedRef.current = [];
       }
     };
-  }, []);
+  }, [universeAttempt]);
 
   useEffect(() => {
     const handle = setTimeout(() => setDebouncedQuery(rawQuery), 150);
@@ -1882,10 +1890,33 @@ export function StockList() {
         <h1 className="sr-only">Tckr Market Watch</h1>
         <div className={SHELL_CLASS}>
           <div data-greet-rise className={shellListColClass(loadingSplit)}>
-            <p className="flex items-center gap-2.5 text-text-muted">
-              <FormingCandle height={22} loop />
-              Loading instruments…
-            </p>
+            {universeFailed ? (
+              <div className={`${CONN_BANNER_BASE} ${CONN_BANNER_DANGER}`} role="alert">
+                <AlertIcon className="text-down" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-small">Couldn’t load the instrument list</div>
+                  <div className="mt-[3px] text-caption text-text-muted">
+                    The board can’t show prices until the list arrives. Check your connection, then
+                    try again.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className={CONN_BANNER_ACTION}
+                  onClick={() => {
+                    setUniverseFailed(false);
+                    retryUniverse();
+                  }}
+                >
+                  Try again
+                </button>
+              </div>
+            ) : (
+              <p className="flex items-center gap-2.5 text-text-muted">
+                <FormingCandle height={22} loop />
+                Loading instruments…
+              </p>
+            )}
           </div>
           <div data-greet-rise className={shellDetailPaneClass(loadingSplit)}>
             <Outlet />

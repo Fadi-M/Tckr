@@ -182,8 +182,6 @@ Review. `/postflight` walks these:
 
 Tracked items that the rules above would otherwise flag. Remove an entry when it's fixed.
 
-1. **Unhandled universe fetch.** `StockList.tsx` doesn't handle a rejected
-   `getUniverse()`, so the board stays loading. The line carries an ESLint suppression.
 2. **Duplicated percent formatting.** `SimulatedSource.ts` formats `changePercent` with
    `toFixed(2)`, the rounding path `display/percent.ts` exists to avoid. `decimalPlacesOf`
    is also duplicated (`StockList.tsx`, `SimulatedSource.ts`).
