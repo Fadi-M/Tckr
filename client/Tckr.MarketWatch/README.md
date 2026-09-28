@@ -34,7 +34,7 @@ runs the same checks plus `npm audit` on every pull request that touches this pa
 
 ### Testing during EGX trading hours
 
-The app follows EGX's real calendar (Sunday–Thursday, 10:00–14:30 Cairo), so outside
+The app follows EGX's real calendar (Sunday–Thursday, 10:00 AM–2:30 PM Cairo), so outside
 those hours the board shows the last completed session and nothing ticks. To work on
 anything that only happens while the market trades, start the dev server on a
 simulated clock:

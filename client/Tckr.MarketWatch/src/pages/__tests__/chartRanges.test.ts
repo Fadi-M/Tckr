@@ -44,7 +44,7 @@ describe('describeRange while trading', () => {
 
   it('names SESSION as today since the open', () => {
     expect(describeRange('SESSION', OPEN, now)).toMatchObject({
-      label: 'Today since 10:00',
+      label: 'Today since 10:00 AM',
       from: null,
       to: null,
     });
@@ -58,7 +58,7 @@ describe('describeRange once closed', () => {
   it('anchors the short ranges to the session close, not to now', () => {
     expect(describeRange('60S', CLOSED, now)).toEqual({
       label: 'Final 60s · Thu 24 Sep',
-      description: 'Final 60 seconds of the Thu 24 Sep session, to the 14:30 close',
+      description: 'Final 60 seconds of the Thu 24 Sep session, to the 2:30 PM close',
       from: CLOSE_AT - 60_000,
       to: CLOSE_AT,
     });
@@ -71,8 +71,8 @@ describe('describeRange once closed', () => {
 
   it('names SESSION as a dated recap with its hours', () => {
     expect(describeRange('SESSION', CLOSED, now)).toMatchObject({
-      label: 'Thu 24 Sep session · 10:00–14:30',
-      description: 'The whole Thu 24 Sep session, 10:00 to 14:30 Cairo',
+      label: 'Thu 24 Sep session · 10:00 AM–2:30 PM',
+      description: 'The whole Thu 24 Sep session, 10:00 AM to 2:30 PM Cairo',
     });
   });
 });
