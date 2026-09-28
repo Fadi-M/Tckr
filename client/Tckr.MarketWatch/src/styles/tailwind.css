@@ -299,11 +299,17 @@
      `--tckr-tick-delay` (the board staggers its rows by it) and fills backwards, so
      the old digits hold until their row's turn. `inline` so the delay variable is
      read on each element (a row), not once at the root where it isn't set. */
-  --animate-price-flash-up: tckr-tick-tint-up 1400ms var(--tckr-ease-out) var(--tckr-tick-delay, 0ms) both;
-  --animate-price-flash-down: tckr-tick-tint-down 1400ms var(--tckr-ease-out) var(--tckr-tick-delay, 0ms) both;
-  --animate-price-flash-arrow: tckr-price-flash-arrow 1600ms var(--tckr-ease-out) var(--tckr-tick-delay, 0ms) both;
+  --animate-price-flash-up: tckr-tick-tint-up 1400ms var(--tckr-ease-out)
+    var(--tckr-tick-delay, 0ms) both;
+  --animate-price-flash-down: tckr-tick-tint-down 1400ms var(--tckr-ease-out)
+    var(--tckr-tick-delay, 0ms) both;
+  --animate-price-flash-arrow: tckr-price-flash-arrow 1600ms var(--tckr-ease-out)
+    var(--tckr-tick-delay, 0ms) both;
   --animate-tick-in-up: tckr-tick-in-up 420ms var(--tckr-ease-out) var(--tckr-tick-delay, 0ms) both;
-  --animate-tick-in-down: tckr-tick-in-down 420ms var(--tckr-ease-out) var(--tckr-tick-delay, 0ms) both;
-  --animate-tick-out-up: tckr-tick-out-up 280ms var(--tckr-ease-out) var(--tckr-tick-delay, 0ms) both;
-  --animate-tick-out-down: tckr-tick-out-down 280ms var(--tckr-ease-out) var(--tckr-tick-delay, 0ms) both;
+  --animate-tick-in-down: tckr-tick-in-down 420ms var(--tckr-ease-out) var(--tckr-tick-delay, 0ms)
+    both;
+  --animate-tick-out-up: tckr-tick-out-up 280ms var(--tckr-ease-out) var(--tckr-tick-delay, 0ms)
+    both;
+  --animate-tick-out-down: tckr-tick-out-down 280ms var(--tckr-ease-out) var(--tckr-tick-delay, 0ms)
+    both;
 }

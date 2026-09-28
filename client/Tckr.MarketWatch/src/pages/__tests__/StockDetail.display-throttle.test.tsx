@@ -45,7 +45,9 @@ vi.mock('../../components/PriceCell.tsx', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../components/PriceCell.tsx')>();
   return {
     ...actual,
-    PriceCell: vi.fn((props: Parameters<typeof actual.PriceCell>[0]) => <actual.PriceCell {...props} />),
+    PriceCell: vi.fn((props: Parameters<typeof actual.PriceCell>[0]) => (
+      <actual.PriceCell {...props} />
+    )),
   };
 });
 

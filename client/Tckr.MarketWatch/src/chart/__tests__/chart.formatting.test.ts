@@ -2,7 +2,14 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { toDecimal } from '../../contracts/decimal.ts';
-import { decimalsForTickSize, formatAxisPrice, formatClockTime, formatXAxisTick, formatYAxisLabel, timeAxisSplits } from '../axes.ts';
+import {
+  decimalsForTickSize,
+  formatAxisPrice,
+  formatClockTime,
+  formatXAxisTick,
+  formatYAxisLabel,
+  timeAxisSplits,
+} from '../axes.ts';
 
 describe('axis price formatting', () => {
   it('renders 2 decimals for a 0.01 tick size', () => {
@@ -100,7 +107,7 @@ function collectSourceFiles(dir: string): string[] {
 }
 
 describe('a DecimalString price becomes a number only via toPlotValue', () => {
-  it('Number(...)/parseFloat(...) called on a price-shaped argument appears nowhere under src/ except ringBuffer.ts\'s own toPlotValue definition', () => {
+  it("Number(...)/parseFloat(...) called on a price-shaped argument appears nowhere under src/ except ringBuffer.ts's own toPlotValue definition", () => {
     const srcDir = path.resolve(process.cwd(), 'src');
     const ringBufferPath = path.resolve(srcDir, 'chart/ringBuffer.ts');
     const priceShapedConversion = /\b(?:Number|parseFloat)\(\s*[\w$.]*[Pp]rice\b/;
@@ -134,7 +141,16 @@ describe('timeAxisSplits', () => {
   it('keeps interior steps only where they stay clear of both ends', () => {
     // Half-hour steps, but nothing within 45 minutes of either end.
     const splits = timeAxisSplits(open, close, HALF_HOUR, 45 * 60_000);
-    expect(splits.map((t) => formatXAxisTick(t, HALF_HOUR))).toEqual(['10:00', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:30']);
+    expect(splits.map((t) => formatXAxisTick(t, HALF_HOUR))).toEqual([
+      '10:00',
+      '11:00',
+      '11:30',
+      '12:00',
+      '12:30',
+      '13:00',
+      '13:30',
+      '14:30',
+    ]);
   });
 
   it('handles a degenerate range', () => {

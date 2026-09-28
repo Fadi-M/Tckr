@@ -49,7 +49,13 @@ describe('PriceChart sampled redraw', () => {
     expect(instance).toBeDefined();
     expect(instance?.setData).not.toHaveBeenCalled();
 
-    rerender(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} livePrice={{ t: 1000, p: priceAt(0) }} />);
+    rerender(
+      <PriceChart
+        symbol="COMI"
+        tickSize={toDecimal('0.01')}
+        livePrice={{ t: 1000, p: priceAt(0) }}
+      />,
+    );
     expect(instance?.setData).toHaveBeenCalledTimes(1);
     // A synthetic point one second earlier, at the same price, precedes the real one —
     // a single point cannot render a visible line (see chart.seeded-from-store.test.tsx).
@@ -64,7 +70,13 @@ describe('PriceChart sampled redraw', () => {
     // A burst: `livePrice` changes 500 times in rapid succession (as StockDetail's own
     // quote would for a hot symbol), all well before the chart's own 30s interval.
     for (let i = 0; i < 500; i += 1) {
-      rerender(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} livePrice={{ t: 1000 + i, p: priceAt(i) }} />);
+      rerender(
+        <PriceChart
+          symbol="COMI"
+          tickSize={toDecimal('0.01')}
+          livePrice={{ t: 1000 + i, p: priceAt(i) }}
+        />,
+      );
     }
     // Only the very first arrival painted (buffer was empty, seeded with the synthetic
     // pair); the other 499 prop changes are not individually recorded.
@@ -88,7 +100,11 @@ describe('PriceChart sampled redraw', () => {
 
   it('never reshuffles history: every redraw is the previous one plus at most one new point', () => {
     const { rerender } = render(
-      <PriceChart symbol="COMI" tickSize={toDecimal('0.01')} livePrice={{ t: 1000, p: priceAt(0) }} />,
+      <PriceChart
+        symbol="COMI"
+        tickSize={toDecimal('0.01')}
+        livePrice={{ t: 1000, p: priceAt(0) }}
+      />,
     );
     const instance = instances[0];
 
@@ -98,7 +114,13 @@ describe('PriceChart sampled redraw', () => {
       // *samples* land in the chart.
       for (let i = 0; i < 200; i += 1) {
         const idx = window * 200 + i;
-        rerender(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} livePrice={{ t: 2000 + idx, p: priceAt(idx) }} />);
+        rerender(
+          <PriceChart
+            symbol="COMI"
+            tickSize={toDecimal('0.01')}
+            livePrice={{ t: 2000 + idx, p: priceAt(idx) }}
+          />,
+        );
       }
       const before = instance!.setData.mock.calls.at(-1)![0] as [Float64Array, Float64Array];
       act(() => {
@@ -139,7 +161,13 @@ describe('PriceChart sampled redraw', () => {
     const { rerender, unmount } = render(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} />);
     const instance = instances[0];
 
-    rerender(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} livePrice={{ t: 1000, p: priceAt(0) }} />);
+    rerender(
+      <PriceChart
+        symbol="COMI"
+        tickSize={toDecimal('0.01')}
+        livePrice={{ t: 1000, p: priceAt(0) }}
+      />,
+    );
     const callsBeforeUnmount = instance?.setData.mock.calls.length ?? 0;
     unmount();
 

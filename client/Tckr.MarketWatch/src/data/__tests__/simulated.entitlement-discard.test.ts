@@ -14,7 +14,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { toDecimal } from '../../contracts/decimal.ts';
 import type { Stream, Tick } from '../../contracts/messages.ts';
 import { SimulatedSource } from '../SimulatedSource.ts';
-import { getSymbolSnapshot, onStreamDiscard, primeUniverse, applyTick, resetStore } from '../store.ts';
+import {
+  getSymbolSnapshot,
+  onStreamDiscard,
+  primeUniverse,
+  applyTick,
+  resetStore,
+} from '../store.ts';
 import { baseConfig } from './testSupport.ts';
 
 function tick(symbol: string, price: string, id: string, stream: Stream = 'LIVE'): Tick {
@@ -37,7 +43,13 @@ describe('SimulatedSource — entitlement-change discard', () => {
   });
 
   it('calls resetStream() when simulateEntitlementChange actually flips the resolved stream', async () => {
-    primeUniverse([{ symbol: 'COMI', name: 'Commercial International Holding', referencePrice: toDecimal('85.10') }]);
+    primeUniverse([
+      {
+        symbol: 'COMI',
+        name: 'Commercial International Holding',
+        referencePrice: toDecimal('85.10'),
+      },
+    ]);
     applyTick(tick('COMI', '90.00', 'evt-1'));
     expect(getSymbolSnapshot('COMI')).toBeDefined();
 
@@ -61,7 +73,13 @@ describe('SimulatedSource — entitlement-change discard', () => {
   });
 
   it('discards before notifying entitlementHandlers, so a synchronous listener already sees cleared state', async () => {
-    primeUniverse([{ symbol: 'COMI', name: 'Commercial International Holding', referencePrice: toDecimal('85.10') }]);
+    primeUniverse([
+      {
+        symbol: 'COMI',
+        name: 'Commercial International Holding',
+        referencePrice: toDecimal('85.10'),
+      },
+    ]);
     applyTick(tick('COMI', '90.00', 'evt-1'));
 
     const source = new SimulatedSource(baseConfig({ demoUser: 'user-001' }));
@@ -79,7 +97,13 @@ describe('SimulatedSource — entitlement-change discard', () => {
   });
 
   it('does not call resetStream() when the resolved stream does not actually change', async () => {
-    primeUniverse([{ symbol: 'COMI', name: 'Commercial International Holding', referencePrice: toDecimal('85.10') }]);
+    primeUniverse([
+      {
+        symbol: 'COMI',
+        name: 'Commercial International Holding',
+        referencePrice: toDecimal('85.10'),
+      },
+    ]);
     applyTick(tick('COMI', '90.00', 'evt-1'));
 
     const discardListener = vi.fn();
@@ -103,7 +127,13 @@ describe('SimulatedSource — entitlement-change discard', () => {
   });
 
   it('re-anchors the baseline to the pristine referencePrice, discarding the old stream tick', async () => {
-    primeUniverse([{ symbol: 'COMI', name: 'Commercial International Holding', referencePrice: toDecimal('85.10') }]);
+    primeUniverse([
+      {
+        symbol: 'COMI',
+        name: 'Commercial International Holding',
+        referencePrice: toDecimal('85.10'),
+      },
+    ]);
     applyTick(tick('COMI', '90.00', 'evt-1'));
 
     const source = new SimulatedSource(baseConfig({ demoUser: 'user-001' }));

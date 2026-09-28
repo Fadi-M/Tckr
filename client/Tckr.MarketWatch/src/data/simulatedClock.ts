@@ -16,7 +16,13 @@
  * alongside the real gateway (whose server timestamps a shifted client clock would
  * contradict) and in production builds.
  */
-import { cairoDateKey, cairoEpochFor, getCairoParts, isTradingDay, previousTradingDateKey } from './marketCalendar.ts';
+import {
+  cairoDateKey,
+  cairoEpochFor,
+  getCairoParts,
+  isTradingDay,
+  previousTradingDateKey,
+} from './marketCalendar.ts';
 
 /** `open`: mid-session, with two hours of history behind it and two and a half ahead. */
 const OPEN_AT = { hour: 12, minute: 0, second: 0 } as const;
@@ -26,7 +32,8 @@ const BELL_AT = { hour: 9, minute: 59, second: 45 } as const;
 const TIME_PATTERN = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/;
 
 /** The values `VITE_TCKR_SIM_CLOCK` (and `--market`) accept. */
-export const SIMULATED_CLOCK_HELP = "'open' (12:00 Cairo), 'bell' (09:59:45 Cairo) or a Cairo time 'HH:MM[:SS]'";
+export const SIMULATED_CLOCK_HELP =
+  "'open' (12:00 Cairo), 'bell' (09:59:45 Cairo) or a Cairo time 'HH:MM[:SS]'";
 
 function parseCairoTime(spec: string): { hour: number; minute: number; second: number } {
   if (spec === 'open') {
@@ -54,7 +61,9 @@ function parseCairoTime(spec: string): { hour: number; minute: number; second: n
 export function resolveSimulatedClockTarget(spec: string, realNowMs: number): number {
   const time = parseCairoTime(spec.trim().toLowerCase());
   const today = cairoDateKey(realNowMs);
-  const day = isTradingDay(getCairoParts(realNowMs).weekday) ? today : previousTradingDateKey(today);
+  const day = isTradingDay(getCairoParts(realNowMs).weekday)
+    ? today
+    : previousTradingDateKey(today);
   return cairoEpochFor(day, time.hour, time.minute) + time.second * 1000;
 }
 
@@ -75,7 +84,9 @@ export function installSimulatedClock(targetMs: number): () => void {
       // `Date()` called as a function returns the current time as a string.
       return new RealDate(shiftedNow()).toString();
     }
-    return args.length === 0 ? new RealDate(shiftedNow()) : (Reflect.construct(RealDate, args, new.target) as Date);
+    return args.length === 0
+      ? new RealDate(shiftedNow())
+      : (Reflect.construct(RealDate, args, new.target) as Date);
   }
   ShiftedDate.prototype = RealDate.prototype;
   Object.setPrototypeOf(ShiftedDate, RealDate);

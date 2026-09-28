@@ -66,7 +66,13 @@ describe('store.onStreamDiscard', () => {
   });
 
   it('a listener observes state that is already cleared and re-anchored', () => {
-    primeUniverse([{ symbol: 'COMI', name: 'Commercial International Holding', referencePrice: toDecimal('85.10') }]);
+    primeUniverse([
+      {
+        symbol: 'COMI',
+        name: 'Commercial International Holding',
+        referencePrice: toDecimal('85.10'),
+      },
+    ]);
     applyTick(tick('COMI', '90.00', 'evt-1'));
     expect(getSymbolSnapshot('COMI')).toBeDefined();
 

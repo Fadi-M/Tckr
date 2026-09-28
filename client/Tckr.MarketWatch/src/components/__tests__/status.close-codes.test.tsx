@@ -47,7 +47,9 @@ describe('ConnectionStatus — close codes', () => {
     act(() => {
       source.emitStatus({ kind: 'closed', code: CloseCode.Unauthenticated, reason: 'test' });
     });
-    expect(screen.getByTestId('connection-status').textContent).toBe('Not authenticated — sign in again');
+    expect(screen.getByTestId('connection-status').textContent).toBe(
+      'Not authenticated — sign in again',
+    );
   });
 
   it('maps each code to exactly the specified string', () => {

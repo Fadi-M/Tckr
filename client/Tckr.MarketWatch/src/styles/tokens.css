@@ -93,7 +93,7 @@
 /* Explicit "system" dark preference. `:not([data-theme="light"])` lets a future
    light-mode toggle override the OS preference. */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root:not([data-theme='light']) {
     --tckr-color-surface: #0c0d0e;
     --tckr-color-surface-raised: #17181a;
     --tckr-color-text: #f2f1ee;
@@ -132,7 +132,7 @@
 }
 
 /* Explicit dark toggle. Wins in both directions regardless of OS preference. */
-:root[data-theme="dark"] {
+:root[data-theme='dark'] {
   --tckr-color-surface: #0c0d0e;
   --tckr-color-surface-raised: #17181a;
   --tckr-color-text: #f2f1ee;

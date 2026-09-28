@@ -114,7 +114,7 @@ describe('getMarketStatus', () => {
     }
   });
 
-  it('is closed before today\'s open on a trading day, showing the previous session', () => {
+  it("is closed before today's open on a trading day, showing the previous session", () => {
     const status = getMarketStatus(Date.UTC(2026, 0, 15, 6, 0, 0)); // 08:00 Cairo, before 10:00
     expect(status.state).toBe('closed');
     if (status.state === 'closed') {
@@ -123,7 +123,7 @@ describe('getMarketStatus', () => {
     }
   });
 
-  it('is closed after today\'s close on a trading day, showing today\'s now-complete session', () => {
+  it("is closed after today's close on a trading day, showing today's now-complete session", () => {
     const status = getMarketStatus(Date.UTC(2026, 0, 15, 13, 0, 0)); // 15:00 Cairo, after 14:30
     expect(status.state).toBe('closed');
     if (status.state === 'closed') {
@@ -157,7 +157,7 @@ describe('formatCairoClock / formatCairoTimeShort', () => {
     expect(formatCairoTimeShort(Date.UTC(2026, 0, 15, 10, 5, 3))).toBe('12:05');
   });
 
-  it('agrees with getMarketStatus\'s own Cairo-time boundaries', () => {
+  it("agrees with getMarketStatus's own Cairo-time boundaries", () => {
     const openAt = cairoEpochFor('2026-08-13', 10, 0);
     expect(formatCairoTimeShort(openAt)).toBe('10:00');
   });

@@ -45,7 +45,13 @@ export function ScrambleWord({
             duration: DURATION_S,
             delay,
             ease: 'none',
-            scrambleText: { text, chars: 'upperCase', tweenLength: true, revealDelay: DURATION_S * 0.35, speed: 0.6 },
+            scrambleText: {
+              text,
+              chars: 'upperCase',
+              tweenLength: true,
+              revealDelay: DURATION_S * 0.35,
+              speed: 0.6,
+            },
           });
           // Start scrambled on the first painted frame. Left to the next tick, the old
           // word would paint once in the new state's pill — one frame of "LIVE" on an

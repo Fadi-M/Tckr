@@ -49,7 +49,11 @@ if (market !== undefined) {
 }
 
 // `npm run` puts node_modules/.bin on PATH, so this is the project's own Vite.
-const child = spawn('vite', viteArgs, { stdio: 'inherit', env, shell: process.platform === 'win32' });
+const child = spawn('vite', viteArgs, {
+  stdio: 'inherit',
+  env,
+  shell: process.platform === 'win32',
+});
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => child.kill(signal));
 }

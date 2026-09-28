@@ -84,7 +84,14 @@ import {
   type ReactNode,
 } from 'react';
 import { Link, Outlet, useMatch } from 'react-router-dom';
-import { compare, format, formatCompact, multiplyByQuantity, toDecimal, type DecimalString } from '../contracts/decimal.ts';
+import {
+  compare,
+  format,
+  formatCompact,
+  multiplyByQuantity,
+  toDecimal,
+  type DecimalString,
+} from '../contracts/decimal.ts';
 import type { SymbolDefinition } from '../contracts/rest.ts';
 import { CloseCode } from '../contracts/closeCodes.ts';
 import { getSharedSource, reconnectSharedSource } from '../data/config.ts';
@@ -93,9 +100,30 @@ import type { Stream } from '../contracts/messages.ts';
 import { streamDelay } from '../components/streamDelay.ts';
 import { BOARD_ID, DETAIL_HEADING_ID } from './pageAnchors.ts';
 import { SYMBOL_ROUTE_PATTERN, symbolPath } from './routes.ts';
-import { getPacedSymbolSnapshot, subscribeBeat, subscribePacedSymbol } from '../display/pacedViews.ts';
-import { formatCairoClock, formatCairoDateShort, formatCairoTimeShort, formatNextOpen, isPreOpenAuction, type MarketStatus } from '../data/marketCalendar.ts';
-import { AlertIcon, ArrowLeftIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, ClockIcon, CloseIcon, RetryIcon, SearchIcon } from '../components/icons.tsx';
+import {
+  getPacedSymbolSnapshot,
+  subscribeBeat,
+  subscribePacedSymbol,
+} from '../display/pacedViews.ts';
+import {
+  formatCairoClock,
+  formatCairoDateShort,
+  formatCairoTimeShort,
+  formatNextOpen,
+  isPreOpenAuction,
+  type MarketStatus,
+} from '../data/marketCalendar.ts';
+import {
+  AlertIcon,
+  ArrowLeftIcon,
+  CheckIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ClockIcon,
+  CloseIcon,
+  RetryIcon,
+  SearchIcon,
+} from '../components/icons.tsx';
 import { FormingCandle } from '../motion/FormingCandle.tsx';
 import { formatUntil } from '../display/formatUntil.ts';
 import { ScrambleWord } from '../motion/ScrambleWord.tsx';
@@ -169,9 +197,32 @@ const COLUMNS: readonly ColumnSpec[] = [
   { key: 'price', label: 'Price', sortable: true, numeric: true, widthPercent: 10 },
   // Change is measured from the previous close (EGX convention); the caption says so on
   // the board itself, since a tooltip can't be opened on touch.
-  { key: 'change', label: 'Change', title: 'Since the previous close', sortable: true, numeric: true, hideNarrow: true, widthPercent: 10 },
-  { key: 'changePercent', label: 'Change %', title: 'Since the previous close', sortable: true, numeric: true, widthPercent: 11 },
-  { key: 'volume', label: 'Volume', title: 'Shares traded this session', sortable: true, numeric: true, hideNarrow: true, widthPercent: 11 },
+  {
+    key: 'change',
+    label: 'Change',
+    title: 'Since the previous close',
+    sortable: true,
+    numeric: true,
+    hideNarrow: true,
+    widthPercent: 10,
+  },
+  {
+    key: 'changePercent',
+    label: 'Change %',
+    title: 'Since the previous close',
+    sortable: true,
+    numeric: true,
+    widthPercent: 11,
+  },
+  {
+    key: 'volume',
+    label: 'Volume',
+    title: 'Shares traded this session',
+    sortable: true,
+    numeric: true,
+    hideNarrow: true,
+    widthPercent: 11,
+  },
   {
     key: 'value',
     label: 'Value',
@@ -229,11 +280,36 @@ type Preset = 'exchange' | 'most-active' | 'gainers' | 'losers';
 // unsorted board and the lit default, so there is always a named way back after a
 // header sort. No A–Z preset: the Symbol header already does exactly that, and the
 // presets are for the orderings a trader asks for by name.
-const PRESETS: readonly { readonly id: Preset; readonly label: string; readonly hint: string; readonly sort: SortState | null }[] = [
-  { id: 'exchange', label: 'Exchange order', hint: 'The order EGX lists its instruments in', sort: null },
-  { id: 'most-active', label: 'Most active', hint: 'Highest traded value (EGP) this session first', sort: { column: 'value', direction: 'desc' } },
-  { id: 'gainers', label: 'Gainers', hint: 'Biggest rise first', sort: { column: 'changePercent', direction: 'desc' } },
-  { id: 'losers', label: 'Losers', hint: 'Biggest fall first', sort: { column: 'changePercent', direction: 'asc' } },
+const PRESETS: readonly {
+  readonly id: Preset;
+  readonly label: string;
+  readonly hint: string;
+  readonly sort: SortState | null;
+}[] = [
+  {
+    id: 'exchange',
+    label: 'Exchange order',
+    hint: 'The order EGX lists its instruments in',
+    sort: null,
+  },
+  {
+    id: 'most-active',
+    label: 'Most active',
+    hint: 'Highest traded value (EGP) this session first',
+    sort: { column: 'value', direction: 'desc' },
+  },
+  {
+    id: 'gainers',
+    label: 'Gainers',
+    hint: 'Biggest rise first',
+    sort: { column: 'changePercent', direction: 'desc' },
+  },
+  {
+    id: 'losers',
+    label: 'Losers',
+    hint: 'Biggest fall first',
+    sort: { column: 'changePercent', direction: 'asc' },
+  },
 ];
 
 function presetFor(sortState: SortState | null): Preset | null {
@@ -278,7 +354,10 @@ function decimalPlacesOf(value: string): number {
 /** A symbol's traded value this session (last price × shares traded), exact — how
  * EGX ranks "most active". Reads the store unless the caller already holds the view.
  * Before the first snapshot: the reference price × 0. */
-function tradedValue(definition: SymbolDefinition, view = getPacedSymbolSnapshot(definition.symbol)): DecimalString {
+function tradedValue(
+  definition: SymbolDefinition,
+  view = getPacedSymbolSnapshot(definition.symbol),
+): DecimalString {
   return multiplyByQuantity(view?.price ?? definition.referencePrice, view?.volume ?? 0);
 }
 
@@ -328,7 +407,9 @@ function isEffectivelyUnchanged(changePercent: number): boolean {
 /** The chip tone for a change %, matching what `formatSignedPercent` prints: flat when
  * there is none yet or it rounds to "0.00%" (so a neutral figure never wears a colour). */
 function percentTone(changePercent: number | undefined): DeltaTone {
-  return changePercent === undefined || isEffectivelyUnchanged(changePercent) ? 'flat' : deltaTone(changePercent);
+  return changePercent === undefined || isEffectivelyUnchanged(changePercent)
+    ? 'flat'
+    : deltaTone(changePercent);
 }
 
 /**
@@ -394,7 +475,9 @@ function useNarrowViewport(): boolean {
  * client-side default: `null` until the handshake). Re-read on every status transition
  * and entitlement change, the same two signals the header's StreamBadge follows. */
 function useViewerStream(): Stream | null {
-  const [stream, setStream] = useState<Stream | null>(() => getSharedSource().identity()?.stream ?? null);
+  const [stream, setStream] = useState<Stream | null>(
+    () => getSharedSource().identity()?.stream ?? null,
+  );
   useEffect(() => {
     const source = getSharedSource();
     const refresh = (): void => setStream(source.identity()?.stream ?? null);
@@ -416,7 +499,11 @@ function useViewerStream(): Stream | null {
 function DelayedStreamBanner() {
   const delay = streamDelay();
   return (
-    <div className={`${CONN_BANNER_BASE} ${CONN_BANNER_DELAYED}`} role="note" data-testid="delayed-stream-banner">
+    <div
+      className={`${CONN_BANNER_BASE} ${CONN_BANNER_DELAYED}`}
+      role="note"
+      data-testid="delayed-stream-banner"
+    >
       <ClockIcon className="text-warning" />
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-small">Delayed prices · {delay.short} behind</div>
@@ -432,7 +519,11 @@ function DelayedStreamBanner() {
   );
 }
 
-function useConnectionBanner(): { state: ConnectionState; remainingSecs: number; heldSince: number | null } {
+function useConnectionBanner(): {
+  state: ConnectionState;
+  remainingSecs: number;
+  heldSince: number | null;
+} {
   const { state, eventReceivedAt, heldSince } = useConnectionState();
   const [, forceTick] = useReducer((n: number) => n + 1, 0);
 
@@ -479,7 +570,8 @@ const CONN_BANNER_WARNING =
   'bg-[color-mix(in_oklab,var(--tckr-color-warning)_16%,var(--tckr-glass-bg))] border border-[color-mix(in_oklab,var(--tckr-color-warning)_32%,transparent)] reduced-transparency:bg-[color-mix(in_oklab,var(--tckr-color-warning)_16%,var(--tckr-color-surface))] contrast-more:bg-[color-mix(in_oklab,var(--tckr-color-warning)_16%,var(--tckr-color-surface))]';
 const CONN_BANNER_DANGER =
   'bg-[color-mix(in_oklab,var(--tckr-color-down)_16%,var(--tckr-glass-bg))] border border-[color-mix(in_oklab,var(--tckr-color-down)_32%,transparent)] reduced-transparency:bg-[color-mix(in_oklab,var(--tckr-color-down)_16%,var(--tckr-color-surface))] contrast-more:bg-[color-mix(in_oklab,var(--tckr-color-down)_16%,var(--tckr-color-surface))]';
-const CONN_BANNER_INFO = 'bg-glass border border-glass-border reduced-transparency:bg-surface contrast-more:bg-surface';
+const CONN_BANNER_INFO =
+  'bg-glass border border-glass-border reduced-transparency:bg-surface contrast-more:bg-surface';
 const CONN_BANNER_DELAYED =
   'bg-[color-mix(in_oklab,var(--tckr-color-warning)_9%,var(--tckr-glass-bg))] border border-[color-mix(in_oklab,var(--tckr-color-warning)_24%,transparent)] reduced-transparency:bg-[color-mix(in_oklab,var(--tckr-color-warning)_9%,var(--tckr-color-surface))] contrast-more:bg-[color-mix(in_oklab,var(--tckr-color-warning)_9%,var(--tckr-color-surface))]';
 const CONN_BANNER_GOOD =
@@ -490,7 +582,7 @@ const CONN_BANNER_STICKY_PHONE = 'max-[800px]:sticky max-[800px]:top-[75px] max-
 const BANNER_DISMISS =
   'flex-none text-caption font-medium text-text-muted px-2.5 py-1.5 rounded-md cursor-pointer [transition:color_150ms_ease] fine-hover:text-text focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-accent focus-visible:outline-offset-2';
 const CONN_BANNER_ACTION =
-  "font-semibold text-caption px-[13px] py-[7px] rounded-md border border-border bg-text text-surface cursor-pointer flex-none [transition:transform_120ms_ease-out,opacity_150ms_ease] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-accent focus-visible:outline-offset-2";
+  'font-semibold text-caption px-[13px] py-[7px] rounded-md border border-border bg-text text-surface cursor-pointer flex-none [transition:transform_120ms_ease-out,opacity_150ms_ease] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-accent focus-visible:outline-offset-2';
 
 function ConnectionBanner({
   state,
@@ -513,7 +605,8 @@ function ConnectionBanner({
             <span className="sr-only"> — retrying automatically</span>
           </div>
           <div className="mt-[3px] text-caption text-text-muted">
-            Attempt {state.attempt}. Prices below are the last values received and are no longer moving.
+            Attempt {state.attempt}. Prices below are the last values received and are no longer
+            moving.
           </div>
         </div>
         <button
@@ -578,7 +671,11 @@ function useMoment(durationMs: number): { shown: boolean; show: () => void; dism
     const id = setTimeout(() => setShown(false), durationMs);
     return () => clearTimeout(id);
   }, [shown, durationMs]);
-  return { shown, show: useCallback(() => setShown(true), []), dismiss: useCallback(() => setShown(false), []) };
+  return {
+    shown,
+    show: useCallback(() => setShown(true), []),
+    dismiss: useCallback(() => setShown(false), []),
+  };
 }
 
 /** The opening bell: shown once when EGX opens while this page is open. */
@@ -663,7 +760,9 @@ function MarketClosedBanner({
     <div className={`${CONN_BANNER_BASE} ${CONN_BANNER_INFO} ${className}`} role="status">
       <ClockIcon className="text-text-muted" />
       <div className="flex-1 min-w-0">
-        <div className="font-semibold text-small">{preOpen ? 'Pre-open auction' : 'Market closed'}</div>
+        <div className="font-semibold text-small">
+          {preOpen ? 'Pre-open auction' : 'Market closed'}
+        </div>
         <div className="mt-[3px] text-caption text-text-muted">
           {/* The relative countdown is visual only: it changes every minute inside a
               status region, and the absolute Cairo time already says when. */}
@@ -673,8 +772,9 @@ function MarketClosedBanner({
             </>
           ) : preOpen ? (
             <>
-              Continuous trading starts at {formatCairoTimeShort(status.nextOpenAt)} Cairo time<span aria-hidden="true">, {until}</span>. Prices
-              below are from the last completed session.
+              Continuous trading starts at {formatCairoTimeShort(status.nextOpenAt)} Cairo time
+              <span aria-hidden="true">, {until}</span>. Prices below are from the last completed
+              session.
             </>
           ) : (
             <>
@@ -771,7 +871,8 @@ function pickHeroes(universe: readonly SymbolDefinition[]): readonly HeroPick[] 
   // renders twice.
   const qualifies = (pick: HeroPick, changePercent: number): boolean =>
     pick.kind === 'active' ||
-    (!isEffectivelyUnchanged(changePercent) && (pick.kind === 'gainer' ? changePercent > 0 : changePercent < 0));
+    (!isEffectivelyUnchanged(changePercent) &&
+      (pick.kind === 'gainer' ? changePercent > 0 : changePercent < 0));
   const changeOf = new Map(metrics.map((m) => [m.definition.symbol, m.changePercent]));
   const seen = new Set<string>();
   return candidates.filter((pick) => {
@@ -812,7 +913,16 @@ interface HeroCardProps {
 const HERO_CARD_CLASS =
   'appearance-none m-0 p-0 outline-none text-inherit text-left box-border cursor-pointer w-full max-[640px]:w-[78%] max-[640px]:flex-none max-[640px]:snap-start max-[640px]:pt-3 max-[640px]:px-4 max-[640px]:pb-3 pt-4 px-[18px] pb-[15px] rounded-[20px] bg-glass border border-glass-border shadow-float backdrop-blur-tckr backdrop-saturate-[1.6] [transition:transform_160ms_ease-out,border-color_160ms_ease] fine-hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-accent focus-visible:outline-offset-2 reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none reduced-transparency:backdrop-saturate-100 contrast-more:bg-surface contrast-more:backdrop-blur-none contrast-more:backdrop-saturate-100';
 
-function HeroCard({ kicker, kind, definition, priceDecimals, onActivate, sessionTrend, sessionDate, index = 0 }: HeroCardProps) {
+function HeroCard({
+  kicker,
+  kind,
+  definition,
+  priceDecimals,
+  onActivate,
+  sessionTrend,
+  sessionDate,
+  index = 0,
+}: HeroCardProps) {
   const { symbol, name, referencePrice } = definition;
 
   // The closing bell: when EGX closes while this card is on screen, its label's session
@@ -828,7 +938,10 @@ function HeroCard({ kicker, kind, definition, priceDecimals, onActivate, session
   // why a hand-rolled interval/gate is the wrong tool here.
   // Paced, not live: a render between beats (a click, a sort) shows what the last beat
   // painted — see `src/display/pacedViews.ts`.
-  const subscribe = useCallback((onStoreChange: () => void) => subscribePacedSymbol(symbol, onStoreChange), [symbol]);
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => subscribePacedSymbol(symbol, onStoreChange),
+    [symbol],
+  );
   const view = useSyncExternalStore(subscribe, () => getPacedSymbolSnapshot(symbol));
 
   const priceMuted = view === undefined;
@@ -844,14 +957,21 @@ function HeroCard({ kicker, kind, definition, priceDecimals, onActivate, session
   const sparklinePoints = useSessionSparkline(currentPriceNum, 26, sessionTrend);
   const direction = sparklineDirection(changePercent);
 
-  const badgeText = kind === 'active' ? valueLabel : changePercent === undefined ? '—' : formatSignedPercent(changePercent);
+  const badgeText =
+    kind === 'active'
+      ? valueLabel
+      : changePercent === undefined
+        ? '—'
+        : formatSignedPercent(changePercent);
   // Most active shows a traded value, not a move, so its badge stays neutral.
-  const badgeDeltaClass = DELTA_TONE_CLASSES[kind === 'active' ? 'flat' : percentTone(changePercent)];
+  const badgeDeltaClass =
+    DELTA_TONE_CLASSES[kind === 'active' ? 'flat' : percentTone(changePercent)];
 
   const directionWord = direction === 'flat' ? 'unchanged' : direction;
   // On a closed day "Top gainer" would otherwise read as today's; the weekday alone
   // fits the card's label row, and the accessible name carries the full date.
-  const kickerDay = sessionDate === undefined ? null : ` · ${sessionDate.split(' ')[0]!.toUpperCase()}`;
+  const kickerDay =
+    sessionDate === undefined ? null : ` · ${sessionDate.split(' ')[0]!.toUpperCase()}`;
   const spokenKicker = sessionDate === undefined ? kicker : `${kicker}, ${sessionDate} session`;
   const baseAriaLabel =
     kind === 'active'
@@ -863,7 +983,12 @@ function HeroCard({ kicker, kind, definition, priceDecimals, onActivate, session
   const ariaLabel = delayed ? `${baseAriaLabel}, delayed stream` : baseAriaLabel;
 
   return (
-    <button type="button" className={HERO_CARD_CLASS} aria-label={ariaLabel} onClick={() => onActivate(symbol)}>
+    <button
+      type="button"
+      className={HERO_CARD_CLASS}
+      aria-label={ariaLabel}
+      onClick={() => onActivate(symbol)}
+    >
       <div className="flex items-center justify-between gap-2.5">
         <span
           className={`inline-flex items-center gap-1.5 font-mono text-label font-semibold tracking-[0.14em] ${delayed ? 'text-warning' : 'text-text-muted'}`}
@@ -873,7 +998,12 @@ function HeroCard({ kicker, kind, definition, priceDecimals, onActivate, session
           <span>
             {kicker}
             {kickerDay === null ? null : (
-              <ScrambleWord key={kickerDay} text={kickerDay} from={closedWhileWatching ? '' : undefined} delay={index * 0.09} />
+              <ScrambleWord
+                key={kickerDay}
+                text={kickerDay}
+                from={closedWhileWatching ? '' : undefined}
+                delay={index * 0.09}
+              />
             )}
           </span>
         </span>
@@ -881,12 +1011,17 @@ function HeroCard({ kicker, kind, definition, priceDecimals, onActivate, session
           className={`font-mono text-label font-semibold px-2.5 py-[3px] rounded-full whitespace-nowrap [transition:background-color_600ms_var(--tckr-ease-out),color_600ms_var(--tckr-ease-out)] ${badgeDeltaClass}`}
           aria-hidden="true"
         >
-          <TickingText text={badgeText} direction={changePercent !== undefined && changePercent < 0 ? 'down' : 'up'} />
+          <TickingText
+            text={badgeText}
+            direction={changePercent !== undefined && changePercent < 0 ? 'down' : 'up'}
+          />
         </span>
       </div>
       <div className="flex items-baseline gap-2 mt-3 min-w-0" aria-hidden="true">
         <span className="font-mono font-semibold text-title">{symbol}</span>
-        <span className="text-caption text-text-muted overflow-hidden text-ellipsis whitespace-nowrap">{name}</span>
+        <span className="text-caption text-text-muted overflow-hidden text-ellipsis whitespace-nowrap">
+          {name}
+        </span>
       </div>
       <div className="flex items-end justify-between gap-2.5 mt-2.5" aria-hidden="true">
         <span className="font-mono font-semibold text-price">
@@ -895,7 +1030,13 @@ function HeroCard({ kicker, kind, definition, priceDecimals, onActivate, session
             decimals={priceDecimals}
             muted={priceMuted}
             flashDirectionOverride={
-              changePercent === undefined ? undefined : changePercent > 0 ? 'up' : changePercent < 0 ? 'down' : null
+              changePercent === undefined
+                ? undefined
+                : changePercent > 0
+                  ? 'up'
+                  : changePercent < 0
+                    ? 'down'
+                    : null
             }
           />
         </span>
@@ -970,7 +1111,8 @@ function HeroCards({
 // over the same property.
 // 40px rows (8px + 24px line + 8px) on a mouse — a trading board is read by scanning
 // many rows at once — and 44px on touch, the minimum comfortable tap target.
-const CELL_BASE = 'px-3 py-2 pointer-coarse:py-2.5 border-b border-glass-border overflow-hidden text-ellipsis whitespace-nowrap';
+const CELL_BASE =
+  'px-3 py-2 pointer-coarse:py-2.5 border-b border-glass-border overflow-hidden text-ellipsis whitespace-nowrap';
 
 interface StockListRowProps {
   readonly definition: SymbolDefinition;
@@ -1027,7 +1169,10 @@ function StockListRow({
   // from painting prices early.
   // Paced, not live: a render between beats (a click, a sort) shows what the last beat
   // painted — see `src/display/pacedViews.ts`.
-  const subscribe = useCallback((onStoreChange: () => void) => subscribePacedSymbol(symbol, onStoreChange), [symbol]);
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => subscribePacedSymbol(symbol, onStoreChange),
+    [symbol],
+  );
   const view = useSyncExternalStore(subscribe, () => getPacedSymbolSnapshot(symbol));
 
   // Test-support only: a per-row render counter surfaced as a data attribute so
@@ -1041,7 +1186,9 @@ function StockListRow({
   const change = view?.change ?? ZERO_DECIMAL;
   const changePercent = view?.changePercent;
   const volumeLabel = view ? view.volume.toLocaleString('en-US') : '—';
-  const valueLabel = view ? formatCompact(tradedValue(definition, view), { fixedFraction: true }) : '—';
+  const valueLabel = view
+    ? formatCompact(tradedValue(definition, view), { fixedFraction: true })
+    : '—';
 
   // Decorative sparkline history — bounded, committed post-render (see module doc for
   // why this mirrors PriceCell's flash-tracking shape rather than mutating during
@@ -1067,7 +1214,9 @@ function StockListRow({
   // reader, so this only changes what is read when the row is *visited*, not when it
   // changes.
   const directionWord =
-    direction === 'flat' || (changePercent !== undefined && isEffectivelyUnchanged(changePercent)) ? 'unchanged' : direction;
+    direction === 'flat' || (changePercent !== undefined && isEffectivelyUnchanged(changePercent))
+      ? 'unchanged'
+      : direction;
   const baseAriaLabel =
     changePercent === undefined
       ? `${symbol}, ${String(price)}`
@@ -1079,7 +1228,8 @@ function StockListRow({
   const detailAriaLabel = view
     ? `${baseAriaLabel}, change ${format(change, { decimals: priceDecimals, sign: true })}, volume ${volumeLabel}`
     : baseAriaLabel;
-  const rowAriaLabel = view?.stream === 'DELAYED' ? `${detailAriaLabel}, delayed stream` : detailAriaLabel;
+  const rowAriaLabel =
+    view?.stream === 'DELAYED' ? `${detailAriaLabel}, delayed stream` : detailAriaLabel;
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTableRowElement>) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -1101,7 +1251,9 @@ function StockListRow({
       // rules. That relationship survives here because Tailwind gives a pseudo-class
       // variant genuinely higher specificity, not just later source order.
       className={`cursor-pointer [transition:background-color_120ms_ease,box-shadow_120ms_ease] fine-hover:bg-[color-mix(in_oklab,var(--tckr-color-text)_6%,transparent)] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-accent focus-visible:-outline-offset-2${
-        selected ? ' bg-[color-mix(in_oklab,var(--tckr-color-up)_12%,transparent)] shadow-[inset_3px_0_0_var(--tckr-color-up)]' : ''
+        selected
+          ? ' bg-[color-mix(in_oklab,var(--tckr-color-up)_12%,transparent)] shadow-[inset_3px_0_0_var(--tckr-color-up)]'
+          : ''
       }`}
       tabIndex={tabStop ? 0 : -1}
       aria-label={rowAriaLabel}
@@ -1125,7 +1277,13 @@ function StockListRow({
           className="text-inherit no-underline"
           aria-label={`Open ${symbol} details`}
           onClick={(event) => {
-            if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+            if (
+              event.metaKey ||
+              event.ctrlKey ||
+              event.shiftKey ||
+              event.altKey ||
+              event.button !== 0
+            ) {
               event.stopPropagation();
               return;
             }
@@ -1140,7 +1298,9 @@ function StockListRow({
           <Sparkline points={sparklinePoints} direction={direction} />
         </td>
       ) : null}
-      {columns.has('name') ? <td className={`${CELL_BASE} text-left max-[640px]:hidden`}>{name}</td> : null}
+      {columns.has('name') ? (
+        <td className={`${CELL_BASE} text-left max-[640px]:hidden`}>{name}</td>
+      ) : null}
       <td className={`${CELL_BASE} text-right tabular-nums`}>
         <PriceCell
           value={price}
@@ -1148,13 +1308,26 @@ function StockListRow({
           alignDecimals={alignDecimals}
           muted={priceMuted}
           flashDirectionOverride={
-            changePercent === undefined ? undefined : changePercent > 0 ? 'up' : changePercent < 0 ? 'down' : null
+            changePercent === undefined
+              ? undefined
+              : changePercent > 0
+                ? 'up'
+                : changePercent < 0
+                  ? 'down'
+                  : null
           }
         />
       </td>
       {columns.has('change') ? (
         <td className={`${CELL_BASE} text-right tabular-nums max-[640px]:hidden`}>
-          <PriceCell value={change} decimals={priceDecimals} alignDecimals={alignDecimals} sign muted={priceMuted} indicateSign />
+          <PriceCell
+            value={change}
+            decimals={priceDecimals}
+            alignDecimals={alignDecimals}
+            sign
+            muted={priceMuted}
+            indicateSign
+          />
         </td>
       ) : null}
       <td className={`${CELL_BASE} text-right tabular-nums`}>
@@ -1164,15 +1337,22 @@ function StockListRow({
           <span
             className={`font-mono tabular-nums inline-block align-middle px-2 py-0.5 leading-5 rounded-[5px] [transition:background-color_600ms_var(--tckr-ease-out),color_600ms_var(--tckr-ease-out)] [transition-delay:var(--tckr-tick-delay,0ms)] ${changeDeltaClass}`}
           >
-            <TickingText text={formatSignedPercent(changePercent)} direction={changePercent < 0 ? 'down' : 'up'} />
+            <TickingText
+              text={formatSignedPercent(changePercent)}
+              direction={changePercent < 0 ? 'down' : 'up'}
+            />
           </span>
         )}
       </td>
       {columns.has('volume') ? (
-        <td className={`${CELL_BASE} text-right font-mono tabular-nums max-[640px]:hidden`}>{volumeLabel}</td>
+        <td className={`${CELL_BASE} text-right font-mono tabular-nums max-[640px]:hidden`}>
+          {volumeLabel}
+        </td>
       ) : null}
       {columns.has('value') ? (
-        <td className={`${CELL_BASE} text-right font-mono tabular-nums max-[640px]:hidden`}>{valueLabel}</td>
+        <td className={`${CELL_BASE} text-right font-mono tabular-nums max-[640px]:hidden`}>
+          {valueLabel}
+        </td>
       ) : null}
     </tr>
   );
@@ -1214,7 +1394,8 @@ function shellListColClass(split: boolean): string {
 // 16px gap), so scrolling a 34-row board never scrolls the open chart away. Only where
 // the viewport is tall enough to hold the whole pane (≈615px) under the header;
 // shorter windows keep normal flow so the stat tiles are never cut off.
-const DETAIL_PANE_STICKY = '[@media(min-width:801px)_and_(min-height:720px)]:sticky [@media(min-width:801px)_and_(min-height:720px)]:top-[75px]';
+const DETAIL_PANE_STICKY =
+  '[@media(min-width:801px)_and_(min-height:720px)]:sticky [@media(min-width:801px)_and_(min-height:720px)]:top-[75px]';
 
 function shellDetailPaneClass(split: boolean): string {
   return `flex-1 min-w-0 max-[800px]:w-full [view-transition-name:tckr-detail] ${split ? DETAIL_PANE_STICKY : 'hidden'}`;
@@ -1247,7 +1428,8 @@ function tableWrapClass(stale: boolean): string {
 const SORT_BUTTON_CLASS =
   'appearance-none bg-transparent border-none m-0 p-0 outline-none text-inherit [text-transform:inherit] cursor-pointer font-semibold inline-flex items-center gap-0.5 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-accent focus-visible:outline-offset-2';
 
-const KBD_CLASS = 'font-mono text-label border border-border rounded px-1.5 py-px bg-surface-raised';
+const KBD_CLASS =
+  'font-mono text-label border border-border rounded px-1.5 py-px bg-surface-raised';
 
 const BOARD_HELP_ID = 'tckr-board-help';
 
@@ -1263,19 +1445,32 @@ function BoardKeyboardHelp({ detailOpen }: { detailOpen: boolean }) {
   return (
     <>
       <p id={BOARD_HELP_ID} className="sr-only">
-        Arrow keys move between instruments, Home and End jump to the first and last, Enter opens one
-        {detailOpen ? ', and the open details follow the arrow keys; Escape closes them' : ''}. Press {mod}K or slash to
-        search.
+        Arrow keys move between instruments, Home and End jump to the first and last, Enter opens
+        one
+        {detailOpen ? ', and the open details follow the arrow keys; Escape closes them' : ''}.
+        Press {mod}K or slash to search.
       </p>
       <p
         className="hidden group-has-[tr:focus-visible]/board:flex pointer-coarse:!hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-10 items-center flex-wrap justify-center gap-x-3.5 gap-y-1 px-4 py-2 rounded-full bg-glass-strong border border-glass-border backdrop-blur-tckr shadow-[0_12px_30px_-16px_rgba(20,24,31,0.45)] text-caption text-text-muted whitespace-nowrap reduced-transparency:bg-surface contrast-more:bg-surface"
         aria-hidden="true"
       >
-        <span><kbd className={KBD_CLASS}>↑</kbd> <kbd className={KBD_CLASS}>↓</kbd> move</span>
-        <span><kbd className={KBD_CLASS}>Home</kbd> <kbd className={KBD_CLASS}>End</kbd> jump</span>
-        <span><kbd className={KBD_CLASS}>Enter</kbd> open</span>
-        {detailOpen ? <span><kbd className={KBD_CLASS}>Esc</kbd> close</span> : null}
-        <span><kbd className={KBD_CLASS}>{mod}K</kbd> or <kbd className={KBD_CLASS}>/</kbd> search</span>
+        <span>
+          <kbd className={KBD_CLASS}>↑</kbd> <kbd className={KBD_CLASS}>↓</kbd> move
+        </span>
+        <span>
+          <kbd className={KBD_CLASS}>Home</kbd> <kbd className={KBD_CLASS}>End</kbd> jump
+        </span>
+        <span>
+          <kbd className={KBD_CLASS}>Enter</kbd> open
+        </span>
+        {detailOpen ? (
+          <span>
+            <kbd className={KBD_CLASS}>Esc</kbd> close
+          </span>
+        ) : null}
+        <span>
+          <kbd className={KBD_CLASS}>{mod}K</kbd> or <kbd className={KBD_CLASS}>/</kbd> search
+        </span>
       </p>
     </>
   );
@@ -1295,7 +1490,9 @@ export function StockList() {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [sortState, setSortState] = useState<SortState | null>(null);
   const [focusedSymbol, setFocusedSymbol] = useState<string | null>(null);
-  const [sessionTrends, setSessionTrends] = useState<ReadonlyMap<string, readonly number[]>>(() => new Map());
+  const [sessionTrends, setSessionTrends] = useState<ReadonlyMap<string, readonly number[]>>(
+    () => new Map(),
+  );
   const { state: connState, remainingSecs, heldSince } = useConnectionBanner();
   const recovery = useRecoveryMoment(connState);
   const marketStatus = useMarketStatus();
@@ -1309,7 +1506,6 @@ export function StockList() {
   const detailMatch = useMatch(SYMBOL_ROUTE_PATTERN);
   const selectedSymbol = detailMatch?.params.symbol ?? null;
   const isNarrowViewport = useNarrowViewport();
-
 
   // `sorted` below reads live snapshot values *imperatively*, only when it recomputes
   // (see module doc: resorting on every tick would reintroduce the whole-table
@@ -1379,7 +1575,10 @@ export function StockList() {
         const trends = new Map<string, readonly number[]>();
         results.forEach((result, index) => {
           if (result.status === 'fulfilled' && result.value.points.length > 1) {
-            trends.set(symbols[index]!, result.value.points.map((point) => toPlotValue(point.p)));
+            trends.set(
+              symbols[index]!,
+              result.value.points.map((point) => toPlotValue(point.p)),
+            );
           }
         });
         if (trends.size > 0) {
@@ -1448,7 +1647,9 @@ export function StockList() {
       if (selectedSymbol !== null) {
         document.getElementById(DETAIL_HEADING_ID)?.focus();
       } else if (previous !== null) {
-        tbodyRef.current?.querySelector<HTMLTableRowElement>(`tr[data-symbol="${CSS.escape(previous)}"]`)?.focus();
+        tbodyRef.current
+          ?.querySelector<HTMLTableRowElement>(`tr[data-symbol="${CSS.escape(previous)}"]`)
+          ?.focus();
       }
     });
     return () => cancelAnimationFrame(id);
@@ -1457,11 +1658,17 @@ export function StockList() {
   const priceDecimalsBySymbol = useMemo(() => {
     const map = new Map<string, number>();
     for (const def of universe ?? []) {
-      map.set(def.symbol, Math.max(decimalPlacesOf(def.referencePrice), decimalPlacesOf(def.tickSize)));
+      map.set(
+        def.symbol,
+        Math.max(decimalPlacesOf(def.referencePrice), decimalPlacesOf(def.tickSize)),
+      );
     }
     return map;
   }, [universe]);
-  const boardPriceDecimals = useMemo(() => Math.max(0, ...priceDecimalsBySymbol.values()), [priceDecimalsBySymbol]);
+  const boardPriceDecimals = useMemo(
+    () => Math.max(0, ...priceDecimalsBySymbol.values()),
+    [priceDecimalsBySymbol],
+  );
 
   const filtered = useMemo(() => {
     if (!universe) {
@@ -1525,14 +1732,21 @@ export function StockList() {
   // what the user sees, including after a re-sort.
   const handleTableKeyDown = useCallback(
     (event: KeyboardEvent<HTMLTableSectionElement>) => {
-      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp' && event.key !== 'Home' && event.key !== 'End') {
+      if (
+        event.key !== 'ArrowDown' &&
+        event.key !== 'ArrowUp' &&
+        event.key !== 'Home' &&
+        event.key !== 'End'
+      ) {
         return;
       }
       const current = (event.target as HTMLElement).closest<HTMLTableRowElement>('tr[data-symbol]');
       if (!current) {
         return;
       }
-      const rows = Array.from(event.currentTarget.querySelectorAll<HTMLTableRowElement>('tr[data-symbol]'));
+      const rows = Array.from(
+        event.currentTarget.querySelectorAll<HTMLTableRowElement>('tr[data-symbol]'),
+      );
       const index = rows.indexOf(current);
       const next =
         event.key === 'Home'
@@ -1577,7 +1791,10 @@ export function StockList() {
   const tbodyRef = useRef<HTMLTableSectionElement | null>(null);
   const orderKey = sorted.map((def) => def.symbol).join(',');
   const committedOrderKeyRef = useRef<string | null>(null);
-  const flipRef = useRef<{ readonly orderKey: string; readonly state: ReturnType<Motion['Flip']['getState']> } | null>(null);
+  const flipRef = useRef<{
+    readonly orderKey: string;
+    readonly state: ReturnType<Motion['Flip']['getState']>;
+  } | null>(null);
   const glideRef = useRef<ReturnType<Motion['Flip']['from']> | null>(null);
 
   useEffect(() => {
@@ -1595,7 +1812,9 @@ export function StockList() {
   ) {
     flipRef.current = {
       orderKey,
-      state: flipMotion.Flip.getState(tbodyRef.current.querySelectorAll('tr[data-symbol]'), { simple: true }),
+      state: flipMotion.Flip.getState(tbodyRef.current.querySelectorAll('tr[data-symbol]'), {
+        simple: true,
+      }),
     };
   }
 
@@ -1622,7 +1841,8 @@ export function StockList() {
       targets: rows,
       duration: FLIP_DURATION_MS / 1000,
       simple: true,
-      onEnter: (entering) => gsap.fromTo(entering, { opacity: 0 }, { opacity: 1, duration: 0.2, ease: 'power1.out' }),
+      onEnter: (entering) =>
+        gsap.fromTo(entering, { opacity: 0 }, { opacity: 1, duration: 0.2, ease: 'power1.out' }),
     });
     // Rows are transparent over the glass, so rows crossing each other would overprint
     // their text. A moving row carries a near-opaque surface for the flight and only
@@ -1633,7 +1853,11 @@ export function StockList() {
     for (const row of moved) {
       if (typeof row.animate === 'function') {
         row.animate(
-          [{ backgroundColor: MOVING_ROW_BACKGROUND }, { backgroundColor: MOVING_ROW_BACKGROUND, offset: 0.7 }, {}],
+          [
+            { backgroundColor: MOVING_ROW_BACKGROUND },
+            { backgroundColor: MOVING_ROW_BACKGROUND, offset: 0.7 },
+            {},
+          ],
           { duration: FLIP_DURATION_MS, easing: 'linear' },
         );
       }
@@ -1686,15 +1910,21 @@ export function StockList() {
   // The one row that is a Tab stop: whichever row last had focus, else the open
   // symbol's row, else the first row — always one that is actually rendered.
   const tabStopSymbol =
-    [focusedSymbol, selectedSymbol].find((candidate) => candidate !== null && sorted.some((def) => def.symbol === candidate)) ??
+    [focusedSymbol, selectedSymbol].find(
+      (candidate) => candidate !== null && sorted.some((def) => def.symbol === candidate),
+    ) ??
     sorted[0]?.symbol ??
     null;
 
   // The open symbol's neighbours in the board's current order (sort and search
   // included), for the phone's previous/next buttons.
-  const selectedIndex = selectedSymbol === null ? -1 : sorted.findIndex((def) => def.symbol === selectedSymbol);
+  const selectedIndex =
+    selectedSymbol === null ? -1 : sorted.findIndex((def) => def.symbol === selectedSymbol);
   const previousSymbol = selectedIndex > 0 ? sorted[selectedIndex - 1]!.symbol : null;
-  const nextSymbol = selectedIndex >= 0 && selectedIndex < sorted.length - 1 ? sorted[selectedIndex + 1]!.symbol : null;
+  const nextSymbol =
+    selectedIndex >= 0 && selectedIndex < sorted.length - 1
+      ? sorted[selectedIndex + 1]!.symbol
+      : null;
 
   // One instance of each control, placed by the layout below: in the toolbar row over
   // the full board, or at the top of the list column in split view.
@@ -1719,13 +1949,23 @@ export function StockList() {
   // The sortable headers are one Tab stop (the sorted column, else Symbol, which is never
   // hidden), not eight between the search field and the rows; ←/→/Home/End move along
   // them, the way ↑/↓ move along the rows.
-  const sortedColumnSpec = sortState ? COLUMNS.find((column) => column.key === sortState.column) : undefined;
-  const headerTabStop = sortedColumnSpec && !sortedColumnSpec.hideNarrow ? sortedColumnSpec.key : 'symbol';
+  const sortedColumnSpec = sortState
+    ? COLUMNS.find((column) => column.key === sortState.column)
+    : undefined;
+  const headerTabStop =
+    sortedColumnSpec && !sortedColumnSpec.hideNarrow ? sortedColumnSpec.key : 'symbol';
   const handleHeaderKeyDown = (event: KeyboardEvent<HTMLTableRowElement>) => {
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') {
+    if (
+      event.key !== 'ArrowLeft' &&
+      event.key !== 'ArrowRight' &&
+      event.key !== 'Home' &&
+      event.key !== 'End'
+    ) {
       return;
     }
-    const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button')).filter(
+    const buttons = Array.from(
+      event.currentTarget.querySelectorAll<HTMLButtonElement>('button'),
+    ).filter(
       // Headers the narrow layout hides (`max-[640px]:hidden`) are skipped.
       (button) => getComputedStyle(button.closest('th') ?? button).display !== 'none',
     );
@@ -1766,7 +2006,10 @@ export function StockList() {
     const matches =
       rawQuery === debouncedQuery
         ? sorted
-        : universe.filter((def) => def.symbol.toLowerCase().includes(query) || def.name.toLowerCase().includes(query));
+        : universe.filter(
+            (def) =>
+              def.symbol.toLowerCase().includes(query) || def.name.toLowerCase().includes(query),
+          );
     const target = matches.find((def) => def.symbol.toLowerCase() === query) ?? matches[0];
     if (target) {
       event.preventDefault();
@@ -1817,7 +2060,9 @@ export function StockList() {
         {isSplit ? `${selectedSymbol} details open beside the list` : ''}
       </p>
       <p className="sr-only" aria-live="polite" data-testid="search-result-count">
-        {searching ? `${sorted.length} of ${universe.length} instruments match “${debouncedQuery.trim()}”` : ''}
+        {searching
+          ? `${sorted.length} of ${universe.length} instruments match “${debouncedQuery.trim()}”`
+          : ''}
       </p>
 
       {/* Sticks under the app header so a user scrolled deep into the board still
@@ -1858,7 +2103,11 @@ export function StockList() {
           priceDecimalsBySymbol={priceDecimalsBySymbol}
           onActivate={handleRowActivate}
           sessionTrends={sessionTrends}
-          sessionDate={marketStatus.state === 'closed' ? formatCairoDateShort(marketStatus.sessionOpenAt) : undefined}
+          sessionDate={
+            marketStatus.state === 'closed'
+              ? formatCairoDateShort(marketStatus.sessionOpenAt)
+              : undefined
+          }
         />
       </div>
 
@@ -1869,7 +2118,11 @@ export function StockList() {
       {isSplit ? (
         // On a phone the list is hidden behind the detail, so stepping to the next
         // symbol in the board's current order happens here instead of with ↑/↓.
-        <nav data-greet-rise className="mb-3 flex items-center gap-2 min-[801px]:hidden" aria-label="Instrument navigation">
+        <nav
+          data-greet-rise
+          className="mb-3 flex items-center gap-2 min-[801px]:hidden"
+          aria-label="Instrument navigation"
+        >
           <button
             type="button"
             className={`${PILL_BASE} ${PILL_INACTIVE} inline-flex items-center gap-1.5 mr-auto`}
@@ -1916,7 +2169,9 @@ export function StockList() {
               {presetPills}
             </div>
           ) : null}
-          {isSplit ? <MarketClosedBanner status={marketStatus} className="max-[800px]:hidden" compact /> : null}
+          {isSplit ? (
+            <MarketClosedBanner status={marketStatus} className="max-[800px]:hidden" compact />
+          ) : null}
           <div className="group/board">
             <div className={tableWrapClass(isStale)}>
               {/* A grid, not a plain table: its rows are focusable and open a symbol, and
@@ -1931,10 +2186,15 @@ export function StockList() {
               >
                 <caption className="caption-top text-left px-3.5 pt-2.5 pb-1 text-caption text-text-muted">
                   {isStale && heldSince !== null ? (
-                    <span className="inline-flex items-center gap-2 mr-2 text-text" data-testid="board-held">
+                    <span
+                      className="inline-flex items-center gap-2 mr-2 text-text"
+                      data-testid="board-held"
+                    >
                       <HeldTag />
                       <span className="font-mono">since {formatCairoClock(heldSince)}</span>
-                      <span aria-hidden="true" className="text-text-muted">·</span>
+                      <span aria-hidden="true" className="text-text-muted">
+                        ·
+                      </span>
                     </span>
                   ) : null}
                   <span data-testid="board-order">
@@ -1944,9 +2204,14 @@ export function StockList() {
                   <span data-testid="board-change-basis"> · change vs previous close</span>
                   {/* A ranked board moves on its own; say how often, so a row changing
                       place isn't read as a glitch. Only while prices are moving. */}
-                  {marketStatus.state === 'open' && !isStale ? <BoardUpdatedAt delayed={viewerStream === 'DELAYED'} /> : null}
+                  {marketStatus.state === 'open' && !isStale ? (
+                    <BoardUpdatedAt delayed={viewerStream === 'DELAYED'} />
+                  ) : null}
                   {sortState !== null && marketStatus.state === 'open' && !isStale ? (
-                    <span data-testid="board-rerank"> · re-ranked every {DISPLAY_REFRESH_INTERVAL_MS / 1000}s</span>
+                    <span data-testid="board-rerank">
+                      {' '}
+                      · re-ranked every {DISPLAY_REFRESH_INTERVAL_MS / 1000}s
+                    </span>
                   ) : null}
                 </caption>
                 <colgroup>
@@ -1988,7 +2253,11 @@ export function StockList() {
                                 <span className="font-normal">{column.unit}</span>
                               </>
                             ) : null}
-                            {sortState?.column === column.key ? (sortState.direction === 'asc' ? ' ▲' : ' ▼') : ''}
+                            {sortState?.column === column.key
+                              ? sortState.direction === 'asc'
+                                ? ' ▲'
+                                : ' ▼'
+                              : ''}
                           </button>
                         ) : (
                           column.label
@@ -2032,7 +2301,8 @@ export function StockList() {
                           </>
                         ) : (
                           <div className="mt-2 mx-auto max-w-[340px] text-small leading-[1.55]">
-                            Search runs on symbol and name. Try a shorter query, or browse the full board.
+                            Search runs on symbol and name. Try a shorter query, or browse the full
+                            board.
                           </div>
                         )}
                         <div className="mt-[18px] flex gap-2 justify-center flex-wrap">

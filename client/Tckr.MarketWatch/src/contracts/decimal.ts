@@ -120,7 +120,10 @@ const COMPACT_UNITS: readonly (readonly [bigint, string])[] = [
  * that rounds up to the next unit is shown in it (`999,999` -> `"1M"`, never
  * `"1000K"`). Computed on the exact scaled integer, never through a float.
  */
-export function formatCompact(value: DecimalString, options: { readonly fixedFraction?: boolean } = {}): string {
+export function formatCompact(
+  value: DecimalString,
+  options: { readonly fixedFraction?: boolean } = {},
+): string {
   const scaled = toScaledInt(value);
   const negative = scaled < 0n;
   const magnitude = negative ? -scaled : scaled;
@@ -169,10 +172,7 @@ export function percentChange(from: DecimalString, to: DecimalString): number {
   return JSON.parse(numeral) as number;
 }
 
-export function format(
-  value: DecimalString,
-  opts?: { decimals?: number; sign?: boolean },
-): string {
+export function format(value: DecimalString, opts?: { decimals?: number; sign?: boolean }): string {
   const decimals = opts?.decimals ?? decimalPlaces(value);
   const scaled = toScaledInt(value);
   const negative = scaled < 0n;

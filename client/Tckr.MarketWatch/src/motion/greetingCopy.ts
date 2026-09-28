@@ -26,10 +26,19 @@ export interface GreetingCopy {
 
 export function greetingCopy(status: MarketStatus, nowMs: number): GreetingCopy {
   const hour = getCairoParts(nowMs).hour;
-  const salutation = hour >= 5 && hour < 12 ? 'Good morning' : hour >= 12 && hour < 17 ? 'Good afternoon' : 'Good evening';
+  const salutation =
+    hour >= 5 && hour < 12
+      ? 'Good morning'
+      : hour >= 12 && hour < 17
+        ? 'Good afternoon'
+        : 'Good evening';
 
   if (status.state === 'open') {
-    return { salutation, market: `EGX is trading · closes ${formatCairoTimeShort(status.sessionCloseAt)} Cairo`, tone: 'trading' };
+    return {
+      salutation,
+      market: `EGX is trading · closes ${formatCairoTimeShort(status.sessionCloseAt)} Cairo`,
+      tone: 'trading',
+    };
   }
   if (isPreOpenAuction(status, nowMs)) {
     return {
@@ -39,7 +48,15 @@ export function greetingCopy(status: MarketStatus, nowMs: number): GreetingCopy 
     };
   }
   if (cairoDateKey(status.nextOpenAt) === cairoDateKey(nowMs)) {
-    return { salutation, market: `EGX opens ${formatUntil(status.nextOpenAt - nowMs)}`, tone: 'closed' };
+    return {
+      salutation,
+      market: `EGX opens ${formatUntil(status.nextOpenAt - nowMs)}`,
+      tone: 'closed',
+    };
   }
-  return { salutation, market: `EGX reopens ${formatNextOpen(status, nowMs)} Cairo`, tone: 'closed' };
+  return {
+    salutation,
+    market: `EGX reopens ${formatNextOpen(status, nowMs)} Cairo`,
+    tone: 'closed',
+  };
 }

@@ -32,7 +32,11 @@ describe('gateway message conformance', () => {
       const statuses: ConnectionState[] = [];
       harness.source.on.status((s) => statuses.push(s));
       await connectAndAuthenticate(harness, FIXTURES['connected-live']);
-      expect(harness.source.identity()).toEqual({ userId: 'user-001', stream: 'LIVE', sessionId: 'sess-live-0001' });
+      expect(harness.source.identity()).toEqual({
+        userId: 'user-001',
+        stream: 'LIVE',
+        sessionId: 'sess-live-0001',
+      });
       expect(statuses.some((s) => s.kind === 'connected')).toBe(true);
     },
 
@@ -217,15 +221,20 @@ describe('gateway message conformance', () => {
     },
   };
 
-  it.each(Object.keys(CASES) as MessageFixtureName[])('%s produces its documented effect', async (name) => {
-    const run = CASES[name];
-    await run();
-  });
+  it.each(Object.keys(CASES) as MessageFixtureName[])(
+    '%s produces its documented effect',
+    async (name) => {
+      const run = CASES[name];
+      await run();
+    },
+  );
 
   it('every ServerMessage type is represented by at least one fixture case', async () => {
     const { ALL_SERVER_MESSAGE_TYPES } = await import('../../../contracts/fixtures/index.ts');
     const typesWithCases = new Set(
-      (Object.keys(CASES) as MessageFixtureName[]).map((name) => (FIXTURES[name] as { type: string }).type),
+      (Object.keys(CASES) as MessageFixtureName[]).map(
+        (name) => (FIXTURES[name] as { type: string }).type,
+      ),
     );
     for (const type of ALL_SERVER_MESSAGE_TYPES) {
       expect(typesWithCases.has(type)).toBe(true);

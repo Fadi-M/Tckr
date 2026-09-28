@@ -7,7 +7,14 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanup, render } from '@testing-library/react';
 import { TckrMark } from '../../components/TckrLogo.tsx';
 import { FormingCandle } from '../FormingCandle.tsx';
-import { finishMotion, flushMotion, primeMotion, stubReducedMotion, resetMotion, unstubReducedMotion } from './motionTestSupport.ts';
+import {
+  finishMotion,
+  flushMotion,
+  primeMotion,
+  stubReducedMotion,
+  resetMotion,
+  unstubReducedMotion,
+} from './motionTestSupport.ts';
 
 beforeEach(primeMotion);
 
@@ -21,7 +28,9 @@ afterEach(async () => {
 function geometry(root: Element): Record<string, string> {
   const parts: Record<string, string> = {};
   for (const rect of root.querySelectorAll('[data-candle]')) {
-    parts[rect.getAttribute('data-candle')!] = ['y', 'height'].map((attr) => rect.getAttribute(attr)).join(',');
+    parts[rect.getAttribute('data-candle')!] = ['y', 'height']
+      .map((attr) => rect.getAttribute(attr))
+      .join(',');
   }
   return parts;
 }

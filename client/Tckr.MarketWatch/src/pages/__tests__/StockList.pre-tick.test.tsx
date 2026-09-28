@@ -45,7 +45,10 @@ describe('StockList pre-tick display', () => {
       if (!row) continue;
 
       const priceCell = row.querySelector('[data-muted="true"]');
-      expect(priceCell, `${def.symbol} should render a muted price cell before its first tick`).toBeTruthy();
+      expect(
+        priceCell,
+        `${def.symbol} should render a muted price cell before its first tick`,
+      ).toBeTruthy();
 
       const text = priceCell?.textContent ?? '';
       expect(text).not.toBe('0.00');

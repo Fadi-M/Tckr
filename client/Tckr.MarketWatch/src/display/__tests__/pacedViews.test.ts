@@ -7,7 +7,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { toDecimal } from '../../contracts/decimal.ts';
 import type { Tick } from '../../contracts/messages.ts';
-import { applyTick, getSymbolSnapshot, primeUniverse, resetStore, resetStream } from '../../data/store.ts';
+import {
+  applyTick,
+  getSymbolSnapshot,
+  primeUniverse,
+  resetStore,
+  resetStream,
+} from '../../data/store.ts';
 import { getPacedSymbolSnapshot, subscribeBeat, subscribePacedSymbol } from '../pacedViews.ts';
 import { DISPLAY_REFRESH_INTERVAL_MS } from '../throttle.ts';
 
@@ -32,7 +38,13 @@ describe('paced symbol views', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-09-13T08:00:01.000Z'));
     resetStore();
-    primeUniverse([{ symbol: 'COMI', name: 'Commercial International Holding', referencePrice: toDecimal('85.10') }]);
+    primeUniverse([
+      {
+        symbol: 'COMI',
+        name: 'Commercial International Holding',
+        referencePrice: toDecimal('85.10'),
+      },
+    ]);
   });
 
   afterEach(() => {

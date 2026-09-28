@@ -72,7 +72,8 @@ function schedule(): void {
     return;
   }
   const now = Date.now();
-  const nextSlot = (Math.floor(now / DISPLAY_REFRESH_INTERVAL_MS) + 1) * DISPLAY_REFRESH_INTERVAL_MS;
+  const nextSlot =
+    (Math.floor(now / DISPLAY_REFRESH_INTERVAL_MS) + 1) * DISPLAY_REFRESH_INTERVAL_MS;
   beatTimer = setTimeout(beat, nextSlot - now);
 }
 

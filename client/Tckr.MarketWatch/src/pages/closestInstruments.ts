@@ -41,7 +41,10 @@ export function closestInstruments(
   const allowed = Math.max(1, Math.floor(q.length / 3));
   const candidates = universe
     .map((def) => {
-      const nameWordStarts = def.name.toLowerCase().split(/\s+/).map((word) => word.slice(0, q.length));
+      const nameWordStarts = def.name
+        .toLowerCase()
+        .split(/\s+/)
+        .map((word) => word.slice(0, q.length));
       const symbolDistance = editDistance(q, def.symbol.toLowerCase());
       const nameDistance = Math.min(...nameWordStarts.map((start) => editDistance(q, start)));
       // At equal distance a ticker match outranks a name-word match: the search box
@@ -53,7 +56,9 @@ export function closestInstruments(
   // A ticker-shaped query ("COMY") with a close ticker means a mistyped ticker: a
   // name-word near-miss ("Company" -> ARCC) beside it is noise, not a second guess.
   const tickerShaped = /^[a-z0-9]{2,6}$/.test(q);
-  const tickerMatches = candidates.filter(({ def }) => editDistance(q, def.symbol.toLowerCase()) <= allowed);
+  const tickerMatches = candidates.filter(
+    ({ def }) => editDistance(q, def.symbol.toLowerCase()) <= allowed,
+  );
   return (tickerShaped && tickerMatches.length > 0 ? tickerMatches : candidates)
     .sort((a, b) => a.rank - b.rank || a.def.symbol.localeCompare(b.def.symbol))
     .slice(0, limit)

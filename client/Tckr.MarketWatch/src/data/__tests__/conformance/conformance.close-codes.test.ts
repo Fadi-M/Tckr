@@ -36,43 +36,50 @@ const CASES: readonly CaseSpec[] = [
 ];
 
 describe('gateway close-code conformance', () => {
-  it.each(CASES)('code $code → closed state, shouldReconnect=$shouldReconnect', async ({ code, reason, shouldReconnect }) => {
-    vi.useFakeTimers();
-    try {
-      const harness = createHarness();
-      const socket = await connectAndAuthenticate(harness);
-      const statuses: ConnectionState[] = [];
-      harness.source.on.status((s) => statuses.push(s));
+  it.each(CASES)(
+    'code $code → closed state, shouldReconnect=$shouldReconnect',
+    async ({ code, reason, shouldReconnect }) => {
+      vi.useFakeTimers();
+      try {
+        const harness = createHarness();
+        const socket = await connectAndAuthenticate(harness);
+        const statuses: ConnectionState[] = [];
+        harness.source.on.status((s) => statuses.push(s));
 
-      socket.serverClose(code, reason);
+        socket.serverClose(code, reason);
 
-      const closedStates = statuses.filter((s) => s.kind === 'closed');
-      expect(closedStates).toHaveLength(1);
-      expect(closedStates[0]).toEqual({ kind: 'closed', code, reason });
-      // For a non-reconnecting code, connectionState() still reads 'closed' right
-      // after the close (no follow-up transition is coming). For a reconnecting code,
-      // `#handleClose` decides and emits 'reconnecting' synchronously in the same
-      // call — connectionState() has therefore already moved past 'closed' by the
-      // time serverClose() returns, which the `shouldReconnect` branch below checks.
-      if (!shouldReconnect) {
-        expect(harness.source.connectionState()).toEqual({ kind: 'closed', code, reason });
+        const closedStates = statuses.filter((s) => s.kind === 'closed');
+        expect(closedStates).toHaveLength(1);
+        expect(closedStates[0]).toEqual({ kind: 'closed', code, reason });
+        // For a non-reconnecting code, connectionState() still reads 'closed' right
+        // after the close (no follow-up transition is coming). For a reconnecting code,
+        // `#handleClose` decides and emits 'reconnecting' synchronously in the same
+        // call — connectionState() has therefore already moved past 'closed' by the
+        // time serverClose() returns, which the `shouldReconnect` branch below checks.
+        if (!shouldReconnect) {
+          expect(harness.source.connectionState()).toEqual({ kind: 'closed', code, reason });
+        }
+
+        await vi.advanceTimersByTimeAsync(0);
+        const reconnecting = statuses.filter((s) => s.kind === 'reconnecting');
+        if (shouldReconnect) {
+          expect(reconnecting).toHaveLength(1);
+          expect(reconnecting[0]).toMatchObject({
+            kind: 'reconnecting',
+            attempt: 1,
+            nextRetryMs: 500,
+          });
+          expect(harness.source.connectionState()).toEqual(reconnecting[0]);
+        } else {
+          expect(reconnecting).toHaveLength(0);
+          // No reconnect was scheduled — connectionState() still reports the closed state.
+          expect(harness.source.connectionState()).toEqual({ kind: 'closed', code, reason });
+        }
+      } finally {
+        vi.useRealTimers();
       }
-
-      await vi.advanceTimersByTimeAsync(0);
-      const reconnecting = statuses.filter((s) => s.kind === 'reconnecting');
-      if (shouldReconnect) {
-        expect(reconnecting).toHaveLength(1);
-        expect(reconnecting[0]).toMatchObject({ kind: 'reconnecting', attempt: 1, nextRetryMs: 500 });
-        expect(harness.source.connectionState()).toEqual(reconnecting[0]);
-      } else {
-        expect(reconnecting).toHaveLength(0);
-        // No reconnect was scheduled — connectionState() still reports the closed state.
-        expect(harness.source.connectionState()).toEqual({ kind: 'closed', code, reason });
-      }
-    } finally {
-      vi.useRealTimers();
-    }
-  });
+    },
+  );
 
   it("connectionState() reports 'connected' synchronously right after authentication, matching the last on.status emission", async () => {
     const harness = createHarness();
@@ -85,7 +92,7 @@ describe('gateway close-code conformance', () => {
     expect(harness.source.connectionState()).toEqual(lastEmitted);
   });
 
-  it("connectionState() reports a closed state before connect() has ever been called", () => {
+  it('connectionState() reports a closed state before connect() has ever been called', () => {
     const harness = createHarness();
     expect(harness.source.connectionState().kind).toBe('closed');
   });

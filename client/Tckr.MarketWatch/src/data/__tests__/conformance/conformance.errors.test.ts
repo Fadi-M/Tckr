@@ -49,7 +49,10 @@ describe('gateway error-code conformance', () => {
       await vi.advanceTimersByTimeAsync(2000);
       // Released: the queued subscribe frame has now gone out.
       expect(socket.sent.length).toBe(sentBeforeThrottle + 1);
-      const parsed = JSON.parse(socket.sent[socket.sent.length - 1] ?? '{}') as { type: string; symbols: string[] };
+      const parsed = JSON.parse(socket.sent[socket.sent.length - 1] ?? '{}') as {
+        type: string;
+        symbols: string[];
+      };
       expect(parsed).toMatchObject({ type: 'subscribe', symbols: ['COMI'] });
     } finally {
       vi.useRealTimers();

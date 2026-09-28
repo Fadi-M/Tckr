@@ -21,7 +21,11 @@ export function baseGatewayConfig(overrides: Partial<ClientConfig> = {}): Client
   };
 }
 
-export type FetchResponseLike = { readonly ok: boolean; readonly status: number; json(): Promise<unknown> };
+export type FetchResponseLike = {
+  readonly ok: boolean;
+  readonly status: number;
+  json(): Promise<unknown>;
+};
 
 export function jsonResponse(body: unknown, ok = true, status = 200): FetchResponseLike {
   return { ok, status, json: () => Promise.resolve(body) };

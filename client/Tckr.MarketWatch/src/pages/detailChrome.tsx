@@ -50,7 +50,9 @@ function chartHeightFor(viewportHeight: number, split: boolean): number {
   if (!split) {
     return CHART_MIN_HEIGHT;
   }
-  return Math.round(Math.min(CHART_MAX_HEIGHT, Math.max(CHART_MIN_HEIGHT, viewportHeight - CHART_CHROME_HEIGHT)));
+  return Math.round(
+    Math.min(CHART_MAX_HEIGHT, Math.max(CHART_MIN_HEIGHT, viewportHeight - CHART_CHROME_HEIGHT)),
+  );
 }
 
 export function useChartHeight(): number {
@@ -67,15 +69,31 @@ export function useChartHeight(): number {
   return height;
 }
 
-export function StatTile({ label, children, note }: { label: string; children: ReactNode; note?: ReactNode }) {
+export function StatTile({
+  label,
+  children,
+  note,
+}: {
+  label: string;
+  children: ReactNode;
+  note?: ReactNode;
+}) {
   return (
     <div className="bg-glass-stat border border-glass-border-stat backdrop-blur-[20px] rounded-2xl py-[13px] px-[15px] reduced-transparency:bg-surface reduced-transparency:backdrop-blur-none contrast-more:bg-surface contrast-more:backdrop-blur-none">
-      <span className="block font-mono text-label tracking-[0.14em] uppercase text-text-muted">{label}</span>
-      <span data-reveal="figures" className="block mt-[5px] font-mono text-title font-semibold tabular-nums">
+      <span className="block font-mono text-label tracking-[0.14em] uppercase text-text-muted">
+        {label}
+      </span>
+      <span
+        data-reveal="figures"
+        className="block mt-[5px] font-mono text-title font-semibold tabular-nums"
+      >
         {children}
       </span>
       {note ? (
-        <span data-reveal="figures" className="block mt-1 font-mono text-caption tabular-nums text-text-muted">
+        <span
+          data-reveal="figures"
+          className="block mt-1 font-mono text-caption tabular-nums text-text-muted"
+        >
           {note}
         </span>
       ) : null}
@@ -95,7 +113,13 @@ export function StatSkeleton(): JSX.Element {
 /** The price block's shape until the first quote: the display-size price, its two
  * change pills, and the as-of line — each at its real size, so nothing below moves when
  * the figures land. */
-export function PriceBlockSkeleton({ symbol, testId }: { readonly symbol: string; readonly testId?: string }) {
+export function PriceBlockSkeleton({
+  symbol,
+  testId,
+}: {
+  readonly symbol: string;
+  readonly testId?: string;
+}) {
   return (
     <div data-testid={testId}>
       <span className="sr-only">Loading {symbol} price…</span>
@@ -130,7 +154,11 @@ export function DetailPaneSkeleton({ symbol }: { readonly symbol: string }) {
         <div className="flex items-start justify-between gap-5 flex-wrap">
           <div className="max-[640px]:pr-11">
             <div className="flex items-baseline gap-3 flex-wrap">
-              <h2 id={DETAIL_HEADING_ID} tabIndex={-1} className="font-mono font-semibold text-headline tracking-[0.01em] outline-none">
+              <h2
+                id={DETAIL_HEADING_ID}
+                tabIndex={-1}
+                className="font-mono font-semibold text-headline tracking-[0.01em] outline-none"
+              >
                 {symbol}
               </h2>
               <Skeleton className="inline-block! h-3.5 w-36" />

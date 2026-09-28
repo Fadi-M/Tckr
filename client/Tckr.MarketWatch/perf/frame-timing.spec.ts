@@ -143,13 +143,13 @@ for (const run of [1, 2, 3] as const) {
       // Time every callback the app itself schedules via requestAnimationFrame — see
       // this file's module doc for why this is "the flush path" (TickDispatcher's
       // flush + PriceChart's redraw are the only two rAF consumers in src/).
-      window.requestAnimationFrame = ((cb: FrameRequestCallback) =>
+      window.requestAnimationFrame = (cb: FrameRequestCallback) =>
         nativeRAF((ts) => {
           const t0 = performance.now();
           cb(ts);
           const t1 = performance.now();
           w.__tckrPerf.rafCallbackDurationsMs.push(t1 - t0);
-        }));
+        });
 
       // Independent frame-cadence probe: one timestamp per actual browser animation
       // frame, via the native (unwrapped) RAF, decoupled from anything the app does.
@@ -180,7 +180,11 @@ for (const run of [1, 2, 3] as const) {
     // Reset the counters right after warm-up so the 60s window starts clean.
     await page.evaluate(() => {
       const w = window as unknown as {
-        __tckrPerf: { frameTimestamps: number[]; rafCallbackDurationsMs: number[]; heapAtStartBytes: number | null };
+        __tckrPerf: {
+          frameTimestamps: number[];
+          rafCallbackDurationsMs: number[];
+          heapAtStartBytes: number | null;
+        };
       };
       w.__tckrPerf.frameTimestamps = [];
       w.__tckrPerf.rafCallbackDurationsMs = [];
@@ -213,7 +217,8 @@ for (const run of [1, 2, 3] as const) {
     for (let i = 1; i < timestamps.length; i += 1) {
       intervals.push(timestamps[i]! - timestamps[i - 1]!);
     }
-    const durationActualMs = timestamps.length > 1 ? timestamps[timestamps.length - 1]! - timestamps[0]! : 0;
+    const durationActualMs =
+      timestamps.length > 1 ? timestamps[timestamps.length - 1]! - timestamps[0]! : 0;
     const fps = durationActualMs > 0 ? ((timestamps.length - 1) * 1000) / durationActualMs : 0;
 
     const result = {

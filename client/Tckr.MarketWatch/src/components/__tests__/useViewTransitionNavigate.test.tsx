@@ -51,7 +51,10 @@ function Scoped({ children }: { children: ReactNode }) {
 beforeEach(() => {
   documentStart.mockClear();
   scopeStart.mockClear();
-  Object.defineProperty(document, 'startViewTransition', { value: documentStart, configurable: true });
+  Object.defineProperty(document, 'startViewTransition', {
+    value: documentStart,
+    configurable: true,
+  });
 });
 
 afterEach(() => {

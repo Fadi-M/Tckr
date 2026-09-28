@@ -53,9 +53,10 @@ describe('ClientMessage has no stream/tier/delay/userId field (FR-6)', () => {
   });
 
   it('serializes requestId when present', () => {
-    const wire = JSON.parse(
-      serializeClientMessage({ type: 'ping', requestId: 'r1' }),
-    ) as Record<string, unknown>;
+    const wire = JSON.parse(serializeClientMessage({ type: 'ping', requestId: 'r1' })) as Record<
+      string,
+      unknown
+    >;
     expect(wire['requestId']).toBe('r1');
   });
 });

@@ -20,7 +20,10 @@ const AFTER_CLOSE_SAME_DAY = SESSION_CLOSE + 30 * 60 * 1000; // 30 min after clo
 const FRIDAY_MIDDAY = Date.UTC(2026, 0, 16, 10, 0, 0); // EGX weekend
 const FULL_SESSION_POINT_COUNT = 541; // 4.5h / 30s = 540 slots + the opening slot itself
 
-async function connectedSourceAt(nowMs: number, overrides: Partial<SimulatedSourceConfig> = {}): Promise<SimulatedSource> {
+async function connectedSourceAt(
+  nowMs: number,
+  overrides: Partial<SimulatedSourceConfig> = {},
+): Promise<SimulatedSource> {
   vi.setSystemTime(nowMs);
   const source = new SimulatedSource(baseConfig(overrides));
   await source.connect();

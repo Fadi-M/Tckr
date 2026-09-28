@@ -16,7 +16,11 @@ const FRIDAY_MORNING = cairoEpochFor('2026-10-02', 8, 5);
 
 function cairoClock(epochMs: number): string {
   const p = getCairoParts(epochMs);
-  return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')} ${[p.hour, p.minute, p.second]
+  return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')} ${[
+    p.hour,
+    p.minute,
+    p.second,
+  ]
     .map((n) => String(n).padStart(2, '0'))
     .join(':')}`;
 }
@@ -36,17 +40,25 @@ describe('resolveSimulatedClockTarget', () => {
   });
 
   it('takes any Cairo time, with or without seconds', () => {
-    expect(cairoClock(resolveSimulatedClockTarget('14:29:30', SUNDAY_EVENING))).toBe('2026-09-27 14:29:30');
-    expect(cairoClock(resolveSimulatedClockTarget('9:40', SUNDAY_EVENING))).toBe('2026-09-27 09:40:00');
+    expect(cairoClock(resolveSimulatedClockTarget('14:29:30', SUNDAY_EVENING))).toBe(
+      '2026-09-27 14:29:30',
+    );
+    expect(cairoClock(resolveSimulatedClockTarget('9:40', SUNDAY_EVENING))).toBe(
+      '2026-09-27 09:40:00',
+    );
   });
 
   it('uses the latest trading day on an EGX weekend (Friday → Thursday)', () => {
-    expect(cairoClock(resolveSimulatedClockTarget('open', FRIDAY_MORNING))).toBe('2026-10-01 12:00:00');
+    expect(cairoClock(resolveSimulatedClockTarget('open', FRIDAY_MORNING))).toBe(
+      '2026-10-01 12:00:00',
+    );
   });
 
   it('rejects anything else with the accepted values in the message', () => {
     for (const bad of ['25:00', '12:60', '12:00:61', 'noon', '']) {
-      expect(() => resolveSimulatedClockTarget(bad, SUNDAY_EVENING), bad).toThrow(/expected 'open'/);
+      expect(() => resolveSimulatedClockTarget(bad, SUNDAY_EVENING), bad).toThrow(
+        /expected 'open'/,
+      );
     }
   });
 });

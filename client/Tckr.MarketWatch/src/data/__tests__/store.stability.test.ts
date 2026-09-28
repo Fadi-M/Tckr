@@ -23,7 +23,13 @@ describe('store.getSymbolSnapshot reference stability', () => {
     resetStore();
     // applyTick now drops a tick for any symbol not in the primed universe (security
     // fix) — prime COMI so this file's ticks are accepted.
-    primeUniverse([{ symbol: 'COMI', name: 'Commercial International Holding', referencePrice: toDecimal('85.10') }]);
+    primeUniverse([
+      {
+        symbol: 'COMI',
+        name: 'Commercial International Holding',
+        referencePrice: toDecimal('85.10'),
+      },
+    ]);
   });
 
   it('returns undefined for a symbol that has never received a snapshot or tick', () => {

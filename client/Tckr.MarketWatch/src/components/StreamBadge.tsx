@@ -57,7 +57,11 @@ export function StreamBadge() {
       : ({ gsap }, root) => {
           const hands = root.querySelector('svg path');
           if (hands) {
-            gsap.fromTo(hands, { attr: { transform: 'rotate(-360 8 8)' } }, { attr: { transform: 'rotate(0 8 8)' }, duration: 0.9 });
+            gsap.fromTo(
+              hands,
+              { attr: { transform: 'rotate(-360 8 8)' } },
+              { attr: { transform: 'rotate(0 8 8)' }, duration: 0.9 },
+            );
           }
           const dot = root.querySelector('[data-live-dot]');
           if (dot) {
@@ -114,7 +118,11 @@ export function StreamBadge() {
               : 'Live stream: prices arrive as they trade'
           }
         >
-          <span className={`w-1.5 h-1.5 rounded-full flex-none ${idle ? 'bg-text-muted' : 'bg-up'}`} aria-hidden="true" data-live-dot />
+          <span
+            className={`w-1.5 h-1.5 rounded-full flex-none ${idle ? 'bg-text-muted' : 'bg-up'}`}
+            aria-hidden="true"
+            data-live-dot
+          />
           <ScrambleWord text="LIVE" from={changeCount > 0 ? flippedFrom : undefined} />
           <span className="sr-only">LIVE</span>
         </span>

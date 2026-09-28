@@ -33,7 +33,9 @@ function switchThemeSmoothly(apply: () => void): void {
   root.classList.add(SWITCHING_CLASS, TRANSITION_CLASS);
   const transition = runViewTransition(document, apply);
   if (transition) {
-    void transition.finished.finally(() => root.classList.remove(SWITCHING_CLASS, TRANSITION_CLASS));
+    void transition.finished.finally(() =>
+      root.classList.remove(SWITCHING_CLASS, TRANSITION_CLASS),
+    );
     return;
   }
   root.classList.remove(TRANSITION_CLASS);
@@ -65,7 +67,10 @@ export function useTheme(): UseThemeResult {
     const observer = new MutationObserver(() => {
       setThemeState(getAppliedTheme());
     });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
     return () => observer.disconnect();
   }, []);
 

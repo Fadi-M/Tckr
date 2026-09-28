@@ -103,7 +103,13 @@ interface TextLanding {
  * `PriceCell`'s flash: the previous text is tracked in a ref committed after render, and
  * a landing survives re-renders that don't change the text, until it has finished.
  */
-export function TickingText({ text, direction = 'up' }: { readonly text: string; readonly direction?: RollDirection }): ReactNode {
+export function TickingText({
+  text,
+  direction = 'up',
+}: {
+  readonly text: string;
+  readonly direction?: RollDirection;
+}): ReactNode {
   const previousRef = useRef<{ readonly text: string; readonly since: number } | null>(null);
   const landingRef = useRef<TextLanding | null>(null);
   const previous = previousRef.current?.text ?? null;

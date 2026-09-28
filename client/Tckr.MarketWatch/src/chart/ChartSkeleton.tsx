@@ -23,7 +23,10 @@ export function ChartSkeleton({ height }: { readonly height: number }) {
       data-testid="price-chart-skeleton"
     >
       {/* Plot area: gridlines at the price-axis label positions, and one sweep. */}
-      <div className="absolute top-0 left-0" style={{ right: PRICE_AXIS_SIZE_PX, bottom: TIME_AXIS_SIZE_PX }}>
+      <div
+        className="absolute top-0 left-0"
+        style={{ right: PRICE_AXIS_SIZE_PX, bottom: TIME_AXIS_SIZE_PX }}
+      >
         {Array.from({ length: GRIDLINES }, (_, i) => (
           <span
             key={i}

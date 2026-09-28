@@ -32,7 +32,11 @@ describe('store.resetStream', () => {
 
   it('clears price/quote views but preserves the primed symbol list and names', () => {
     primeUniverse([
-      { symbol: 'COMI', name: 'Commercial International Holding', referencePrice: toDecimal('85.10') },
+      {
+        symbol: 'COMI',
+        name: 'Commercial International Holding',
+        referencePrice: toDecimal('85.10'),
+      },
       { symbol: 'CIB', name: 'Cairo Investment Bank', referencePrice: toDecimal('62.75') },
     ]);
     const listBefore = getSymbolList();
@@ -52,7 +56,13 @@ describe('store.resetStream', () => {
   });
 
   it("resets the change baseline back to the static reference price, discarding the old stream's open", () => {
-    primeUniverse([{ symbol: 'COMI', name: 'Commercial International Holding', referencePrice: toDecimal('85.10') }]);
+    primeUniverse([
+      {
+        symbol: 'COMI',
+        name: 'Commercial International Holding',
+        referencePrice: toDecimal('85.10'),
+      },
+    ]);
     applyTick(tick('COMI', '90.00', 'evt-1'));
     expect(getSymbolSnapshot('COMI')?.change).toBe('4.90'); // 90.00 - 85.10
 
@@ -64,7 +74,11 @@ describe('store.resetStream', () => {
 
   it('notifies a subscriber only for a symbol it actually clears', () => {
     primeUniverse([
-      { symbol: 'COMI', name: 'Commercial International Holding', referencePrice: toDecimal('85.10') },
+      {
+        symbol: 'COMI',
+        name: 'Commercial International Holding',
+        referencePrice: toDecimal('85.10'),
+      },
       { symbol: 'CIB', name: 'Cairo Investment Bank', referencePrice: toDecimal('62.75') },
     ]);
     applyTick(tick('COMI', '86.00', 'evt-1')); // CIB never ticked
@@ -81,7 +95,13 @@ describe('store.resetStream', () => {
   });
 
   it('restarts volume accumulation from zero after a reset', () => {
-    primeUniverse([{ symbol: 'COMI', name: 'Commercial International Holding', referencePrice: toDecimal('85.10') }]);
+    primeUniverse([
+      {
+        symbol: 'COMI',
+        name: 'Commercial International Holding',
+        referencePrice: toDecimal('85.10'),
+      },
+    ]);
     applyTick(tick('COMI', '85.10', 'evt-1')); // q=100
     applyTick(tick('COMI', '85.15', 'evt-2')); // q=100, running volume=200
     expect(getSymbolSnapshot('COMI')?.volume).toBe(200);

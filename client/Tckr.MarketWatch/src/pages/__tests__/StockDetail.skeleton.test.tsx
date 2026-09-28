@@ -53,8 +53,10 @@ afterEach(() => {
 
 function renderInFlight() {
   const { source } = createFakeSource({
-    snapshotImpl: (symbol) => new Promise((resolve) => setTimeout(() => resolve(snapshotFixture({ symbol })), 50)),
-    historyImpl: (symbol) => new Promise((resolve) => setTimeout(() => resolve({ v: 1, symbol, points: [] }), 50)),
+    snapshotImpl: (symbol) =>
+      new Promise((resolve) => setTimeout(() => resolve(snapshotFixture({ symbol })), 50)),
+    historyImpl: (symbol) =>
+      new Promise((resolve) => setTimeout(() => resolve({ v: 1, symbol, points: [] }), 50)),
   });
   vi.mocked(getSharedSource).mockReturnValue(source);
   return render(
@@ -86,7 +88,9 @@ describe('StockDetail loading skeleton', () => {
     renderInFlight();
     expect(screen.getByTestId('stock-detail-loading').textContent).toContain('Loading COMI price');
     expect(screen.getByTestId('stock-detail-chart-loading').textContent).toContain('Loading chart');
-    for (const shape of document.querySelectorAll('[data-skeleton], [data-testid="price-chart-skeleton"]')) {
+    for (const shape of document.querySelectorAll(
+      '[data-skeleton], [data-testid="price-chart-skeleton"]',
+    )) {
       expect(shape.closest('[aria-hidden="true"]')).toBeTruthy();
     }
   });

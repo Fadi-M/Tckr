@@ -32,7 +32,13 @@ describe('PriceChart single uPlot instance', () => {
     expect(constructorSpy).toHaveBeenCalledTimes(1);
 
     for (let i = 0; i < 1000; i += 1) {
-      rerender(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} livePrice={{ t: 1000 + i, p: priceAt(i) }} />);
+      rerender(
+        <PriceChart
+          symbol="COMI"
+          tickSize={toDecimal('0.01')}
+          livePrice={{ t: 1000 + i, p: priceAt(i) }}
+        />,
+      );
     }
 
     expect(constructorSpy).toHaveBeenCalledTimes(1);

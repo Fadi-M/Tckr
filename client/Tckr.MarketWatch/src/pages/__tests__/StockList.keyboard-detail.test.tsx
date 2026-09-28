@@ -84,7 +84,9 @@ describe('StockList keyboard paths around the detail pane', () => {
     const comiIndex = symbols.indexOf('COMI');
 
     fireEvent.click(screen.getByRole('button', { name: `Next: ${symbols[comiIndex + 1]}` }));
-    await waitFor(() => expect(screen.getByTestId('detail-route').textContent).toBe(symbols[comiIndex + 1]));
+    await waitFor(() =>
+      expect(screen.getByTestId('detail-route').textContent).toBe(symbols[comiIndex + 1]),
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Previous: COMI' }));
     await waitFor(() => expect(screen.getByTestId('detail-route').textContent).toBe('COMI'));

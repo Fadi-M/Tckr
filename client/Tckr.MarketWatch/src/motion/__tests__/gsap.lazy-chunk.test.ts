@@ -26,7 +26,11 @@ describe('GSAP lazy chunk', () => {
   it('is statically imported only by src/motion/gsap.ts', () => {
     const offenders = sourceFiles(SRC)
       .filter((path) => relative(SRC, path) !== ALLOWED)
-      .filter((path) => /^\s*import\s+(?!type\b)[^;]*from\s+['"](gsap|@gsap\/react)(\/[^'"]*)?['"]/m.test(readFileSync(path, 'utf8')))
+      .filter((path) =>
+        /^\s*import\s+(?!type\b)[^;]*from\s+['"](gsap|@gsap\/react)(\/[^'"]*)?['"]/m.test(
+          readFileSync(path, 'utf8'),
+        ),
+      )
       .map((path) => relative(SRC, path));
     expect(offenders).toEqual([]);
   });

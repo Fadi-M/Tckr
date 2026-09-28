@@ -12,7 +12,13 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { TckrLogo } from '../../components/TckrLogo.tsx';
 import { Greeting } from '../Greeting.tsx';
 import { shouldGreetToday } from '../greetingSchedule.ts';
-import { finishMotion, primeMotion, resetMotion, stubReducedMotion, unstubReducedMotion } from './motionTestSupport.ts';
+import {
+  finishMotion,
+  primeMotion,
+  resetMotion,
+  stubReducedMotion,
+  unstubReducedMotion,
+} from './motionTestSupport.ts';
 
 beforeEach(primeMotion);
 

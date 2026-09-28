@@ -26,7 +26,10 @@ async function renderList() {
     <MemoryRouter initialEntries={['/']}>
       <Routes>
         <Route path="/" element={<StockList />}>
-          <Route path="EGX/symbols/:symbol" element={<div data-testid="detail-route">detail</div>} />
+          <Route
+            path="EGX/symbols/:symbol"
+            element={<div data-testid="detail-route">detail</div>}
+          />
         </Route>
       </Routes>
     </MemoryRouter>,
@@ -117,7 +120,9 @@ describe('StockList moments', () => {
   it('suggests the closest instrument when a search matches nothing, and opens it', async () => {
     vi.setSystemTime(cairoEpochFor('2026-01-15', 11, 0));
     await renderList();
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search symbol or name' }), { target: { value: 'COMY' } });
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search symbol or name' }), {
+      target: { value: 'COMY' },
+    });
     await act(async () => {
       vi.advanceTimersByTime(200);
     });

@@ -12,7 +12,11 @@ interface IconProps {
   readonly className?: string;
 }
 
-function Icon({ size = 16, className = '', children }: IconProps & { readonly children: ReactNode }) {
+function Icon({
+  size = 16,
+  className = '',
+  children,
+}: IconProps & { readonly children: ReactNode }) {
   return (
     <svg
       width={size}

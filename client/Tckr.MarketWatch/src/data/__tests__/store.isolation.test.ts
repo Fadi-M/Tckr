@@ -25,7 +25,11 @@ describe('store per-symbol subscription isolation', () => {
     // and CIB so this file's ticks are accepted, matching how the real sources always
     // prime before a tick can arrive.
     primeUniverse([
-      { symbol: 'COMI', name: 'Commercial International Holding', referencePrice: toDecimal('85.10') },
+      {
+        symbol: 'COMI',
+        name: 'Commercial International Holding',
+        referencePrice: toDecimal('85.10'),
+      },
       { symbol: 'CIB', name: 'Cairo Investment Bank', referencePrice: toDecimal('62.75') },
     ]);
   });

@@ -87,7 +87,12 @@ export function formatXAxisTick(epochMs: number, stepMs: number): string {
  * `minGapMs` from both ends (so an interior label never collides with an end label).
  * `incrMs` is the step uPlot picked from `X_AXIS_INCREMENTS_MS` for the space available.
  */
-export function timeAxisSplits(minMs: number, maxMs: number, incrMs: number, minGapMs: number): number[] {
+export function timeAxisSplits(
+  minMs: number,
+  maxMs: number,
+  incrMs: number,
+  minGapMs: number,
+): number[] {
   if (!(maxMs > minMs)) {
     return [minMs];
   }
@@ -113,6 +118,6 @@ export function timeAxisSplits(minMs: number, maxMs: number, incrMs: number, min
  * output never looks arbitrary (e.g. never "10:31:07.340").
  */
 export const X_AXIS_INCREMENTS_MS: readonly number[] = [
-  1000, 2000, 5000, 10000, 15000, 30000, 60000, 120000, 300000, 600000, 900000, 1800000,
-  3600000, 7200000, 14400000, 28800000,
+  1000, 2000, 5000, 10000, 15000, 30000, 60000, 120000, 300000, 600000, 900000, 1800000, 3600000,
+  7200000, 14400000, 28800000,
 ];

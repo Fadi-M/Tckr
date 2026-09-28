@@ -114,7 +114,11 @@ export function Greeting({ onDone }: { readonly onDone: () => void }) {
         // Stillness: the finished lockup and the two lines, then a soft fade.
         gsap
           .timeline({ onComplete: finish })
-          .fromTo([lockup, ...lines], { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.4, ease: 'power1.out' })
+          .fromTo(
+            [lockup, ...lines],
+            { autoAlpha: 0 },
+            { autoAlpha: 1, duration: 0.4, ease: 'power1.out' },
+          )
           .to(root, { autoAlpha: 0, duration: 0.6, ease: 'power1.inOut' }, '+=1.3');
         return;
       }
@@ -122,9 +126,17 @@ export function Greeting({ onDone }: { readonly onDone: () => void }) {
       // --- The introduction -------------------------------------------------------
       // The wordmark's box is fixed at its finished width, so the lockup doesn't
       // re-centre as "ckr" resolves character by character.
-      gsap.set(wordmark, { width: wordmark.getBoundingClientRect().width, display: 'inline-block', textAlign: 'left' });
+      gsap.set(wordmark, {
+        width: wordmark.getBoundingClientRect().width,
+        display: 'inline-block',
+        textAlign: 'left',
+      });
       wordmark.textContent = '';
-      const words = SplitText.create(salutation, { type: 'words', mask: 'words', aria: 'none' }).words;
+      const words = SplitText.create(salutation, {
+        type: 'words',
+        mask: 'words',
+        aria: 'none',
+      }).words;
       // Every start state is set here, explicitly and at once, rather than left to
       // `from()` tweens in a paused timeline: nothing may paint in its finished state
       // first and then jump back to its start.
@@ -145,11 +157,27 @@ export function Greeting({ onDone }: { readonly onDone: () => void }) {
         .to(light, { opacity: 0.95, scale: 1.12, duration: 0.9, ease: 'power2.out' }, 0.35)
         .to(light, { opacity: 0.4, scale: 1, duration: 1.1, ease: 'sine.inOut' }, 1.25)
         // "ckr" resolves.
-        .to(wordmark, { duration: 0.55, ease: 'none', scrambleText: { text: 'ckr', chars: 'lowerCase', speed: 0.5 } }, 1.08)
+        .to(
+          wordmark,
+          {
+            duration: 0.55,
+            ease: 'none',
+            scrambleText: { text: 'ckr', chars: 'lowerCase', speed: 0.5 },
+          },
+          1.08,
+        )
         // The salutation rises through its mask, word by word, coming into focus.
-        .to(words, { yPercent: 0, filter: 'blur(0px)', duration: 0.85, stagger: 0.08, ease: 'tckr-out' }, 1.38)
+        .to(
+          words,
+          { yPercent: 0, filter: 'blur(0px)', duration: 0.85, stagger: 0.08, ease: 'tckr-out' },
+          1.38,
+        )
         // The market line prints left to right.
-        .to(market, { clipPath: 'inset(-20% 0% -20% 0)', duration: 0.75, ease: 'power2.inOut' }, 1.7)
+        .to(
+          market,
+          { clipPath: 'inset(-20% 0% -20% 0)', duration: 0.75, ease: 'power2.inOut' },
+          1.7,
+        )
         .to(q('[data-greet-dot]'), { scale: 1, duration: 0.45, ease: 'back.out(3)' }, 1.72)
         // A beat to read it.
         .to({}, { duration: 0.35 });
@@ -167,9 +195,9 @@ export function Greeting({ onDone }: { readonly onDone: () => void }) {
         }
         handedOff = true;
         setHandingOff(true);
-        const panes = Array.from(document.querySelectorAll<HTMLElement>('main [data-greet-rise]')).filter(
-          (el) => el.offsetParent !== null,
-        );
+        const panes = Array.from(
+          document.querySelectorAll<HTMLElement>('main [data-greet-rise]'),
+        ).filter((el) => el.offsetParent !== null);
         // Everything that moves in the hand-off is promoted to its own layer for just
         // its duration: the field's opacity and the lockup's and panes' transforms are
         // then composited, never repainted (the field holds three 70px blurs).
@@ -185,17 +213,35 @@ export function Greeting({ onDone }: { readonly onDone: () => void }) {
         // words lift, the field starts to thin, and the panes start to settle, so
         // nothing waits in line and nothing ever stands still.
         out
-          .to(lines, { y: -10, autoAlpha: 0, filter: 'blur(4px)', duration: 0.32, stagger: 0.04, ease: 'power2.in' }, 0)
+          .to(
+            lines,
+            {
+              y: -10,
+              autoAlpha: 0,
+              filter: 'blur(4px)',
+              duration: 0.32,
+              stagger: 0.04,
+              ease: 'power2.in',
+            },
+            0,
+          )
           .to(light, { opacity: 0, scale: 0.85, duration: 0.45, ease: 'power1.in' }, 0)
           // The field dissolves into the identical field beneath it.
           .to(field, { opacity: 0, duration: 0.75, ease: 'power1.inOut' }, 0.12)
           // The panes settle up into place from just below: translation only (a scale
           // would re-raster their text every frame).
-          .from(panes, { y: 26, duration: 0.9, stagger: 0.05, ease: 'tckr-out', clearProps: 'transform' }, 0.16);
+          .from(
+            panes,
+            { y: 26, duration: 0.9, stagger: 0.05, ease: 'tckr-out', clearProps: 'transform' },
+            0.16,
+          );
         const heroMarkEl = lockup.querySelector('svg');
         const homeMarkEl = headerLogo?.querySelector('svg');
         const measurable =
-          heroMarkEl && homeMarkEl && heroMarkEl.getBoundingClientRect().height > 0 && homeMarkEl.getBoundingClientRect().height > 0;
+          heroMarkEl &&
+          homeMarkEl &&
+          heroMarkEl.getBoundingClientRect().height > 0 &&
+          homeMarkEl.getBoundingClientRect().height > 0;
         if (headerLogo && measurable) {
           // The lockup flies home and becomes the header's. One uniform scale, from the
           // hero mark's height to the header mark's, about the mark's bottom-left
@@ -206,10 +252,21 @@ export function Greeting({ onDone }: { readonly onDone: () => void }) {
           const heroMark = heroMarkEl.getBoundingClientRect();
           const homeMark = homeMarkEl.getBoundingClientRect();
           const box = lockup.getBoundingClientRect();
-          gsap.set(lockup, { transformOrigin: `${heroMark.left - box.left}px ${heroMark.bottom - box.top}px` });
+          gsap.set(lockup, {
+            transformOrigin: `${heroMark.left - box.left}px ${heroMark.bottom - box.top}px`,
+          });
           const scale = homeMark.height / heroMark.height;
           const flight = { duration: 0.95, ease: 'tckr-flight' } as const;
-          out.to(lockup, { x: homeMark.left - heroMark.left, y: homeMark.bottom - heroMark.bottom, scale, ...flight }, 0);
+          out.to(
+            lockup,
+            {
+              x: homeMark.left - heroMark.left,
+              y: homeMark.bottom - heroMark.bottom,
+              scale,
+              ...flight,
+            },
+            0,
+          );
           // The same rounding leaves "ckr" most of a pixel off its home; it drifts that
           // last fraction during the flight, so it lands on the header's wordmark too.
           const heroWord = wordmark.getBoundingClientRect();
@@ -240,7 +297,12 @@ export function Greeting({ onDone }: { readonly onDone: () => void }) {
         }
         skipping = true;
         intro.pause();
-        gsap.to(intro, { time: intro.duration(), duration: 0.45, ease: 'power2.inOut', onComplete: handOff });
+        gsap.to(intro, {
+          time: intro.duration(),
+          duration: 0.45,
+          ease: 'power2.inOut',
+          onComplete: handOff,
+        });
       };
       for (const type of ['keydown', 'pointerdown', 'wheel', 'touchstart'] as const) {
         window.addEventListener(type, skip, { passive: true });
@@ -297,14 +359,20 @@ export function Greeting({ onDone }: { readonly onDone: () => void }) {
           <TckrLogo size={heroSize} />
         </span>
         <div className="flex flex-col items-center gap-3">
-          <p data-greet-salutation className="invisible font-sans font-medium text-headline tracking-[-0.01em] text-text">
+          <p
+            data-greet-salutation
+            className="invisible font-sans font-medium text-headline tracking-[-0.01em] text-text"
+          >
             {copy.salutation}
           </p>
           <p
             data-greet-market
             className="invisible inline-flex items-center gap-2.5 font-mono text-caption font-semibold tracking-[0.08em] uppercase text-text-muted"
           >
-            <span data-greet-dot className={`w-1.5 h-1.5 rounded-full flex-none ${TONE_DOT[copy.tone]}`} />
+            <span
+              data-greet-dot
+              className={`w-1.5 h-1.5 rounded-full flex-none ${TONE_DOT[copy.tone]}`}
+            />
             {copy.market}
           </p>
         </div>

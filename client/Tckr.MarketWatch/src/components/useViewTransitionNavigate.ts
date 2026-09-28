@@ -36,7 +36,10 @@ export interface ViewTransitionNavigateOptions {
   readonly replace?: boolean;
 }
 
-export function useViewTransitionNavigate(): (to: string, options?: ViewTransitionNavigateOptions) => void {
+export function useViewTransitionNavigate(): (
+  to: string,
+  options?: ViewTransitionNavigateOptions,
+) => void {
   const navigate = useNavigate();
   const location = useLocation();
   const resolveScope = useTransitionScope();

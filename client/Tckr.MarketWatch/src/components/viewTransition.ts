@@ -23,7 +23,10 @@ export type ViewTransitionRoot = Document | Element;
  * possible (see module doc). Returns the `ViewTransition` when one started, so a caller
  * can wait on `finished`; `null` when `update` ran un-animated.
  */
-export function runViewTransition(root: ViewTransitionRoot, update: () => void | Promise<void>): ViewTransition | null {
+export function runViewTransition(
+  root: ViewTransitionRoot,
+  update: () => void | Promise<void>,
+): ViewTransition | null {
   if (typeof root.startViewTransition !== 'function' || prefersReducedMotion()) {
     void update();
     return null;
