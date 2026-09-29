@@ -7,22 +7,10 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { App } from '../App';
 
-// See shell.banner-everywhere.test.tsx: `App` now reaches real `PriceChart` /
-// `uplot` via `StockDetail`, which jsdom cannot construct (no canvas, no
-// `matchMedia`). `vi.mock` is hoisted above the `App` import above.
-vi.mock('uplot', () => {
-  class FakeUPlot {
-    setData = vi.fn();
-    destroy = vi.fn();
-    setSize = vi.fn();
-    redraw = vi.fn();
-    root = document.createElement('div');
-    over = document.createElement('div');
-    cursor = { idx: null };
-    data: [number[], number[]] = [[], []];
-  }
-  return { default: FakeUPlot };
-});
+// `App` reaches uPlot through the lazy StockDetail; jsdom can't construct it.
+vi.mock('uplot', async () => ({
+  default: (await import('../chart/__tests__/uplotTestDouble.ts')).FakeUPlot,
+}));
 
 afterEach(cleanup);
 

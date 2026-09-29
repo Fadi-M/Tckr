@@ -1,91 +1,49 @@
+/**
+ * The detail pane subscribes to its one symbol on mount and unsubscribes on unmount,
+ * netting exactly one live subscription even under StrictMode's double-invoked effects.
+ */
 import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { cleanup, screen } from '@testing-library/react';
 import { resetStore } from '../../data/store.ts';
-import { createFakeSource } from './testSupport.ts';
+import { createFakeSource, renderDetail } from './testSupport.tsx';
 
-vi.mock('uplot', () => {
-  class FakeUPlot {
-    setData = vi.fn();
-    destroy = vi.fn();
-    setSize = vi.fn();
-    redraw = vi.fn();
-    root = document.createElement('div');
-    over = document.createElement('div');
-    cursor = { idx: null };
-    data: [number[], number[]] = [[], []];
-  }
-  return { default: FakeUPlot };
-});
-
-vi.mock('../../data/config.ts', () => ({
-  getSharedSource: vi.fn(),
-  resetSharedSource: vi.fn(),
-  resolveClientConfig: vi.fn(() => ({
-    source: 'simulated' as const,
-    gatewayUrl: 'ws://localhost:5000',
-    demoUser: 'user-001',
-    simulated: { eventsPerSecond: 2000, delayedOffsetMs: 15000, seed: 1 },
-  })),
+vi.mock('uplot', async () => ({
+  default: (await import('../../chart/__tests__/uplotTestDouble.ts')).FakeUPlot,
 }));
+vi.mock('../../data/config.ts');
 
-import { getSharedSource, resetSharedSource } from '../../data/config.ts';
 import { StockDetail } from '../StockDetail.tsx';
 
+beforeEach(resetStore);
 afterEach(cleanup);
 
-beforeEach(() => {
-  resetStore();
-  resetSharedSource();
-});
-
 describe('StockDetail subscribe/unsubscribe lifecycle', () => {
-  it('subscribes once on mount and unsubscribes once on unmount (no StrictMode)', () => {
+  it('subscribes once on mount and unsubscribes once on unmount', async () => {
     const { source, subscribe, unsubscribe } = createFakeSource();
-    vi.mocked(getSharedSource).mockReturnValue(source);
+    const { unmount } = await renderDetail(<StockDetail symbol="COMI" />, source, {
+      settleFirst: false,
+    });
 
-    const { unmount } = render(
-      <MemoryRouter>
-        <StockDetail symbol="COMI" />
-      </MemoryRouter>,
-    );
-
-    expect(subscribe).toHaveBeenCalledTimes(1);
-    expect(subscribe).toHaveBeenCalledWith(['COMI']);
+    expect(subscribe.mock.calls).toEqual([[['COMI']]]);
     expect(unsubscribe).not.toHaveBeenCalled();
 
     unmount();
 
-    expect(unsubscribe).toHaveBeenCalledTimes(1);
-    expect(unsubscribe).toHaveBeenCalledWith(['COMI']);
-    console.info(
-      '[StockDetail.subscribe-lifecycle] plain mount call log:',
-      JSON.stringify({ subscribe: subscribe.mock.calls, unsubscribe: unsubscribe.mock.calls }),
-    );
+    expect(unsubscribe.mock.calls).toEqual([[['COMI']]]);
   });
 
-  it('nets exactly one active subscription under StrictMode double-invocation', () => {
+  it('nets exactly one active subscription under StrictMode double-invocation', async () => {
     const { source, subscribe, unsubscribe } = createFakeSource();
-    vi.mocked(getSharedSource).mockReturnValue(source);
-
-    render(
+    await renderDetail(
       <StrictMode>
-        <MemoryRouter>
-          <StockDetail symbol="COMI" />
-        </MemoryRouter>
+        <StockDetail symbol="COMI" />
       </StrictMode>,
+      source,
+      { settleFirst: false },
     );
 
     expect(screen.getByTestId('stock-detail-loading')).toBeTruthy();
-
-    const net = subscribe.mock.calls.length - unsubscribe.mock.calls.length;
-    expect(net).toBe(1);
-    console.info(
-      '[StockDetail.subscribe-lifecycle] StrictMode call log:',
-      JSON.stringify({ subscribe: subscribe.mock.calls, unsubscribe: unsubscribe.mock.calls }),
-      'net =',
-      net,
-    );
+    expect(subscribe.mock.calls.length - unsubscribe.mock.calls.length).toBe(1);
   });
 });

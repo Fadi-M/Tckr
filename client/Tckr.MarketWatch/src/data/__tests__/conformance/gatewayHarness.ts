@@ -98,12 +98,3 @@ export async function connectAndAuthenticate(
   socket.emit(connectedFrame);
   return socket;
 }
-
-/** Flushes the microtask queue a few times — enough for a chain of already-resolved
- * promises (no pending timers) to settle, without depending on `vi.advanceTimersByTimeAsync`
- * for purely-microtask continuations. */
-export async function flushMicrotasks(): Promise<void> {
-  for (let i = 0; i < 5; i += 1) {
-    await Promise.resolve();
-  }
-}

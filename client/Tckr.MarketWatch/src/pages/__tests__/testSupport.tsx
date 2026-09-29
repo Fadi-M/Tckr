@@ -1,28 +1,28 @@
 /**
- * Shared fixture builders for `src/pages/__tests__/`'s `StockList.*` and
- * `StockDetail.*` suites. Not itself a `*.test.tsx` file, so Vitest does not run it
- * directly (mirrors `src/data/__tests__/testSupport.ts`'s and
- * `src/components/__tests__/testSupport.ts`'s convention).
+ * Shared fixtures and render helpers for `src/pages/__tests__/`. Not itself a
+ * `*.test.tsx` file, so Vitest does not run it directly.
  *
- * Every builder here accepts an `overrides`/`options` object so a consuming test
- * customizes only the field(s) its scenario cares about, while everything else stays
- * at a shared, realistic default — no test should need to fork a second copy of a
- * fixture just to change one field.
+ * Every suite here mocks `../../data/config.ts` with its automatic mock
+ * (`src/data/__mocks__/config.ts`); the render helpers point its `getSharedSource()` at
+ * the fake source a test builds.
  *
- * Two families live here, kept deliberately separate because they serve different
- * kinds of tests:
- *  - `loadUniverseFixture`/`loadUniverseWeights`/`makeFakeSource`/`tickFixture`: the
- *    `StockList.*` suites, most of which render the real 34-symbol universe from
- *    `public/symbols.json`.
+ * Two fixture families, for two kinds of test:
+ *  - `loadUniverseFixture`/`makeFakeSource`/`renderBoard`: the `StockList.*` suites,
+ *    which render the real 34-symbol universe from `public/symbols.json`.
  *  - `comiDefinition`/`cibDefinition`/`universeFixture`/`snapshotFixture`/
- *    `createFakeSource`: the `StockDetail.*` suites, which only ever need one or two
- *    hand-built symbols.
+ *    `createFakeSource`/`renderDetail`: the `StockDetail.*` suites, which only need one
+ *    or two hand-built symbols.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { ReactElement } from 'react';
+import { act, render, screen, type RenderResult } from '@testing-library/react';
+import { MemoryRouter, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import { vi } from 'vitest';
 import { toDecimal } from '../../contracts/decimal.ts';
+import { getSharedSource } from '../../data/config.ts';
+import { StockList } from '../StockList.tsx';
 import type { EntitlementChanged, ErrorMsg, IsoUtc, Tick } from '../../contracts/messages.ts';
 import type {
   Snapshot,
@@ -44,7 +44,6 @@ interface RawSymbol {
   readonly referencePrice: number;
   readonly tickSize: number;
   readonly lotSize: number;
-  readonly weight?: number;
 }
 
 function readSymbolsJson(): readonly RawSymbol[] {
@@ -64,15 +63,6 @@ export function loadUniverseFixture(): readonly SymbolDefinition[] {
     lotSize: s.lotSize,
     referencePrice: toDecimal(s.referencePrice.toString()),
   }));
-}
-
-/** `public/symbols.json`'s own `weight` column, in file order — parallel to
- * `loadUniverseFixture()`'s array. Only `StockList.default-order.test.tsx` needs
- * this: `SymbolDefinition` (the frozen client-contract.md §2 shape returned by
- * `getUniverse()`) carries no `weight` field, so that test reads it separately to
- * verify the fixture file's own precondition (weight-descending). */
-export function loadUniverseWeights(): readonly number[] {
-  return readSymbolsJson().map((s) => s.weight ?? 0);
 }
 
 export interface StockListFakeSourceOptions {
@@ -340,4 +330,84 @@ export function createFakeSource(options: CreateFakeSourceOptions = {}): FakeSou
     emitTick: (t) => tickHandlers.forEach((h) => h(t)),
     emitEntitlement: (e) => entitlementHandlers.forEach((h) => h(e)),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Rendering
+// ---------------------------------------------------------------------------
+
+/** Lets the promise chain a page starts on mount settle (universe, snapshots, history).
+ * Works under fake timers, where `findBy*`'s polling would never advance. */
+export async function settle(turns = 4): Promise<void> {
+  await act(async () => {
+    for (let i = 0; i < turns; i += 1) {
+      await Promise.resolve();
+    }
+  });
+}
+
+let navigateBack: () => void = () => {};
+
+/** Presses the router's Back, as the browser's button would, from a `renderBoard` page
+ * with a symbol open. */
+export function pressBack(): void {
+  act(() => navigateBack());
+}
+
+function DetailStub() {
+  const { symbol } = useParams();
+  const navigate = useNavigate();
+  navigateBack = () => void navigate(-1);
+  return <div data-testid="detail-route">{symbol}</div>;
+}
+
+export interface RenderBoardOptions {
+  /** Defaults to `makeFakeSource(loadUniverseFixture()).source`. */
+  readonly source?: MarketDataSource;
+  /** The history stack, current entry last. Defaults to `['/']`. */
+  readonly history?: readonly string[];
+}
+
+/** Renders the board the way `App` mounts it: `StockList` on `/`, with the symbol route
+ * nested under it (a stub, `data-testid="detail-route"`, that shows the symbol), then
+ * settles the universe fetch. */
+export async function renderBoard(options: RenderBoardOptions = {}): Promise<RenderResult> {
+  const source = options.source ?? makeFakeSource(loadUniverseFixture()).source;
+  const history = options.history ?? ['/'];
+  vi.mocked(getSharedSource).mockReturnValue(source);
+  const view = render(
+    <MemoryRouter initialEntries={[...history]} initialIndex={history.length - 1}>
+      <Routes>
+        <Route path="/" element={<StockList />}>
+          <Route path="EGX/symbols/:symbol" element={<DetailStub />} />
+        </Route>
+      </Routes>
+    </MemoryRouter>,
+  );
+  await settle();
+  return view;
+}
+
+/** The board's instrument rows (the header row excluded), in display order. */
+export function boardRows(): HTMLElement[] {
+  return screen.getAllByRole('row').filter((row) => row.hasAttribute('data-symbol'));
+}
+
+export function boardSymbols(): (string | null)[] {
+  return boardRows().map((row) => row.getAttribute('data-symbol'));
+}
+
+/** Renders a detail page (`<StockDetail symbol=… />`) at `path` against `source`. Pass
+ * `settleFirst: false` to inspect the page before its snapshot lands. */
+export async function renderDetail(
+  page: ReactElement,
+  source: MarketDataSource,
+  { path = '/', settleFirst = true }: { path?: string; settleFirst?: boolean } = {},
+): Promise<RenderResult> {
+  vi.mocked(getSharedSource).mockReturnValue(source);
+  const view = render(<MemoryRouter initialEntries={[path]}>{page}</MemoryRouter>);
+  if (settleFirst) {
+    await settle();
+  }
+  return view;
 }

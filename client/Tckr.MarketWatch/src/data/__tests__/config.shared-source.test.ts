@@ -15,12 +15,10 @@ describe('getSharedSource — one connection per client', () => {
     vi.unstubAllEnvs();
   });
 
-  it('returns the identical instance on repeated calls', () => {
+  it('returns the identical instance on repeated calls, even in the same tick (StrictMode)', () => {
     const a = getSharedSource();
-    const b = getSharedSource();
-    const c = getSharedSource();
-    expect(b).toBe(a);
-    expect(c).toBe(a);
+    expect(getSharedSource()).toBe(a);
+    expect(getSharedSource()).toBe(a);
   });
 
   it('calls connect() itself — callers do not need to', async () => {
@@ -31,7 +29,7 @@ describe('getSharedSource — one connection per client', () => {
     expect(source.identity()).not.toBeNull(); // populated only once connect() has run
   });
 
-  it('resetSharedSource() disconnects the current instance and clears it', async () => {
+  it('resetSharedSource() disconnects the current instance, and the next call builds a fresh one', async () => {
     const source = getSharedSource();
     await Promise.resolve();
     await Promise.resolve();
@@ -42,13 +40,7 @@ describe('getSharedSource — one connection per client', () => {
     resetSharedSource();
 
     expect(statusEvents.some((s) => s.kind === 'closed')).toBe(true);
-  });
-
-  it('yields a fresh instance after resetSharedSource()', () => {
-    const first = getSharedSource();
-    resetSharedSource();
-    const second = getSharedSource();
-    expect(second).not.toBe(first);
+    expect(getSharedSource()).not.toBe(source);
   });
 
   it('respects VITE_TCKR_SOURCE for the singleton, same as createMarketDataSource', () => {
@@ -61,12 +53,5 @@ describe('getSharedSource — one connection per client', () => {
     vi.stubEnv('VITE_TCKR_SOURCE', 'gateway');
     const gateway = getSharedSource();
     expect(gateway).not.toBeInstanceOf(SimulatedSource);
-  });
-
-  it('a second getSharedSource() call in the same tick (StrictMode-style) does not create a second instance', () => {
-    // Simulates React StrictMode's synchronous double-invocation of a mount effect.
-    const a = getSharedSource();
-    const b = getSharedSource();
-    expect(a).toBe(b);
   });
 });

@@ -1,47 +1,20 @@
 /**
- * `StockList.held-board.test.tsx` — the board marks held prices where they are, not only
- * in the connection banner: while the stream is `reconnecting`/`closed`, the table's
- * caption carries a HELD tag with the instant the stream dropped, and that instant
- * survives a failed retry (a second `reconnecting` event) instead of resetting to it.
- * Held prices keep full contrast (no dimming class on the table card).
+ * Stale is visible: while the stream is down the board's caption carries a HELD tag with
+ * the instant it dropped, and that instant survives a failed retry instead of resetting.
+ * Held prices keep full contrast (no dimming), and the tag goes when the stream is back.
  */
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { cleanup, screen } from '@testing-library/react';
 import { formatCairoClock } from '../../data/marketCalendar.ts';
 import { resetStore } from '../../data/store.ts';
-import { loadUniverseFixture, makeFakeSource } from './testSupport.ts';
+import { loadUniverseFixture, makeFakeSource, renderBoard } from './testSupport.tsx';
 
-const { mockGetSharedSource } = vi.hoisted(() => ({ mockGetSharedSource: vi.fn() }));
-vi.mock('../../data/config.ts', () => ({
-  getSharedSource: mockGetSharedSource,
-  reconnectSharedSource: vi.fn(),
-}));
-
-import { StockList } from '../StockList.tsx';
-
-async function renderConnectedList() {
-  const handle = makeFakeSource(loadUniverseFixture(), {
-    connectionState: { kind: 'connected', since: Date.now() },
-  });
-  mockGetSharedSource.mockReturnValue(handle.source);
-  render(
-    <MemoryRouter>
-      <StockList />
-    </MemoryRouter>,
-  );
-  await act(async () => {
-    await Promise.resolve();
-    await Promise.resolve();
-  });
-  return handle;
-}
+vi.mock('../../data/config.ts');
 
 describe('StockList held board', () => {
   beforeEach(() => {
     resetStore();
-    mockGetSharedSource.mockReset();
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-09-24T09:31:05Z'));
   });
@@ -51,18 +24,17 @@ describe('StockList held board', () => {
     vi.useRealTimers();
   });
 
-  it('shows no HELD marker while connected', async () => {
-    await renderConnectedList();
+  it('marks the board HELD since the first drop, across a failed retry, undimmed, until reconnected', async () => {
+    const fake = makeFakeSource(loadUniverseFixture(), {
+      connectionState: { kind: 'connected', since: Date.now() },
+    });
+    await renderBoard({ source: fake.source });
     expect(screen.queryByTestId('board-held')).toBeNull();
-  });
-
-  it('marks the board HELD since the first drop, keeps that instant across a failed retry, and never dims it', async () => {
-    const { emitStatus } = await renderConnectedList();
     const droppedAt = Date.now();
 
-    act(() => emitStatus({ kind: 'reconnecting', attempt: 1, nextRetryMs: 1000 }));
+    act(() => fake.emitStatus({ kind: 'reconnecting', attempt: 1, nextRetryMs: 1000 }));
     vi.setSystemTime(droppedAt + 7000);
-    act(() => emitStatus({ kind: 'reconnecting', attempt: 2, nextRetryMs: 2000 }));
+    act(() => fake.emitStatus({ kind: 'reconnecting', attempt: 2, nextRetryMs: 2000 }));
 
     const held = screen.getByTestId('board-held');
     expect(held.textContent).toContain('Held');
@@ -71,7 +43,7 @@ describe('StockList held board', () => {
       /opacity-/,
     );
 
-    act(() => emitStatus({ kind: 'connected', since: Date.now() }));
+    act(() => fake.emitStatus({ kind: 'connected', since: Date.now() }));
     expect(screen.queryByTestId('board-held')).toBeNull();
   });
 });

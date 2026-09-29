@@ -10,41 +10,20 @@
  * `src/chart/__tests__/chart.stream-discard.test.tsx`). This page's own
  * `source.on.entitlement` handler must do the equivalent clearing itself.
  */
+import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { cleanup, screen } from '@testing-library/react';
 import { toDecimal } from '../../contracts/decimal.ts';
 import type { EntitlementChanged, IsoUtc } from '../../contracts/messages.ts';
 import { resetStore } from '../../data/store.ts';
 import { beatNowForTests } from '../../display/pacedViews.ts';
-import { createFakeSource, tickFixture } from './testSupport.ts';
+import { createFakeSource, renderDetail, tickFixture } from './testSupport.tsx';
 
-vi.mock('uplot', () => {
-  class FakeUPlot {
-    setData = vi.fn();
-    destroy = vi.fn();
-    setSize = vi.fn();
-    redraw = vi.fn();
-    root = document.createElement('div');
-    over = document.createElement('div');
-    cursor = { idx: null };
-    data: [number[], number[]] = [[], []];
-  }
-  return { default: FakeUPlot };
-});
-
-vi.mock('../../data/config.ts', () => ({
-  getSharedSource: vi.fn(),
-  resetSharedSource: vi.fn(),
-  resolveClientConfig: vi.fn(() => ({
-    source: 'simulated' as const,
-    gatewayUrl: 'ws://localhost:5000',
-    demoUser: 'user-001',
-    simulated: { eventsPerSecond: 2000, delayedOffsetMs: 15000, seed: 1 },
-  })),
+vi.mock('uplot', async () => ({
+  default: (await import('../../chart/__tests__/uplotTestDouble.ts')).FakeUPlot,
 }));
+vi.mock('../../data/config.ts');
 
-import { getSharedSource, resetSharedSource } from '../../data/config.ts';
 import { StockDetail } from '../StockDetail.tsx';
 
 function entitlementChangedFixture(stream: 'LIVE' | 'DELAYED'): EntitlementChanged {
@@ -64,26 +43,13 @@ afterEach(() => {
 
 beforeEach(() => {
   resetStore();
-  resetSharedSource();
 });
 
 describe('StockDetail entitlementChanged', () => {
   it('clears the stale quote/extras on a stream switch instead of leaving old-stream data on screen', async () => {
     vi.useFakeTimers();
     const { source, emitTick, emitEntitlement } = createFakeSource();
-    vi.mocked(getSharedSource).mockReturnValue(source);
-
-    render(
-      <MemoryRouter>
-        <StockDetail symbol="COMI" />
-      </MemoryRouter>,
-    );
-
-    // Reach `ready` (snapshot resolves synchronously in this fixture): 84.50, LIVE.
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
+    await renderDetail(<StockDetail symbol="COMI" />, source); // ready: 84.50, LIVE
     expect(screen.getByTestId('stock-detail-price').textContent).toContain('84.50');
 
     // A LIVE tick (painted on the next beat) moves the displayed price/change/volume away from the snapshot —

@@ -1,39 +1,12 @@
 /**
- * All five `ErrorCode`s surface through `on.error` with the code intact, and
  * `RATE_LIMITED` throttles outbound control frames rather than just being reported.
- *
- * Coverage over `ALL_ERROR_CODES` uses the same `Record<K, T>`-must-have-exactly-these-
- * keys idiom as `conformance.messages.test.ts` (see that file's header) — keyed here by
- * `ErrorCode` directly rather than by fixture name, so it fails to compile if
- * `contracts/messages.ts`'s `ErrorCode` union ever gains or loses a member without a
- * matching fixture *and* a matching case here.
+ * (Every error code reaching `on.error` intact is `conformance.messages.test.ts`.)
  */
 import { describe, expect, it, vi } from 'vitest';
-import { ALL_ERROR_CODES, FIXTURES } from '../../../contracts/fixtures/index.ts';
-import type { ErrorCode, ErrorMsg } from '../../../contracts/messages.ts';
+import { FIXTURES } from '../../../contracts/fixtures/index.ts';
 import { connectAndAuthenticate, createHarness } from './gatewayHarness.ts';
 
-const FIXTURE_BY_CODE: Record<ErrorCode, object> = {
-  UNKNOWN_SYMBOL: FIXTURES['error-unknown-symbol'],
-  SUBSCRIPTION_LIMIT: FIXTURES['error-subscription-limit'],
-  NOT_ENTITLED: FIXTURES['error-not-entitled'],
-  RATE_LIMITED: FIXTURES['error-rate-limited'],
-  INTERNAL: FIXTURES['error-internal'],
-};
-
-describe('gateway error-code conformance', () => {
-  it.each(ALL_ERROR_CODES)('%s surfaces through on.error with the code intact', async (code) => {
-    const harness = createHarness();
-    const socket = await connectAndAuthenticate(harness);
-    const errors: ErrorMsg[] = [];
-    harness.source.on.error((e) => errors.push(e));
-
-    socket.emit(FIXTURE_BY_CODE[code]);
-
-    expect(errors).toHaveLength(1);
-    expect(errors[0]?.code).toBe(code);
-  });
-
+describe('gateway RATE_LIMITED throttle', () => {
   it('RATE_LIMITED holds outbound control frames until the throttle window elapses', async () => {
     vi.useFakeTimers();
     try {

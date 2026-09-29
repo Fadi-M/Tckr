@@ -1,94 +1,47 @@
 /**
- * `StockList.sort.test.tsx` — task 04. Asserts: sorting by price ascending/descending
- * orders via `compare` (decimal-safe), never lexicographically — `9.90` must sort below
- * `85.10`, which a string sort would get backwards (`"85.10" < "9.90"` lexically).
+ * Sorting by price compares decimals, never strings: "9.90" must sort below "18.90" and
+ * "245.60", which a character-by-character sort gets backwards. Figures sort highest
+ * first on the first click, and a third click flips back rather than clearing the sort.
  */
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { toDecimal } from '../../contracts/decimal.ts';
 import { applyTick, primeUniverse, resetStore } from '../../data/store.ts';
 import { beatNowForTests } from '../../display/pacedViews.ts';
-import { loadUniverseFixture, makeFakeSource, tickFixture } from './testSupport.ts';
+import { boardSymbols, loadUniverseFixture, renderBoard, tickFixture } from './testSupport.tsx';
 
-const { mockGetSharedSource } = vi.hoisted(() => ({ mockGetSharedSource: vi.fn() }));
-vi.mock('../../data/config.ts', () => ({ getSharedSource: mockGetSharedSource }));
+vi.mock('../../data/config.ts');
 
-import { StockList } from '../StockList.tsx';
-
-async function flushMicrotasks(): Promise<void> {
-  await act(async () => {
-    await Promise.resolve();
-    await Promise.resolve();
-  });
-}
-
-function bodyRows() {
-  return screen.getAllByRole('row').filter((row) => row.hasAttribute('data-symbol'));
+/** Where COMI, SWDY and ORAS sit relative to each other, as a string like "ORAS<SWDY<COMI". */
+function orderOf(...symbols: string[]): string {
+  const all = boardSymbols();
+  return [...symbols].sort((a, b) => all.indexOf(a) - all.indexOf(b)).join('<');
 }
 
 describe('StockList sort', () => {
-  beforeEach(() => {
-    resetStore();
-    mockGetSharedSource.mockReset();
-  });
+  beforeEach(resetStore);
+  afterEach(cleanup);
 
-  afterEach(() => {
-    cleanup();
-  });
-
-  it('sorts price ascending/descending using decimal `compare`, not lexicographic order', async () => {
-    const universeSymbols = loadUniverseFixture();
-    // A real `MarketDataSource` primes the store's universe itself (e.g.
-    // `SimulatedSource`'s constructor) before any tick for one of its symbols can be
-    // accepted — `applyTick` drops ticks for an unprimed symbol (store.ts's own
-    // "real universe, not whatever the wire claims" guard). This fake source is a
-    // plain object, not a real source instance, so the test primes it explicitly to
-    // match that contract.
-    primeUniverse(universeSymbols);
-    mockGetSharedSource.mockReturnValue(makeFakeSource(universeSymbols).source);
-
-    render(
-      <MemoryRouter>
-        <StockList />
-      </MemoryRouter>,
-    );
-    await flushMicrotasks();
-    expect(bodyRows()).toHaveLength(34);
-
-    // COMI (default reference price 85.10) is pushed to a low price; SWDY (reference
-    // 18.42) to a low-but-different price; ORAS (reference 245.60) stays high. A
-    // lexicographic string sort would order "18.90" < "245.60" < "9.90" incorrectly
-    // (comparing character by character); decimal `compare` must not.
+  it('orders price with decimal compare, descending first, and never clears on a third click', async () => {
+    primeUniverse(loadUniverseFixture());
+    await renderBoard();
     act(() => {
-      applyTick(tickFixture({ s: 'COMI', p: toDecimal('9.90') }));
-      applyTick(tickFixture({ s: 'SWDY', p: toDecimal('18.90') }));
+      applyTick(tickFixture({ s: 'COMI', p: toDecimal('9.90') })); // reference 85.10
+      applyTick(tickFixture({ s: 'SWDY', p: toDecimal('18.90') })); // ORAS stays at 245.60
       beatNowForTests();
     });
-
     const priceHeader = screen.getByRole('columnheader', { name: /^price/i });
     const sortButton = within(priceHeader).getByRole('button');
 
-    // Figures sort highest-first on the first click, the way a trader reads a ranking.
-    fireEvent.click(sortButton); // descending
-    let symbols = bodyRows().map((row) => row.getAttribute('data-symbol'));
-    let indexOf = (s: string) => symbols.indexOf(s);
-    expect(indexOf('COMI')).toBeGreaterThanOrEqual(0);
-    expect(indexOf('ORAS')).toBeLessThan(indexOf('SWDY'));
-    expect(indexOf('SWDY')).toBeLessThan(indexOf('COMI'));
+    fireEvent.click(sortButton);
+    expect(orderOf('COMI', 'SWDY', 'ORAS')).toBe('ORAS<SWDY<COMI');
 
-    fireEvent.click(sortButton); // ascending
-    symbols = bodyRows().map((row) => row.getAttribute('data-symbol'));
-    indexOf = (s: string) => symbols.indexOf(s);
-    expect(indexOf('COMI')).toBeLessThan(indexOf('SWDY'));
-    expect(indexOf('SWDY')).toBeLessThan(indexOf('ORAS'));
+    fireEvent.click(sortButton);
+    expect(orderOf('COMI', 'SWDY', 'ORAS')).toBe('COMI<SWDY<ORAS');
 
-    // A third click flips back to descending; it never silently clears the sort.
     fireEvent.click(sortButton);
     expect(priceHeader.getAttribute('aria-sort')).toBe('descending');
-    symbols = bodyRows().map((row) => row.getAttribute('data-symbol'));
-    indexOf = (s: string) => symbols.indexOf(s);
-    expect(indexOf('SWDY')).toBeLessThan(indexOf('COMI'));
+    expect(orderOf('COMI', 'SWDY', 'ORAS')).toBe('ORAS<SWDY<COMI');
   });
 });

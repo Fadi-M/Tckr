@@ -38,25 +38,15 @@ describe('axis time formatting', () => {
   // Fixture timestamps verified against `Intl` ground truth in marketCalendar.test.ts:
   // 2026-01-15 is Egypt-DST-off (UTC+2), 2026-08-13 is Egypt-DST-on (UTC+3).
 
-  it('formats an epoch-ms value as 12-hour h:MM:SS AM/PM, in Cairo time (winter, UTC+2)', () => {
-    expect(formatClockTime(Date.UTC(2026, 0, 15, 7, 5, 3))).toBe('9:05:03 AM');
-  });
-
-  it('formats an epoch-ms value as 12-hour h:MM:SS AM/PM, in Cairo time (summer, UTC+3)', () => {
-    expect(formatClockTime(Date.UTC(2026, 7, 13, 6, 5, 3))).toBe('9:05:03 AM');
-  });
-
-  it('shows midnight as 12 AM and pads minutes and seconds', () => {
-    expect(formatClockTime(Date.UTC(2026, 0, 15, 22, 0, 0))).toBe('12:00:00 AM');
-  });
-
-  it("uses Cairo time (EGX's own market timezone), not UTC and not the viewer's local timezone — must match StockDetail's header timestamp regardless of where the viewer is", () => {
-    // A timestamp whose Cairo and UTC renderings visibly differ. If this function ever
-    // regresses to UTC or local-time getters, this is the exact class of bug that
-    // silently disagrees with StockDetail's header (both must call the same shared
-    // `marketCalendar.formatCairoClock` — see this function's own doc).
-    const epochMs = Date.UTC(2026, 0, 1, 23, 30, 0); // 2026-01-01 (winter, UTC+2)
-    expect(formatClockTime(epochMs)).toBe('1:30:00 AM'); // next day in Cairo
+  // Always Cairo (EGX's own zone), never UTC or the viewer's zone, so the axis agrees with
+  // StockDetail's header wherever the viewer is.
+  it.each([
+    ['winter, UTC+2', Date.UTC(2026, 0, 15, 7, 5, 3), '9:05:03 AM'],
+    ['summer, UTC+3', Date.UTC(2026, 7, 13, 6, 5, 3), '9:05:03 AM'],
+    ['midnight, padded', Date.UTC(2026, 0, 15, 22, 0, 0), '12:00:00 AM'],
+    ['already the next day in Cairo', Date.UTC(2026, 0, 1, 23, 30, 0), '1:30:00 AM'],
+  ])('formats h:MM:SS AM/PM in Cairo time (%s)', (_label, epochMs, expected) => {
+    expect(formatClockTime(epochMs)).toBe(expected);
   });
 });
 

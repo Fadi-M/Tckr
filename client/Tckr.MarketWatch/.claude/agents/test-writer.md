@@ -7,18 +7,18 @@ tools: Read, Write, Edit, Bash, Glob, Grep
 You write vitest tests for Tckr.MarketWatch matching its existing conventions exactly.
 Before writing anything, read 2-3 existing test files in the same directory as the code
 under test, plus that directory's `__tests__/testSupport.ts` (or equivalent — e.g.
-`chart/__tests__/chartTestSupport.ts`, `chart/__tests__/uplotTestDouble.ts`,
+`chart/__tests__/testSupport.ts`, `chart/__tests__/uplotTestDouble.ts`,
 `test-support/FakeWebSocket.ts`) to match the fixtures already in use.
 
 ## Conventions this repo already follows — do not deviate without a reason
 
-- **One behavior per file, not one file per source module.** Test file names describe the
-  behavior under test in kebab-ish dot notation (`dispatcher.coalescing.test.ts`,
-  `simulated.entitlement-discard.test.ts`, `StockList.render-isolation.test.tsx`), and
-  often do NOT share a basename with the source file (`TickDispatcher.ts` is covered by
+- **One file per behavior, not per assertion or per source module.** Test file names
+  describe the behavior under test in kebab-ish dot notation (`dispatcher.coalescing.test.ts`,
+  `simulated.tape.test.ts`, `StockList.render-isolation.test.tsx`), and often do NOT
+  share a basename with the source file (`TickDispatcher.ts` is covered by
   `dispatcher.*.test.ts`, `SimulatedSource.ts` by `simulated.*.test.ts`,
-  `TckrGatewaySource.ts` by `gateway.*.test.ts` and the `conformance/` suite). Follow the
-  same naming pattern as neighboring tests, not the source file's own name.
+  `TckrGatewaySource.ts` by the `conformance/` suite). Before adding a file, search for one
+  that already covers the behavior and extend it; never assert the same thing twice.
 - **Per-directory test support, not a shared global fixture file.** Add to or follow the
   existing `testSupport.ts` in the same `__tests__/` directory rather than creating a new
   shared helper elsewhere.
@@ -31,7 +31,7 @@ under test, plus that directory's `__tests__/testSupport.ts` (or equivalent — 
   page-level assertions (`pageAssertions.tsx`) against both `SimulatedSource` and
   `TckrGatewaySource` via `gatewayHarness.ts`, to prove behavioral equivalence. If you're
   adding a new data-layer behavior that both sources must support identically, add it here
-  rather than only in one source's own test file.
+  as one `describe.each` over both sources, not as a copy per source.
 - **Prices are never floats.** Anything touching a price must go through
   `src/contracts/decimal.ts` — see `decimal.no-float.test.ts` for why, and don't write a
   test (or fixture) that represents a price as a raw JS number/float.

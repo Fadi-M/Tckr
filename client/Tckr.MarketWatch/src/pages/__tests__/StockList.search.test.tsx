@@ -1,35 +1,25 @@
 /**
- * `StockList.search.test.tsx` — task 04. Asserts: typing `com` matches COMI by symbol
- * and matches ETEL ("Egyptian Telecom") by name too; a non-matching query renders the
- * empty state. Debounce is 150ms (fake timers — no `sleep`, per README.md §8).
+ * Board search: case-insensitive on symbol and name after a 150 ms debounce, an explicit
+ * empty state for no match, and its own clear button. (A no-match search's suggestions
+ * are `StockList.delight.test.tsx`.)
  */
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { cleanup, fireEvent, screen } from '@testing-library/react';
 import { resetStore } from '../../data/store.ts';
-import { loadUniverseFixture, makeFakeSource } from './testSupport.ts';
+import { boardRows, boardSymbols, renderBoard } from './testSupport.tsx';
 
-const { mockGetSharedSource } = vi.hoisted(() => ({ mockGetSharedSource: vi.fn() }));
-vi.mock('../../data/config.ts', () => ({ getSharedSource: mockGetSharedSource }));
+vi.mock('../../data/config.ts');
 
-import { StockList } from '../StockList.tsx';
-
-async function flushMicrotasks(): Promise<void> {
-  await act(async () => {
-    await Promise.resolve();
-    await Promise.resolve();
+const searchbox = () => screen.getByRole<HTMLInputElement>('searchbox', { name: /search/i });
+const advance = (ms: number) =>
+  act(() => {
+    vi.advanceTimersByTime(ms);
   });
-}
-
-function bodyRows() {
-  return screen.getAllByRole('row').filter((row) => row.hasAttribute('data-symbol'));
-}
 
 describe('StockList search', () => {
   beforeEach(() => {
     resetStore();
-    mockGetSharedSource.mockReset();
     vi.useFakeTimers();
   });
 
@@ -38,86 +28,37 @@ describe('StockList search', () => {
     vi.useRealTimers();
   });
 
-  it('matches COMI by symbol and ETEL by name for "com", case-insensitively, after debounce', async () => {
-    const universeSymbols = loadUniverseFixture();
-    // Sanity-check the fixture actually exercises both match paths this test claims.
-    expect(universeSymbols.some((s) => s.symbol === 'COMI')).toBe(true);
-    expect(universeSymbols.find((s) => s.symbol === 'ETEL')?.name).toBe('Egyptian Telecom');
+  it('matches COMI by symbol and ETEL ("Egyptian Telecom") by name for "com", after the debounce', async () => {
+    await renderBoard();
+    fireEvent.change(searchbox(), { target: { value: 'com' } });
 
-    mockGetSharedSource.mockReturnValue(makeFakeSource(universeSymbols).source);
+    advance(100);
+    expect(boardRows()).toHaveLength(34); // not yet debounced
 
-    render(
-      <MemoryRouter>
-        <StockList />
-      </MemoryRouter>,
-    );
-    await flushMicrotasks();
-    expect(bodyRows()).toHaveLength(34);
-
-    const input = screen.getByRole('searchbox', { name: /search/i });
-    fireEvent.change(input, { target: { value: 'com' } });
-
-    // Not yet debounced.
-    act(() => {
-      vi.advanceTimersByTime(100);
-    });
-    expect(bodyRows()).toHaveLength(34);
-
-    act(() => {
-      vi.advanceTimersByTime(60);
-    });
-
-    const symbolsShown = bodyRows().map((row) => row.getAttribute('data-symbol'));
-    expect(symbolsShown).toContain('COMI');
-    expect(symbolsShown).toContain('ETEL');
-    expect(symbolsShown.length).toBeLessThan(34);
+    advance(60);
+    expect(boardSymbols()).toEqual(expect.arrayContaining(['COMI', 'ETEL']));
+    expect(boardRows().length).toBeLessThan(34);
   });
 
-  it('renders an explicit "no instruments match" state for a non-matching query', async () => {
-    const universeSymbols = loadUniverseFixture();
-    mockGetSharedSource.mockReturnValue(makeFakeSource(universeSymbols).source);
-
-    render(
-      <MemoryRouter>
-        <StockList />
-      </MemoryRouter>,
-    );
-    await flushMicrotasks();
-    expect(bodyRows()).toHaveLength(34);
-
-    const input = screen.getByRole('searchbox', { name: /search/i });
-    fireEvent.change(input, { target: { value: 'zzzznotfound' } });
-    act(() => {
-      vi.advanceTimersByTime(200);
-    });
-
-    expect(bodyRows()).toHaveLength(0);
+  it('says "no instruments match" for a query that matches nothing', async () => {
+    await renderBoard();
+    fireEvent.change(searchbox(), { target: { value: 'zzzznotfound' } });
+    advance(200);
+    expect(boardRows()).toHaveLength(0);
     expect(screen.getByText(/no instruments match/i)).toBeTruthy();
   });
 
-  it('shows its own clear button only while there is a query, and clearing refocuses the box', async () => {
-    const universeSymbols = loadUniverseFixture();
-    mockGetSharedSource.mockReturnValue(makeFakeSource(universeSymbols).source);
-
-    render(
-      <MemoryRouter>
-        <StockList />
-      </MemoryRouter>,
-    );
-    await flushMicrotasks();
-
+  it('shows its clear button only while there is a query, and clearing refocuses the box', async () => {
+    await renderBoard();
     expect(screen.queryByRole('button', { name: 'Clear search' })).toBeNull();
-    const input = screen.getByRole<HTMLInputElement>('searchbox', { name: /search/i });
-    fireEvent.change(input, { target: { value: 'com' } });
+    fireEvent.change(searchbox(), { target: { value: 'com' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
-    act(() => {
-      vi.advanceTimersByTime(200);
-    });
+    advance(200);
 
-    expect(input.value).toBe('');
-    expect(document.activeElement).toBe(input);
-    expect(bodyRows()).toHaveLength(34);
+    expect(searchbox().value).toBe('');
+    expect(document.activeElement).toBe(searchbox());
+    expect(boardRows()).toHaveLength(34);
     expect(screen.queryByRole('button', { name: 'Clear search' })).toBeNull();
   });
 });

@@ -5,8 +5,7 @@
  */
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { cleanup, fireEvent, screen } from '@testing-library/react';
 import { resetStore } from '../../data/store.ts';
 import {
   primeMotion,
@@ -14,12 +13,9 @@ import {
   stubReducedMotion,
   unstubReducedMotion,
 } from '../../motion/__tests__/motionTestSupport.ts';
-import { loadUniverseFixture, makeFakeSource } from './testSupport.ts';
+import { boardRows, renderBoard } from './testSupport.tsx';
 
-const { mockGetSharedSource } = vi.hoisted(() => ({ mockGetSharedSource: vi.fn() }));
-vi.mock('../../data/config.ts', () => ({ getSharedSource: mockGetSharedSource }));
-
-import { StockList } from '../StockList.tsx';
+vi.mock('../../data/config.ts');
 
 describe('StockList re-rank glide', () => {
   beforeEach(async () => {
@@ -36,13 +32,7 @@ describe('StockList re-rank glide', () => {
   });
 
   it('does not warn when a search leaves no rows', async () => {
-    mockGetSharedSource.mockReturnValue(makeFakeSource(loadUniverseFixture()).source);
-    render(
-      <MemoryRouter>
-        <StockList />
-      </MemoryRouter>,
-    );
-    await screen.findAllByRole('row');
+    await renderBoard();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     vi.useFakeTimers();
 
@@ -53,9 +43,7 @@ describe('StockList re-rank glide', () => {
       vi.advanceTimersByTime(200);
     });
 
-    expect(screen.queryAllByRole('row').filter((row) => row.hasAttribute('data-symbol'))).toEqual(
-      [],
-    );
+    expect(boardRows()).toEqual([]);
     expect(warn.mock.calls.flat().join(' ')).not.toContain('GSAP target');
   });
 });

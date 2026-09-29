@@ -75,7 +75,9 @@ The rules themselves are GUIDELINES.md §1; this is the context behind the non-o
   list-only visitors never download the chart library. GSAP gets the same treatment through
   `src/motion/gsap.ts` → `loadMotion()`/`useMotion()` (preloaded at idle from `main.tsx`); a
   static import anywhere else silently moves ~43 KB gzip into the entry chunk, which is also
-  why `@gsap/react`'s `useGSAP` is not used. Motion tests use
+  why `@gsap/react`'s `useGSAP` is not used. `src/__tests__/bundle.footprint.test.ts` walks
+  the entry's static import graph on every `npm test` and names the import that breaks
+  this; `npm run check:bundle` measures the built size. Motion tests use
   `src/motion/__tests__/motionTestSupport.ts` (`primeMotion`, then assert a moment's first
   frame synchronously; `finishMotion` for its end state).
 
@@ -87,6 +89,9 @@ The rules themselves are GUIDELINES.md §1; this is the context behind the non-o
 - `src/data/__tests__/conformance/` — runs the *same* page-level test suite against both
   `SimulatedSource` and `TckrGatewaySource`. If you change data-layer behavior, expect this
   suite to be the one that catches a simulated/gateway divergence.
+- `src/data/__mocks__/config.ts` — Vitest's automatic mock for `config.ts`: page and
+  component suites call `vi.mock('…/data/config.ts')` with no factory and point
+  `getSharedSource()` at a fake per test.
 - `src/test-support/FakeWebSocket.ts` — the fake WS used to fixture-test
   `TckrGatewaySource` without a real gateway (Phase 11 hasn't built one yet).
 - `src/display/` — the one formatter per displayed quantity (`percent.ts`) and the shared

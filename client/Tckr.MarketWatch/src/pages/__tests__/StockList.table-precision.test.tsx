@@ -6,43 +6,24 @@
  */
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { cleanup, screen, waitFor } from '@testing-library/react';
 import { toDecimal } from '../../contracts/decimal.ts';
 import type { IsoUtc } from '../../contracts/messages.ts';
 import { applyTick, primeUniverse, resetStore } from '../../data/store.ts';
 import { beatNowForTests } from '../../display/pacedViews.ts';
-import { loadUniverseFixture, makeFakeSource, tickFixture } from './testSupport.ts';
+import { loadUniverseFixture, makeFakeSource, renderBoard, tickFixture } from './testSupport.tsx';
 
-const { mockGetSharedSource } = vi.hoisted(() => ({ mockGetSharedSource: vi.fn() }));
-vi.mock('../../data/config.ts', () => ({ getSharedSource: mockGetSharedSource }));
-
-import { StockList } from '../StockList.tsx';
+vi.mock('../../data/config.ts');
 
 async function renderList(options: Parameters<typeof makeFakeSource>[1] = {}) {
   const universeSymbols = loadUniverseFixture();
   primeUniverse(universeSymbols);
-  mockGetSharedSource.mockReturnValue(makeFakeSource(universeSymbols, options).source);
-  render(
-    <MemoryRouter>
-      <StockList />
-    </MemoryRouter>,
-  );
-  await act(async () => {
-    await Promise.resolve();
-    await Promise.resolve();
-  });
+  await renderBoard({ source: makeFakeSource(universeSymbols, options).source });
 }
 
 describe('StockList table precision', () => {
-  beforeEach(() => {
-    resetStore();
-    mockGetSharedSource.mockReset();
-  });
-
-  afterEach(() => {
-    cleanup();
-  });
+  beforeEach(resetStore);
+  afterEach(cleanup);
 
   it('right-aligns numeric column headers and left-aligns text ones', async () => {
     await renderList();

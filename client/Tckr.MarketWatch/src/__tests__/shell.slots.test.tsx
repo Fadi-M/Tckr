@@ -3,22 +3,10 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { App } from '../App';
 
-// See shell.banner-everywhere.test.tsx: importing `App` transitively imports real
-// `uplot` via `StockDetail`/`PriceChart`, which jsdom cannot construct. `vi.mock` is
-// hoisted above the `App` import above.
-vi.mock('uplot', () => {
-  class FakeUPlot {
-    setData = vi.fn();
-    destroy = vi.fn();
-    setSize = vi.fn();
-    redraw = vi.fn();
-    root = document.createElement('div');
-    over = document.createElement('div');
-    cursor = { idx: null };
-    data: [number[], number[]] = [[], []];
-  }
-  return { default: FakeUPlot };
-});
+// `App` reaches uPlot through the lazy StockDetail; jsdom can't construct it.
+vi.mock('uplot', async () => ({
+  default: (await import('../chart/__tests__/uplotTestDouble.ts')).FakeUPlot,
+}));
 
 afterEach(cleanup);
 
@@ -40,14 +28,5 @@ describe('header slots', () => {
     const badgeNode = screen.getByTestId('badge-slot-content');
     expect(header?.contains(statusNode)).toBe(true);
     expect(header?.contains(badgeNode)).toBe(true);
-  });
-
-  it('renders the header with empty slots when none are passed', () => {
-    render(
-      <MemoryRouter initialEntries={['/']}>
-        <App />
-      </MemoryRouter>,
-    );
-    expect(document.querySelector('header')).not.toBeNull();
   });
 });

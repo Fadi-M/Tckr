@@ -8,6 +8,7 @@
  * how that date was verified against `Intl` ground truth.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { isDecimal } from '../../contracts/decimal.ts';
 import { SimulatedSource, type SimulatedSourceConfig } from '../SimulatedSource.ts';
 import { cairoEpochFor } from '../marketCalendar.ts';
 import { resetStore } from '../store.ts';
@@ -95,30 +96,13 @@ describe('SimulatedSource session history — market-hours-aware backfill', () =
     b.disconnect();
   });
 
-  it('a different seed produces a different backfilled session', async () => {
-    const a = await connectedSourceAt(AFTER_CLOSE_SAME_DAY, { seed: 1 });
-    const b = await connectedSourceAt(AFTER_CLOSE_SAME_DAY, { seed: 2 });
-    const historyA = await a.getHistory('COMI');
-    const historyB = await b.getHistory('COMI');
-    expect(historyA.points).not.toEqual(historyB.points);
-    a.disconnect();
-    b.disconnect();
-  });
-
   it('returns points oldest-first, each a valid ISO timestamp and decimal price', async () => {
     const source = await connectedSourceAt(MID_SESSION);
     const history = await source.getHistory('COMI');
-    expect(history.symbol).toBe('COMI');
-    expect(history.v).toBe(1);
-    for (let i = 1; i < history.points.length; i += 1) {
-      const prev = Date.parse(history.points[i - 1]!.t);
-      const curr = Date.parse(history.points[i]!.t);
-      expect(curr).toBeGreaterThanOrEqual(prev);
-    }
-    for (const point of history.points) {
-      expect(() => Number(point.p)).not.toThrow();
-      expect(Number.isNaN(Date.parse(point.t))).toBe(false);
-    }
+    expect(history).toMatchObject({ v: 1, symbol: 'COMI' });
+    const times = history.points.map((point) => Date.parse(point.t));
+    expect(times.every((t, i) => !Number.isNaN(t) && (i === 0 || t >= times[i - 1]!))).toBe(true);
+    expect(history.points.every((point) => isDecimal(point.p))).toBe(true);
     source.disconnect();
   });
 

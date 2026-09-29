@@ -9,42 +9,20 @@
  * with the unreduced case as the control, proving the check can fail.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { cleanup, screen } from '@testing-library/react';
 import { resetStore } from '../../data/store.ts';
 import {
   flushMotion,
   stubReducedMotion,
   unstubReducedMotion,
 } from '../../motion/__tests__/motionTestSupport.ts';
-import { createFakeSource } from './testSupport.ts';
+import { createFakeSource, renderDetail } from './testSupport.tsx';
 
-vi.mock('uplot', () => {
-  class FakeUPlot {
-    setData = vi.fn();
-    destroy = vi.fn();
-    setSize = vi.fn();
-    redraw = vi.fn();
-    root = document.createElement('div');
-    over = document.createElement('div');
-    cursor = { idx: null };
-    data: [number[], number[]] = [[], []];
-  }
-  return { default: FakeUPlot };
-});
-
-vi.mock('../../data/config.ts', () => ({
-  getSharedSource: vi.fn(),
-  resetSharedSource: vi.fn(),
-  resolveClientConfig: vi.fn(() => ({
-    source: 'simulated' as const,
-    gatewayUrl: 'ws://localhost:5000',
-    demoUser: 'user-001',
-    simulated: { eventsPerSecond: 2000, delayedOffsetMs: 15000, seed: 1 },
-  })),
+vi.mock('uplot', async () => ({
+  default: (await import('../../chart/__tests__/uplotTestDouble.ts')).FakeUPlot,
 }));
+vi.mock('../../data/config.ts');
 
-import { getSharedSource, resetSharedSource } from '../../data/config.ts';
 import { StockDetail } from '../StockDetail.tsx';
 
 afterEach(() => {
@@ -52,19 +30,10 @@ afterEach(() => {
   unstubReducedMotion();
 });
 
-beforeEach(() => {
-  resetStore();
-  resetSharedSource();
-});
+beforeEach(resetStore);
 
 async function renderReady() {
-  const { source } = createFakeSource();
-  vi.mocked(getSharedSource).mockReturnValue(source);
-  const view = render(
-    <MemoryRouter>
-      <StockDetail symbol="COMI" />
-    </MemoryRouter>,
-  );
+  const view = await renderDetail(<StockDetail symbol="COMI" />, createFakeSource().source);
   // The stat tiles only render once `quote` is set.
   await screen.findByTestId('stock-detail-footer');
   await flushMotion();

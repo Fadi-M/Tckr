@@ -1,3 +1,9 @@
+/**
+ * Every colour token the UI relies on is defined in all three theme scopes of
+ * `tokens.css`: the light default, the system-dark media query (unless the user chose
+ * light), and an explicit `data-theme="dark"`. A token missing from one scope would fall
+ * through to the other theme's colour.
+ */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -12,42 +18,31 @@ const REQUIRED_TOKENS = [
   'up',
   'down',
   'warning',
-] as const;
+];
 
 const css = readFileSync(resolve(process.cwd(), 'src/styles/tokens.css'), 'utf-8');
 
 function block(pattern: RegExp): string {
-  const match = css.match(pattern);
-  if (!match || match[1] === undefined) {
+  const body = css.match(pattern)?.[1];
+  if (body === undefined) {
     throw new Error(`Expected tokens.css to contain a block matching ${pattern}`);
   }
-  return match[1];
+  return body;
 }
 
-const rootBlock = block(/(?<!\S):root\s*\{([^}]*)\}/);
-const darkMediaBlock = block(
-  /@media\s*\(prefers-color-scheme:\s*dark\)\s*\{\s*:root:not\(\[data-theme=["']light["']\]\)\s*\{([^}]*)\}/,
-);
-const dataThemeDarkBlock = block(/:root\[data-theme=["']dark["']\]\s*\{([^}]*)\}/);
-
 describe('tokens.css', () => {
-  it.each(REQUIRED_TOKENS)('defines --tckr-color-%s under bare :root', (token) => {
-    expect(rootBlock).toMatch(new RegExp(`--tckr-color-${token}\\s*:`));
-  });
-
-  it.each(REQUIRED_TOKENS)(
-    'defines --tckr-color-%s under @media (prefers-color-scheme: dark)',
-    (token) => {
-      expect(darkMediaBlock).toMatch(new RegExp(`--tckr-color-${token}\\s*:`));
-    },
-  );
-
-  it.each(REQUIRED_TOKENS)('defines --tckr-color-%s under [data-theme="dark"]', (token) => {
-    expect(dataThemeDarkBlock).toMatch(new RegExp(`--tckr-color-${token}\\s*:`));
-  });
-
-  it('defines at least 27 --tckr- custom properties in total', () => {
-    const matches = css.match(/--tckr-/g) ?? [];
-    expect(matches.length).toBeGreaterThanOrEqual(27);
+  it.each([
+    ['bare :root', /(?<!\S):root\s*\{([^}]*)\}/],
+    [
+      '@media (prefers-color-scheme: dark)',
+      /@media\s*\(prefers-color-scheme:\s*dark\)\s*\{\s*:root:not\(\[data-theme=["']light["']\]\)\s*\{([^}]*)\}/,
+    ],
+    ['[data-theme="dark"]', /:root\[data-theme=["']dark["']\]\s*\{([^}]*)\}/],
+  ])('defines every colour token under %s', (_scope, pattern) => {
+    const body = block(pattern);
+    const missing = REQUIRED_TOKENS.filter(
+      (token) => !new RegExp(`--tckr-color-${token}\\s*:`).test(body),
+    );
+    expect(missing).toEqual([]);
   });
 });

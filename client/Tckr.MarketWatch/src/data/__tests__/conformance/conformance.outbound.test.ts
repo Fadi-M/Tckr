@@ -58,7 +58,7 @@ describe('gateway outbound frame conformance', () => {
     }
   });
 
-  it('no frame ever sent by this source contains a stream, tier, userId or delay field', async () => {
+  it('only ever sends subscribe/unsubscribe/ping, never with a stream, tier, userId or delay field', async () => {
     vi.useFakeTimers();
     try {
       const harness = createHarness();
@@ -67,29 +67,14 @@ describe('gateway outbound frame conformance', () => {
       harness.source.unsubscribe(['CIB']);
       await vi.advanceTimersByTimeAsync(15000); // let a ping frame go out too
 
-      expect(socket.sent.length).toBeGreaterThan(0);
-      for (const frame of parseFrames(socket.sent)) {
+      const frames = parseFrames(socket.sent);
+      expect(new Set(frames.map((f) => f['type']))).toEqual(
+        new Set(['subscribe', 'unsubscribe', 'ping']),
+      );
+      for (const frame of frames) {
         for (const forbidden of FORBIDDEN_KEYS) {
           expect(Object.keys(frame)).not.toContain(forbidden);
         }
-      }
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('subscribe/unsubscribe/ping are the only frame types ever sent', async () => {
-    vi.useFakeTimers();
-    try {
-      const harness = createHarness();
-      const socket = await connectAndAuthenticate(harness);
-      harness.source.subscribe(['COMI']);
-      harness.source.unsubscribe(['COMI']);
-      await vi.advanceTimersByTimeAsync(15000);
-
-      const types = new Set(parseFrames(socket.sent).map((f) => f['type']));
-      for (const type of types) {
-        expect(['subscribe', 'unsubscribe', 'ping']).toContain(type);
       }
     } finally {
       vi.useRealTimers();

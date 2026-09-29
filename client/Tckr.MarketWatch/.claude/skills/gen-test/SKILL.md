@@ -14,7 +14,7 @@ already clear from context.
 1. Find the directory the behavior lives in (`src/data`, `src/chart`, `src/components`,
    `src/pages`, `src/contracts`) and read 2-3 existing `__tests__/*.test.ts(x)` files there.
 2. Read that directory's shared test support file — `__tests__/testSupport.ts`, or the
-   directory-specific equivalent (`chart/__tests__/chartTestSupport.ts` +
+   directory-specific equivalent (`chart/__tests__/testSupport.ts` +
    `chart/__tests__/uplotTestDouble.ts`, `src/test-support/FakeWebSocket.ts`,
    `src/contracts/fixtures/index.ts`). Reuse its fixtures/doubles rather than inventing new
    ones.
@@ -23,17 +23,21 @@ already clear from context.
 
 - **Name the file after the behavior, not the source module.** This repo's test names are
   kebab-ish dot notation describing what's being verified
-  (`dispatcher.coalescing.test.ts`, `simulated.entitlement-discard.test.ts`,
+  (`dispatcher.coalescing.test.ts`, `simulated.tape.test.ts`,
   `StockList.render-isolation.test.tsx`) and frequently do **not** share a basename with
   the source file: `TickDispatcher.ts` → `dispatcher.*.test.ts`, `SimulatedSource.ts` →
-  `simulated.*.test.ts`, `TckrGatewaySource.ts` → `gateway.*.test.ts` (plus the
-  `conformance/` suite). Match the sibling tests' naming pattern in that directory.
-- **One behavior per file.** Don't fold an unrelated assertion into an existing test file
-  just because it touches the same source module — give it its own file, named for what it
-  checks.
+  `simulated.*.test.ts`, `TckrGatewaySource.ts` → the `conformance/` suite. Match the
+  sibling tests' naming pattern in that directory.
+- **One file per behavior, not per assertion.** First search for a file that already
+  covers the behavior (`grep` the test id, the testid, the function name) and extend it.
+  Add a file only for a behavior nothing covers. Never assert the same thing in two files.
 - **Data-layer changes that both sources must honor identically belong in
-  `src/data/__tests__/conformance/`** (via `gatewayHarness.ts` / `pageAssertions.tsx`), not
-  only in `simulated.*` or `gateway.*`.
+  `src/data/__tests__/conformance/`** as one `describe.each` over both sources (see
+  `conformance.entitlement-discard.test.ts`), never as two copies in per-source files.
+- **Test the business and the load, not the markup.** Assert what a trader relies on
+  (prices, LIVE/DELAYED, market hours, connection state) and what must hold under a hot
+  symbol (coalescing, one tick one row, bounded buffers). Skip restating TypeScript's
+  guarantees or a component's class names.
 - **Prices are never floats** — anything price-shaped goes through
   `src/contracts/decimal.ts`; don't hand-roll a price as a raw JS number in a fixture.
 - **jsdom only** (`vitest run`). Nothing here should assume a real browser — that's the

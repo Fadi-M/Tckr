@@ -7,7 +7,7 @@ vi.mock('uplot', async () => {
   return { default: mod.FakeUPlot };
 });
 
-import { resetUplotMock } from './uplotTestDouble.ts';
+import { instances, resetUplotMock } from './uplotTestDouble.ts';
 import { PriceChart } from '../PriceChart.tsx';
 
 afterEach(cleanup);
@@ -17,10 +17,11 @@ beforeEach(() => {
 });
 
 describe('PriceChart empty state', () => {
-  it('renders an explicit waiting placeholder before any data exists', () => {
+  it('renders an explicit waiting placeholder, and plots nothing, before any data exists', () => {
     render(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} />);
     expect(screen.queryByTestId('price-chart-empty-state')).not.toBeNull();
     expect(screen.getByText(/waiting for ticks/i)).toBeDefined();
+    expect(instances[0]?.setData).not.toHaveBeenCalled();
   });
 
   it('removes the placeholder once a livePrice arrives (fed by the parent page, not an independent store read)', () => {

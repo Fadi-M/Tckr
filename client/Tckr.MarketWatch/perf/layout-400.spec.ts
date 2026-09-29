@@ -3,7 +3,7 @@
  * docs/phase-3-web-client/README.md §8 ("Accessible and usable at 400px wide") and the
  * chart's axis configuration (src/chart/PriceChart.tsx / axes.ts, task 05), which task 05
  * configured `axis.space`/`incrs` to satisfy but could not confirm — jsdom has no canvas
- * and every chart Vitest suite mocks uPlot entirely (see `chartTestSupport.ts` /
+ * and every chart Vitest suite mocks uPlot entirely (see `testSupport.ts` /
  * `uplotTestDouble.ts`). Every prior check of these three things was CSS review or a
  * mocked-canvas unit test, never a real layout in a real viewport. This spec is that
  * missing check.
