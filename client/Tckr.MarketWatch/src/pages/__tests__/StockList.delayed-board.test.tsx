@@ -5,46 +5,21 @@
  * the highlight cards sat outside the board's delayed note). Driven by the server's
  * `identity()` only.
  */
-import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { cleanup, screen } from '@testing-library/react';
 import type { Identity } from '../../data/MarketDataSource.ts';
 import { resetStore } from '../../data/store.ts';
-import { loadUniverseFixture, makeFakeSource } from './testSupport.ts';
+import { loadUniverseFixture, makeFakeSource, renderBoard } from './testSupport.tsx';
 
-const { mockGetSharedSource } = vi.hoisted(() => ({ mockGetSharedSource: vi.fn() }));
-vi.mock('../../data/config.ts', () => ({
-  getSharedSource: mockGetSharedSource,
-  resolveClientConfig: vi.fn(() => ({
-    source: 'simulated' as const,
-    gatewayUrl: 'ws://localhost:5000',
-    demoUser: 'user-002',
-    simulated: { eventsPerSecond: 2000, delayedOffsetMs: 15000, seed: 1 },
-  })),
-}));
-
-import { StockList } from '../StockList.tsx';
+vi.mock('../../data/config.ts');
 
 async function renderWithIdentity(identity: Identity | null) {
   const { source } = makeFakeSource(loadUniverseFixture());
-  mockGetSharedSource.mockReturnValue({ ...source, identity: () => identity });
-  render(
-    <MemoryRouter>
-      <StockList />
-    </MemoryRouter>,
-  );
-  await act(async () => {
-    await Promise.resolve();
-    await Promise.resolve();
-  });
+  await renderBoard({ source: { ...source, identity: () => identity } });
 }
 
 describe('StockList delayed-stream banner', () => {
-  beforeEach(() => {
-    resetStore();
-    mockGetSharedSource.mockReset();
-  });
+  beforeEach(resetStore);
 
   afterEach(cleanup);
 
@@ -63,13 +38,11 @@ describe('StockList delayed-stream banner', () => {
     ).toBeTruthy();
   });
 
-  it('shows no note on the LIVE stream', async () => {
-    await renderWithIdentity({ userId: 'user-001', stream: 'LIVE', sessionId: 's' });
-    expect(screen.queryByTestId('delayed-stream-banner')).toBeNull();
-  });
-
-  it('shows no note before the server has said which stream this is', async () => {
-    await renderWithIdentity(null);
+  it.each([
+    ['on the LIVE stream', { userId: 'user-001', stream: 'LIVE', sessionId: 's' } as const],
+    ['before the server has said which stream this is', null],
+  ])('shows no note %s', async (_when, identity) => {
+    await renderWithIdentity(identity);
     expect(screen.queryByTestId('delayed-stream-banner')).toBeNull();
   });
 });

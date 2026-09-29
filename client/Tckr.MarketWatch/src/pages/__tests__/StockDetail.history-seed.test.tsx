@@ -5,53 +5,24 @@
  * see `PriceChart.tsx`'s `ChartHistoryPoint` doc for why that conversion belongs here,
  * not inside the chart.
  */
+import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { cleanup, screen } from '@testing-library/react';
 import { toDecimal } from '../../contracts/decimal.ts';
 import type { IsoUtc } from '../../contracts/messages.ts';
 import { resetStore } from '../../data/store.ts';
-import { createFakeSource } from './testSupport.ts';
+import { createFakeSource, renderDetail } from './testSupport.tsx';
 
-vi.mock('uplot', () => {
-  class FakeUPlot {
-    setData = vi.fn();
-    destroy = vi.fn();
-    setSize = vi.fn();
-    redraw = vi.fn();
-    root = document.createElement('div');
-    over = document.createElement('div');
-    cursor = { idx: null };
-    data: [number[], number[]] = [[], []];
-  }
-  return { default: FakeUPlot };
-});
-
-vi.mock('../../data/config.ts', () => ({
-  getSharedSource: vi.fn(),
-  resetSharedSource: vi.fn(),
-  resolveClientConfig: vi.fn(() => ({
-    source: 'simulated' as const,
-    gatewayUrl: 'ws://localhost:5000',
-    demoUser: 'user-001',
-    simulated: { eventsPerSecond: 2000, delayedOffsetMs: 15000, seed: 1 },
-  })),
+vi.mock('uplot', async () => ({
+  default: (await import('../../chart/__tests__/uplotTestDouble.ts')).FakeUPlot,
 }));
-
-// Spies on the real PriceChart so the `history` prop it actually receives can be
-// inspected directly — the only reliable way to prove the ISO-string-to-epoch-ms
-// conversion happened, rather than inferring it indirectly from rendered pixels.
+vi.mock('../../data/config.ts');
+// A transparent spy on the real PriceChart, to read the `history` it receives.
 vi.mock('../../chart/PriceChart.tsx', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../chart/PriceChart.tsx')>();
-  return {
-    ...actual,
-    PriceChart: vi.fn((props: Parameters<typeof actual.PriceChart>[0]) => (
-      <actual.PriceChart {...props} />
-    )),
-  };
+  return { ...actual, PriceChart: vi.fn(actual.PriceChart) };
 });
 
-import { getSharedSource, resetSharedSource } from '../../data/config.ts';
 import { PriceChart } from '../../chart/PriceChart.tsx';
 import { StockDetail } from '../StockDetail.tsx';
 
@@ -62,7 +33,6 @@ afterEach(() => {
 
 beforeEach(() => {
   resetStore();
-  resetSharedSource();
   vi.mocked(PriceChart).mockClear();
 });
 
@@ -75,18 +45,7 @@ describe('StockDetail session-history fetch', () => {
           setTimeout(() => resolve({ v: 1, symbol, points: [] }), 50);
         }),
     });
-    vi.mocked(getSharedSource).mockReturnValue(source);
-
-    render(
-      <MemoryRouter>
-        <StockDetail symbol="COMI" />
-      </MemoryRouter>,
-    );
-
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
+    await renderDetail(<StockDetail symbol="COMI" />, source);
 
     expect(screen.getByTestId('stock-detail-chart-loading')).toBeTruthy();
     expect(vi.mocked(PriceChart)).not.toHaveBeenCalled();
@@ -122,19 +81,7 @@ describe('StockDetail session-history fetch', () => {
           ],
         }),
     });
-    vi.mocked(getSharedSource).mockReturnValue(source);
-
-    render(
-      <MemoryRouter>
-        <StockDetail symbol="COMI" />
-      </MemoryRouter>,
-    );
-
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
+    await renderDetail(<StockDetail symbol="COMI" />, source);
 
     const lastCall = vi.mocked(PriceChart).mock.calls.at(-1);
     expect(lastCall).toBeDefined();
@@ -148,19 +95,7 @@ describe('StockDetail session-history fetch', () => {
     const { source } = createFakeSource({
       historyImpl: () => Promise.reject(new Error('simulated getHistory failure')),
     });
-    vi.mocked(getSharedSource).mockReturnValue(source);
-
-    render(
-      <MemoryRouter>
-        <StockDetail symbol="COMI" />
-      </MemoryRouter>,
-    );
-
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
+    await renderDetail(<StockDetail symbol="COMI" />, source);
 
     expect(screen.queryByTestId('stock-detail-chart-loading')).toBeNull();
     const lastCall = vi.mocked(PriceChart).mock.calls.at(-1);

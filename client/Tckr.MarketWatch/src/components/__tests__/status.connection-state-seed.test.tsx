@@ -1,74 +1,46 @@
+/**
+ * The connection pill's first paint. `getSharedSource()` connects before any component
+ * subscribes to `on.status`, so the pill seeds from `connectionState()` when the source
+ * has it, else from `identity()` (connected once the server has said who we are), else
+ * shows "Connecting…".
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { CloseCode } from '../../contracts/closeCodes.ts';
 import { createFakeSource, fakeIdentity } from './testSupport.ts';
 
-vi.mock('../../data/config.ts', () => ({
-  getSharedSource: vi.fn(),
-  resolveClientConfig: vi.fn(),
-}));
+vi.mock('../../data/config.ts');
 
 import { getSharedSource } from '../../data/config.ts';
 import { ConnectionStatus } from '../ConnectionStatus.tsx';
 
 afterEach(cleanup);
 
-describe('ConnectionStatus — seeding from connectionState()', () => {
-  it('seeds directly from connectionState() at first paint when the source implements it', () => {
-    const source = createFakeSource(fakeIdentity(), {
-      connectionState: { kind: 'reconnecting', attempt: 3, nextRetryMs: 4000 },
-    });
-    vi.mocked(getSharedSource).mockReturnValue(source);
-
-    render(<ConnectionStatus />);
-
-    // No `on.status` event was ever emitted — this is what the very first render shows.
-    expect(screen.getByTestId('connection-status').textContent).toBe(
+describe('ConnectionStatus — first paint', () => {
+  it.each([
+    [
+      { kind: 'reconnecting', attempt: 3, nextRetryMs: 4000 } as const,
       'Reconnecting in 4s (attempt 3)',
-    );
-  });
-
-  it('reflects the "closed then reconnecting in the same call" detail: a read right after a reconnectable drop is reconnecting, not closed', () => {
-    // Mirrors TckrGatewaySource's documented behaviour: after a reconnectable close it
-    // transitions to `reconnecting` synchronously in the same call that emits `closed`,
-    // so `connectionState()` never observably returns the intermediate `closed` for a
-    // recoverable code.
-    const source = createFakeSource(fakeIdentity(), {
-      connectionState: { kind: 'reconnecting', attempt: 1, nextRetryMs: 500 },
-    });
-    vi.mocked(getSharedSource).mockReturnValue(source);
-
-    render(<ConnectionStatus />);
-    expect(screen.getByTestId('connection-status').textContent).toBe(
-      'Reconnecting in 1s (attempt 1)',
-    );
-  });
-
-  it('seeds a terminal closed state (4401) directly, with no auto-retry implied', () => {
-    const source = createFakeSource(fakeIdentity(), {
-      connectionState: { kind: 'closed', code: CloseCode.Unauthenticated, reason: 'bad token' },
-    });
-    vi.mocked(getSharedSource).mockReturnValue(source);
-
-    render(<ConnectionStatus />);
-    expect(screen.getByTestId('connection-status').textContent).toBe(
+    ],
+    [
+      { kind: 'closed', code: CloseCode.Unauthenticated, reason: 'bad token' } as const,
       'Not authenticated — sign in again',
+    ],
+  ])('seeds from connectionState() %j', (connectionState, expected) => {
+    vi.mocked(getSharedSource).mockReturnValue(
+      createFakeSource(fakeIdentity(), { connectionState }),
     );
+    render(<ConnectionStatus />);
+    expect(screen.getByTestId('connection-status').textContent).toBe(expected);
   });
 
-  it('falls back to the identity()-based proxy when the source has no connectionState()', () => {
-    const connectedSource = createFakeSource(fakeIdentity());
-    vi.mocked(getSharedSource).mockReturnValue(connectedSource);
-    expect(connectedSource.connectionState).toBeUndefined();
-
+  it('falls back to identity() without connectionState(), and to "Connecting…" without either', () => {
+    vi.mocked(getSharedSource).mockReturnValue(createFakeSource(fakeIdentity()));
     render(<ConnectionStatus />);
     expect(screen.getByTestId('connection-status').textContent).toMatch(/^Connected/);
-  });
+    cleanup();
 
-  it('falls back to "connecting" when neither connectionState() nor identity() is available', () => {
-    const source = createFakeSource(null);
-    vi.mocked(getSharedSource).mockReturnValue(source);
-
+    vi.mocked(getSharedSource).mockReturnValue(createFakeSource(null));
     render(<ConnectionStatus />);
     expect(screen.getByTestId('connection-status').textContent).toBe('Connecting…');
   });

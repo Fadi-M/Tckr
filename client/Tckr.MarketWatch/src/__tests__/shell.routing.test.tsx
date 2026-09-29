@@ -1,73 +1,43 @@
+/**
+ * The app's routes: the board at `/`, the lazily loaded detail pane at
+ * `/EGX/symbols/:symbol` (also reached from the pre-market-scoped `/symbols/:symbol`), and
+ * anything else back to the board.
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { App } from '../App';
 
-// See shell.banner-everywhere.test.tsx: `App` now reaches real `PriceChart` /
-// `uplot` via `StockDetail`, which jsdom cannot construct (no canvas, no
-// `matchMedia`). `vi.mock` is hoisted above the `App` import above.
-vi.mock('uplot', () => {
-  class FakeUPlot {
-    setData = vi.fn();
-    destroy = vi.fn();
-    setSize = vi.fn();
-    redraw = vi.fn();
-    root = document.createElement('div');
-    over = document.createElement('div');
-    cursor = { idx: null };
-    data: [number[], number[]] = [[], []];
-  }
-  return { default: FakeUPlot };
-});
+// `App` reaches uPlot through the lazy StockDetail; jsdom can't construct it.
+vi.mock('uplot', async () => ({
+  default: (await import('../chart/__tests__/uplotTestDouble.ts')).FakeUPlot,
+}));
+
+/** The lazy StockDetail chunk is imported on first use, which is slow on a loaded runner. */
+const LAZY_CHUNK = { timeout: 4000 };
+
+function renderAt(path: string) {
+  render(
+    <MemoryRouter initialEntries={[path]}>
+      <App />
+    </MemoryRouter>,
+  );
+}
 
 afterEach(cleanup);
 
 describe('routing', () => {
-  it('renders the real StockList page at /', async () => {
-    render(
-      <MemoryRouter initialEntries={['/']}>
-        <App />
-      </MemoryRouter>,
-    );
-    // The list loads its universe asynchronously (`Loading instruments…` first),
-    // so assert on the page's own content rather than on a synchronous marker.
+  it.each(['/', '/nonsense'])('shows the board, and no detail, at %s', async (path) => {
+    renderAt(path);
     await screen.findByPlaceholderText('Search symbol or name');
-    expect(document.querySelector('.tckr-detail')).toBeNull();
+    expect(screen.queryByTestId('stock-detail-symbol')).toBeNull();
   });
 
-  it('renders the real StockDetail page with symbol="COMI" at /EGX/symbols/COMI', async () => {
-    render(
-      <MemoryRouter initialEntries={['/EGX/symbols/COMI']}>
-        <App />
-      </MemoryRouter>,
-    );
-    // `StockDetail` is lazy-loaded (code-split from `uplot`), so its chunk resolves
-    // asynchronously — wait for its content instead of asserting synchronously.
-    // Since the Frosted Glass Revamp's split-pane layout keeps `StockList` mounted
-    // beside the open detail pane (see App.tsx's nested routes / StockList's own
-    // `useMatch`), "COMI" now legitimately also appears in a hero card and the
-    // list's own (narrowed) row — so this must query the specific detail-heading
-    // element rather than plain text.
-    const symbolNode = await screen.findByTestId('stock-detail-symbol');
-    expect(symbolNode.textContent).toBe('COMI');
-  });
-
-  it('redirects a pre-market-scoped /symbols/COMI link to /EGX/symbols/COMI', async () => {
-    render(
-      <MemoryRouter initialEntries={['/symbols/COMI']}>
-        <App />
-      </MemoryRouter>,
-    );
-    const symbolNode = await screen.findByTestId('stock-detail-symbol');
-    expect(symbolNode.textContent).toBe('COMI');
-  });
-
-  it('redirects an unknown path to /', async () => {
-    render(
-      <MemoryRouter initialEntries={['/nonsense']}>
-        <App />
-      </MemoryRouter>,
-    );
-    await screen.findByPlaceholderText('Search symbol or name');
+  it.each(['/EGX/symbols/COMI', '/symbols/COMI'])('opens the COMI detail at %s', async (path) => {
+    renderAt(path);
+    // The board stays mounted beside the pane, so "COMI" also appears in its row and
+    // a hero card: query the detail heading itself.
+    const symbol = await screen.findByTestId('stock-detail-symbol', undefined, LAZY_CHUNK);
+    expect(symbol.textContent).toBe('COMI');
   });
 });

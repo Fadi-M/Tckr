@@ -1,47 +1,34 @@
 /**
- * `StockList`'s "Market closed" banner (`MarketClosedBanner`/`useMarketStatus`) — an
- * independent observer of `marketCalendar.getMarketStatus()`, distinct from
- * `ConnectionBanner` (transport state) — see `StockList.connection-banner.test.tsx` for
- * that one. Fixture timestamps verified in `marketCalendar.test.ts`.
+ * EGX hours on the board: a "Market closed" status (never an alert, which is the
+ * connection banner's) counting down to the next open, and the caption's "updated" time
+ * only while prices can move. Fixture instants are verified in `marketCalendar.test.ts`.
  */
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { cleanup, screen } from '@testing-library/react';
 import { cairoEpochFor } from '../../data/marketCalendar.ts';
 import { resetStore } from '../../data/store.ts';
-import { loadUniverseFixture, makeFakeSource } from './testSupport.ts';
+import { renderBoard } from './testSupport.tsx';
 
-const SESSION_OPEN = cairoEpochFor('2026-01-15', 10, 0);
-const MID_SESSION = SESSION_OPEN + 60 * 60 * 1000;
-const AFTER_CLOSE = cairoEpochFor('2026-01-15', 14, 30) + 60 * 60 * 1000;
+vi.mock('../../data/config.ts');
 
-const { mockGetSharedSource } = vi.hoisted(() => ({ mockGetSharedSource: vi.fn() }));
-vi.mock('../../data/config.ts', () => ({ getSharedSource: mockGetSharedSource }));
+const MID_SESSION = cairoEpochFor('2026-01-15', 11, 0); // a Thursday
+const AFTER_CLOSE = cairoEpochFor('2026-01-15', 16, 0); // next open: Sunday 10:00
 
-import { StockList } from '../StockList.tsx';
-
-async function renderListAt(nowMs: number) {
+async function renderAt(nowMs: number) {
   vi.setSystemTime(nowMs);
-  const universeSymbols = loadUniverseFixture();
-  mockGetSharedSource.mockReturnValue(makeFakeSource(universeSymbols).source);
+  await renderBoard();
+}
 
-  render(
-    <MemoryRouter>
-      <StockList />
-    </MemoryRouter>,
-  );
-
+async function oneBeat() {
   await act(async () => {
-    await Promise.resolve();
-    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(10_000);
   });
 }
 
-describe('StockList market-closed banner', () => {
+describe('StockList market hours', () => {
   beforeEach(() => {
     resetStore();
-    mockGetSharedSource.mockReset();
     vi.useFakeTimers();
   });
 
@@ -50,44 +37,28 @@ describe('StockList market-closed banner', () => {
     vi.useRealTimers();
   });
 
-  it('shows nothing while EGX is open', async () => {
-    await renderListAt(MID_SESSION);
+  it('while EGX trades: no closed banner, and the caption says when the board last updated', async () => {
+    await renderAt(MID_SESSION);
     expect(screen.queryByText(/market closed/i)).toBeNull();
-  });
-
-  it('shows the market-closed banner, with the next-open time, once EGX has closed', async () => {
-    await renderListAt(AFTER_CLOSE);
-    const banner = screen.getByText(/market closed/i).closest('[role="status"]');
-    expect(banner).not.toBeNull();
-    expect(banner!.textContent).toContain('Cairo');
-    expect(banner!.textContent).toMatch(/\d{2}:\d{2}/);
-  });
-
-  it('is a status region, not an alert — distinct from the connection banner', async () => {
-    await renderListAt(AFTER_CLOSE);
-    expect(screen.queryByRole('alert')).toBeNull();
-    expect(screen.getByText(/market closed/i).closest('[role="status"]')).not.toBeNull();
-  });
-
-  it('says once, in the caption, when the board last updated while EGX trades', async () => {
-    await renderListAt(MID_SESSION);
     expect(screen.queryByRole('columnheader', { name: /^Last update$/ })).toBeNull();
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(10_000);
-    });
+
+    await oneBeat();
+
     expect(screen.getByTestId('board-updated-at').textContent).toMatch(/updated \d{2}:\d{2}:\d{2}/);
-    // The columns still fill the row.
+    // The columns still fill the row without a "Last update" column.
     const widths = Array.from(document.querySelectorAll<HTMLTableColElement>('colgroup col')).map(
       (col) => Number.parseFloat(col.style.width),
     );
     expect(widths.reduce((sum, width) => sum + width, 0)).toBeCloseTo(100, 5);
   });
 
-  it('leaves the update time out once EGX has closed, when nothing is moving', async () => {
-    await renderListAt(AFTER_CLOSE);
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(10_000);
-    });
+  it('once closed: a status (not an alert) counting down to the next open, and no update time', async () => {
+    await renderAt(AFTER_CLOSE);
+    const banner = screen.getByText(/market closed/i).closest('[role="status"]');
+    expect(banner?.textContent).toMatch(/Reopens Sun 10:00 AM Cairo time, in 2d 18h\./);
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    await oneBeat();
     expect(screen.queryByTestId('board-updated-at')).toBeNull();
   });
 });

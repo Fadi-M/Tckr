@@ -1,10 +1,12 @@
 /**
- * Shared helpers for the `SimulatedSource` test suites. Not itself a `*.test.ts` file,
+ * Shared helpers for the data-layer test suites. Not itself a `*.test.ts` file,
  * so Vitest does not run it directly.
  */
 import { vi } from 'vitest';
+import { toDecimal } from '../../contracts/decimal.ts';
+import type { Stream, Tick } from '../../contracts/messages.ts';
 import { SimulatedSource, type SimulatedSourceConfig } from '../SimulatedSource.ts';
-import type { Tick } from '../../contracts/messages.ts';
+import { primeUniverse } from '../store.ts';
 
 /**
  * A fixed instant safely within EGX trading hours — Thursday 2026-01-15, 10:00 UTC =
@@ -77,4 +79,40 @@ export function toScaledForTest(value: string): bigint {
   const fracPart = fracRaw.padEnd(4, '0');
   const magnitude = BigInt(intPart + fracPart);
   return negative ? -magnitude : magnitude;
+}
+
+/** A LIVE trade tick; only the fields a scenario varies are parameters. */
+export function tick(
+  symbol: string,
+  price: string,
+  id: string,
+  overrides: Partial<Tick> & { st?: Stream } = {},
+): Tick {
+  return {
+    v: 1,
+    type: 'tick',
+    s: symbol,
+    p: toDecimal(price),
+    q: 100,
+    k: 'TRADE',
+    t: '2026-09-12T10:31:04.881Z' as Tick['t'],
+    id,
+    st: 'LIVE',
+    ...overrides,
+  };
+}
+
+/** Primes the store with COMI (reference 85.10) and, optionally, CIB (62.75). The store
+ * drops ticks for unprimed symbols, as the real sources always prime first. */
+export function primeSymbols(withCib = false): void {
+  primeUniverse([
+    {
+      symbol: 'COMI',
+      name: 'Commercial International Holding',
+      referencePrice: toDecimal('85.10'),
+    },
+    ...(withCib
+      ? [{ symbol: 'CIB', name: 'Cairo Investment Bank', referencePrice: toDecimal('62.75') }]
+      : []),
+  ]);
 }

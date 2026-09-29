@@ -15,7 +15,6 @@ import { baseConfig } from './testSupport.ts';
 
 const SESSION_OPEN = cairoEpochFor('2026-01-15', 10, 0); // Thu, 08:00 UTC
 const SESSION_CLOSE = cairoEpochFor('2026-01-15', 14, 30); // Thu, 12:30 UTC
-const MID_SESSION = SESSION_OPEN + 60 * 60 * 1000;
 const AFTER_CLOSE = SESSION_CLOSE + 60 * 60 * 1000;
 const JUST_BEFORE_OPEN = SESSION_OPEN - 60 * 1000;
 
@@ -47,15 +46,6 @@ describe('SimulatedSource live tick generation is gated by EGX hours', () => {
     source.disconnect();
   });
 
-  it('generates ticks normally while the market is open', async () => {
-    const source = await subscribedSourceAt(MID_SESSION);
-    const ticks: Tick[] = [];
-    source.on.tick((t) => ticks.push(t));
-    await vi.advanceTimersByTimeAsync(500);
-    expect(ticks.length).toBeGreaterThan(0);
-    source.disconnect();
-  });
-
   it('starts generating ticks the instant the market opens, with no reconnect needed', async () => {
     const source = await subscribedSourceAt(JUST_BEFORE_OPEN);
     const ticks: Tick[] = [];
@@ -84,15 +74,14 @@ describe('SimulatedSource live tick generation is gated by EGX hours', () => {
     source.disconnect();
   });
 
-  it("freezes getSnapshot's price/OHLC at the session's final backfilled values once closed", async () => {
+  it("resolves getSnapshot while closed, frozen at the session's final values", async () => {
     const source = await subscribedSourceAt(AFTER_CLOSE);
-    // With the market closed, nothing drains a getSnapshot() request except an
-    // immediate macrotask (see SimulatedSource.getSnapshot's doc) — under fake timers
-    // that macrotask needs an explicit advance to fire, exactly like every other
-    // deferred-snapshot test in this codebase (e.g. StockDetail.snapshot-first).
+    // With the market closed, only an immediate macrotask drains a getSnapshot() request
+    // (see SimulatedSource.getSnapshot's doc); under fake timers it needs an advance.
     const firstPromise = source.getSnapshot('COMI');
     await vi.advanceTimersByTimeAsync(0);
     const first = await firstPromise;
+    expect(first.symbol).toBe('COMI');
 
     await vi.advanceTimersByTimeAsync(60_000);
 
@@ -100,19 +89,12 @@ describe('SimulatedSource live tick generation is gated by EGX hours', () => {
     await vi.advanceTimersByTimeAsync(0);
     const second = await secondPromise;
 
-    expect(second.price).toBe(first.price);
-    expect(second.high).toBe(first.high);
-    expect(second.low).toBe(first.low);
-    expect(second.volume).toBe(first.volume);
-    source.disconnect();
-  });
-
-  it('a getSnapshot() call issued while closed still resolves (does not hang)', async () => {
-    const source = await subscribedSourceAt(AFTER_CLOSE);
-    const snapshotPromise = source.getSnapshot('COMI');
-    await vi.advanceTimersByTimeAsync(0);
-    const snapshot = await snapshotPromise;
-    expect(snapshot.symbol).toBe('COMI');
+    expect(second).toMatchObject({
+      price: first.price,
+      high: first.high,
+      low: first.low,
+      volume: first.volume,
+    });
     source.disconnect();
   });
 });

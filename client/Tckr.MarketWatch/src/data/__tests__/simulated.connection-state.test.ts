@@ -1,3 +1,8 @@
+/**
+ * `SimulatedSource.connectionState()` — the synchronous "current status" a late
+ * subscriber reads, because `getSharedSource()` connects before any component has
+ * registered an `on.status` handler. It must always equal the last `on.status` event.
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CloseCode } from '../../contracts/closeCodes.ts';
 import type { ConnectionState } from '../MarketDataSource.ts';
@@ -8,7 +13,7 @@ import { baseConfig, KNOWN_OPEN_NOW_MS } from './testSupport.ts';
 describe('SimulatedSource.connectionState', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    vi.setSystemTime(KNOWN_OPEN_NOW_MS); // see KNOWN_OPEN_NOW_MS's doc
+    vi.setSystemTime(KNOWN_OPEN_NOW_MS);
     resetStore();
   });
 
@@ -16,7 +21,7 @@ describe('SimulatedSource.connectionState', () => {
     vi.useRealTimers();
   });
 
-  it('reports a closed/not-yet-connected state before connect() is ever called', () => {
+  it('reports closed, not yet connected, before connect()', () => {
     const source = new SimulatedSource(baseConfig());
     expect(source.connectionState()).toEqual({
       kind: 'closed',
@@ -25,56 +30,27 @@ describe('SimulatedSource.connectionState', () => {
     });
   });
 
-  it('reflects "connected" once connect() has run', async () => {
+  it('always agrees with the last on.status event through connect, drop and disconnect', async () => {
     const source = new SimulatedSource(baseConfig());
+    let last: ConnectionState | undefined;
+    source.on.status((s) => {
+      last = s;
+    });
+
     await source.connect();
     expect(source.connectionState().kind).toBe('connected');
-    source.disconnect();
-  });
+    expect(source.connectionState()).toEqual(last);
 
-  it('reflects "closed" after disconnect()', async () => {
-    const source = new SimulatedSource(baseConfig());
-    await source.connect();
+    source.simulateDrop(CloseCode.SlowConsumer);
+    expect(source.connectionState().kind).toBe('reconnecting');
+    expect(source.connectionState()).toEqual(last);
+
     source.disconnect();
     expect(source.connectionState()).toEqual({
       kind: 'closed',
       code: CloseCode.Normal,
       reason: 'client disconnect',
     });
-  });
-
-  it("reflects a simulated drop's reconnecting transition", async () => {
-    const source = new SimulatedSource(baseConfig());
-    await source.connect();
-    source.simulateDrop(CloseCode.HeartbeatTimeout);
-    expect(source.connectionState().kind).toBe('reconnecting');
-    source.disconnect();
-  });
-
-  it('always agrees with the most recent on.status event (no drift between the two)', async () => {
-    const source = new SimulatedSource(baseConfig());
-    let lastFromEvent: ConnectionState | undefined;
-    source.on.status((s) => {
-      lastFromEvent = s;
-    });
-
-    await source.connect();
-    expect(source.connectionState()).toEqual(lastFromEvent);
-
-    source.simulateDrop(CloseCode.SlowConsumer);
-    expect(source.connectionState()).toEqual(lastFromEvent);
-
-    source.disconnect();
-    expect(source.connectionState()).toEqual(lastFromEvent);
-  });
-
-  it('is readable synchronously by a late subscriber that missed every on.status event', async () => {
-    // This is the exact gap connectionState() exists to close: getSharedSource()
-    // connects before any component has registered an on.status handler.
-    const source = new SimulatedSource(baseConfig());
-    await source.connect();
-    // No on.status handler was ever registered above — connectionState() must still work.
-    expect(source.connectionState().kind).toBe('connected');
-    source.disconnect();
+    expect(source.connectionState()).toEqual(last);
   });
 });

@@ -1,64 +1,39 @@
+/**
+ * Switching symbols in place (↑/↓, next/previous) must never show one instrument's data
+ * under another: the old symbol is unsubscribed before the new one is subscribed, the
+ * chart is rebuilt with no old point, and no render under the new symbol carries the old
+ * one's figures (which would also flash ▲/▼ as if a tick had landed).
+ */
+import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { cleanup, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { toDecimal } from '../../contracts/decimal.ts';
 import { resetStore } from '../../data/store.ts';
+import {
+  constructorSpy,
+  instances,
+  resetUplotMock,
+} from '../../chart/__tests__/uplotTestDouble.ts';
 import {
   cibDefinition,
   comiDefinition,
   createFakeSource,
+  renderDetail,
   snapshotFixture,
   universeFixture,
-} from './testSupport.ts';
-import { toDecimal } from '../../contracts/decimal.ts';
+} from './testSupport.tsx';
 
-// Exposes the fake uPlot's constructor calls/instances to the test body, so a symbol
-// switch can be shown to destroy the old chart instance and construct a fresh one —
-// "the chart is remounted/reset with no COMI point" from the brief. `vi.hoisted` is
-// required because `vi.mock` factories are hoisted above ordinary imports/consts.
-const { fakeUplotConstructorSpy, fakeUplotInstances } = vi.hoisted(() => {
-  return {
-    fakeUplotConstructorSpy: vi.fn(),
-    fakeUplotInstances: [] as Array<{ destroy: ReturnType<typeof vi.fn> }>,
-  };
-});
-
-vi.mock('uplot', () => {
-  class FakeUPlot {
-    setData = vi.fn();
-    destroy = vi.fn();
-    setSize = vi.fn();
-    redraw = vi.fn();
-    root = document.createElement('div');
-    over = document.createElement('div');
-    cursor = { idx: null };
-    data: [number[], number[]] = [[], []];
-    constructor(...args: unknown[]) {
-      fakeUplotConstructorSpy(...args);
-      fakeUplotInstances.push(this);
-    }
-  }
-  return { default: FakeUPlot };
-});
-
-vi.mock('../../data/config.ts', () => ({
-  getSharedSource: vi.fn(),
-  resetSharedSource: vi.fn(),
-  resolveClientConfig: vi.fn(() => ({
-    source: 'simulated' as const,
-    gatewayUrl: 'ws://localhost:5000',
-    demoUser: 'user-001',
-    simulated: { eventsPerSecond: 2000, delayedOffsetMs: 15000, seed: 1 },
-  })),
+vi.mock('uplot', async () => ({
+  default: (await import('../../chart/__tests__/uplotTestDouble.ts')).FakeUPlot,
 }));
-
-// Transparent spy over the real PriceCell: records every value it is asked to render.
+vi.mock('../../data/config.ts');
 vi.mock('../../components/PriceCell.tsx', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../components/PriceCell.tsx')>();
   return { ...actual, PriceCell: vi.fn(actual.PriceCell) };
 });
 
 import { PriceCell } from '../../components/PriceCell.tsx';
-import { getSharedSource, resetSharedSource } from '../../data/config.ts';
 import { StockDetail } from '../StockDetail.tsx';
 
 function createTwoSymbolFakeSource() {
@@ -72,28 +47,17 @@ afterEach(cleanup);
 
 beforeEach(() => {
   resetStore();
-  resetSharedSource();
+  resetUplotMock();
 });
 
 describe('StockDetail symbol switch', () => {
   it('unsubscribes the old symbol before subscribing the new one, and resets the chart', async () => {
     const { source, callOrder } = createTwoSymbolFakeSource();
-    vi.mocked(getSharedSource).mockReturnValue(source);
+    const { rerender } = await renderDetail(<StockDetail symbol="COMI" />, source);
 
-    const { rerender } = render(
-      <MemoryRouter>
-        <StockDetail symbol="COMI" />
-      </MemoryRouter>,
-    );
-
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(fakeUplotConstructorSpy).toHaveBeenCalledTimes(1);
+    expect(constructorSpy).toHaveBeenCalledTimes(1);
     expect(callOrder).toEqual(['subscribe(COMI)']);
-    const comiChart = fakeUplotInstances[0];
+    const comiChart = instances[0];
     expect(comiChart).toBeDefined();
 
     await act(async () => {
@@ -113,7 +77,7 @@ describe('StockDetail symbol switch', () => {
     // The chart is remounted for the new symbol: the old uPlot instance is destroyed
     // and a fresh one constructed — no COMI point survives into CIB's chart.
     expect(comiChart?.destroy).toHaveBeenCalledTimes(1);
-    expect(fakeUplotConstructorSpy).toHaveBeenCalledTimes(2);
+    expect(constructorSpy).toHaveBeenCalledTimes(2);
   });
 
   it("never renders the old symbol's figures under the new symbol", async () => {
@@ -125,17 +89,7 @@ describe('StockDetail symbol switch', () => {
           snapshotFixture(symbol === 'CIB' ? { symbol, price: toDecimal('70.25') } : { symbol }),
         ),
     });
-    vi.mocked(getSharedSource).mockReturnValue(source);
-
-    const { rerender, container } = render(
-      <MemoryRouter>
-        <StockDetail symbol="COMI" />
-      </MemoryRouter>,
-    );
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
+    const { rerender, container } = await renderDetail(<StockDetail symbol="COMI" />, source);
     const comiPrice = screen.getByTestId('stock-detail-price').textContent;
     vi.mocked(PriceCell).mockClear();
 

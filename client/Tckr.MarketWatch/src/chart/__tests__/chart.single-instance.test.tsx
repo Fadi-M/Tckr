@@ -8,17 +8,8 @@ vi.mock('uplot', async () => {
 });
 
 import { constructorSpy, instances, resetUplotMock } from './uplotTestDouble.ts';
+import { priceAt } from './testSupport.ts';
 import { PriceChart } from '../PriceChart.tsx';
-
-// Builds "85.00" + i cents as a DecimalString via pure integer arithmetic — this file
-// lives under src/chart/**, so it must never use the banned float-to-string built-in
-// either (grep DoD check; see chart.formatting.test.ts).
-function priceAt(i: number) {
-  const cents = 8500 + i;
-  const intPart = Math.floor(cents / 100);
-  const frac = (cents % 100).toString().padStart(2, '0');
-  return toDecimal(`${intPart}.${frac}`);
-}
 
 afterEach(cleanup);
 

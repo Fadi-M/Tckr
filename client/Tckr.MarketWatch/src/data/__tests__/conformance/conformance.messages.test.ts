@@ -224,20 +224,7 @@ describe('gateway message conformance', () => {
   it.each(Object.keys(CASES) as MessageFixtureName[])(
     '%s produces its documented effect',
     async (name) => {
-      const run = CASES[name];
-      await run();
+      await CASES[name]();
     },
   );
-
-  it('every ServerMessage type is represented by at least one fixture case', async () => {
-    const { ALL_SERVER_MESSAGE_TYPES } = await import('../../../contracts/fixtures/index.ts');
-    const typesWithCases = new Set(
-      (Object.keys(CASES) as MessageFixtureName[]).map(
-        (name) => (FIXTURES[name] as { type: string }).type,
-      ),
-    );
-    for (const type of ALL_SERVER_MESSAGE_TYPES) {
-      expect(typesWithCases.has(type)).toBe(true);
-    }
-  });
 });

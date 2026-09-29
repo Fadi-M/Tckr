@@ -19,14 +19,8 @@ vi.mock('uplot', async () => {
 });
 
 import { instances, resetUplotMock } from './uplotTestDouble.ts';
+import { priceAt } from './testSupport.ts';
 import { PriceChart, type ChartHistoryPoint } from '../PriceChart.tsx';
-
-function priceAt(i: number) {
-  const cents = 8500 + i;
-  const intPart = Math.floor(cents / 100);
-  const frac = (cents % 100).toString().padStart(2, '0');
-  return toDecimal(`${intPart}.${frac}`);
-}
 
 beforeEach(() => {
   resetUplotMock();
@@ -39,36 +33,14 @@ afterEach(() => {
 });
 
 describe('PriceChart sampled redraw', () => {
-  it('paints immediately the first time livePrice arrives after mount, even without a mount-time seed', () => {
-    // No livePrice/history at mount: no seed-setData call (see
-    // chart.seeded-from-store.test.tsx). `StockDetail` fetches its snapshot
-    // asynchronously, so this is the common case, not an edge case — the chart must not
-    // sit empty until the first interval fires once data actually exists.
+  it('paints the first livePrice at once, then takes exactly one sample per window however many arrive', () => {
+    // Nothing at mount (StockDetail's snapshot is async): no paint until data exists.
     const { rerender } = render(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} />);
     const instance = instances[0];
-    expect(instance).toBeDefined();
     expect(instance?.setData).not.toHaveBeenCalled();
 
-    rerender(
-      <PriceChart
-        symbol="COMI"
-        tickSize={toDecimal('0.01')}
-        livePrice={{ t: 1000, p: priceAt(0) }}
-      />,
-    );
-    expect(instance?.setData).toHaveBeenCalledTimes(1);
-    // A synthetic point one second earlier, at the same price, precedes the real one —
-    // a single point cannot render a visible line (see chart.seeded-from-store.test.tsx).
-    const [xs] = instance!.setData.mock.calls[0]![0] as [Float64Array, Float64Array];
-    expect(xs.length).toBe(2);
-  });
-
-  it('takes exactly one sample per window no matter how many times livePrice changes inside it', () => {
-    const { rerender } = render(<PriceChart symbol="COMI" tickSize={toDecimal('0.01')} />);
-    const instance = instances[0];
-
     // A burst: `livePrice` changes 500 times in rapid succession (as StockDetail's own
-    // quote would for a hot symbol), all well before the chart's own 30s interval.
+    // quote would for a hot symbol), all well inside one window.
     for (let i = 0; i < 500; i += 1) {
       rerender(
         <PriceChart
@@ -78,8 +50,8 @@ describe('PriceChart sampled redraw', () => {
         />,
       );
     }
-    // Only the very first arrival painted (buffer was empty, seeded with the synthetic
-    // pair); the other 499 prop changes are not individually recorded.
+    // Only the very first arrival painted, as a flat two-point stub (a single point
+    // draws no line); the other 499 prop changes are not individually recorded.
     expect(instance?.setData).toHaveBeenCalledTimes(1);
     const [seededXs] = instance!.setData.mock.calls[0]![0] as [Float64Array, Float64Array];
     expect(seededXs.length).toBe(2);

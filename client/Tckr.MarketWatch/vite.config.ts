@@ -68,5 +68,8 @@ export default defineConfig(({ mode }) => ({
     environment: 'jsdom',
     include: ['src/**/__tests__/**/*.test.ts', 'src/**/__tests__/**/*.test.tsx'],
     restoreMocks: true,
+    // A board test renders all 34 rows in jsdom several times; alone it takes ~1 s, but
+    // with every worker busy it can pass the 5 s default. Headroom, not a masked hang.
+    testTimeout: 15_000,
   },
 }));

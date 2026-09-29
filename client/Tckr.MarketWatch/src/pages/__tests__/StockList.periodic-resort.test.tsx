@@ -16,26 +16,17 @@
  */
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { cleanup, fireEvent, screen } from '@testing-library/react';
 import { toDecimal } from '../../contracts/decimal.ts';
 import { applyTick, primeUniverse, resetStore } from '../../data/store.ts';
 import { DISPLAY_REFRESH_INTERVAL_MS } from '../../display/throttle.ts';
-import { loadUniverseFixture, makeFakeSource, tickFixture } from './testSupport.ts';
+import { boardSymbols, loadUniverseFixture, renderBoard, tickFixture } from './testSupport.tsx';
 
-const { mockGetSharedSource } = vi.hoisted(() => ({ mockGetSharedSource: vi.fn() }));
-vi.mock('../../data/config.ts', () => ({ getSharedSource: mockGetSharedSource }));
-
-import { StockList } from '../StockList.tsx';
-
-function bodyRows() {
-  return screen.getAllByRole('row').filter((row) => row.hasAttribute('data-symbol'));
-}
+vi.mock('../../data/config.ts');
 
 describe('StockList periodic re-sort', () => {
   beforeEach(() => {
     resetStore();
-    mockGetSharedSource.mockReset();
     vi.useFakeTimers();
   });
 
@@ -45,28 +36,13 @@ describe('StockList periodic re-sort', () => {
   });
 
   it('keeps a stale ranking between ticks, then catches up once DISPLAY_REFRESH_INTERVAL_MS elapses', async () => {
-    const universeSymbols = loadUniverseFixture();
-    // A real `MarketDataSource` primes the store's universe itself before any tick can
-    // be accepted (store.ts's "real universe, not whatever the wire claims" guard).
-    // This fake source is a plain object, not a real source instance, so the test
-    // primes it explicitly to match that contract.
-    primeUniverse(universeSymbols);
-    mockGetSharedSource.mockReturnValue(makeFakeSource(universeSymbols).source);
-
-    render(
-      <MemoryRouter>
-        <StockList />
-      </MemoryRouter>,
-    );
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
+    primeUniverse(loadUniverseFixture()); // real sources prime before a tick is accepted
+    await renderBoard();
 
     // "Most active" sorts by volume descending. Every symbol starts at volume 0 (tied),
     // so the initial order is the untouched universe order — SWDY is not first.
     fireEvent.click(screen.getByRole('button', { name: 'Most active' }));
-    const before = bodyRows().map((row) => row.getAttribute('data-symbol'));
+    const before = boardSymbols();
     expect(before[0]).not.toBe('SWDY');
 
     // Push SWDY's volume far above every other symbol's (still 0). Neither its figures
@@ -75,7 +51,7 @@ describe('StockList periodic re-sort', () => {
     act(() => {
       applyTick(tickFixture({ s: 'SWDY', p: toDecimal('10.00'), q: 5_000_000 }));
     });
-    const stillBefore = bodyRows().map((row) => row.getAttribute('data-symbol'));
+    const stillBefore = boardSymbols();
     expect(stillBefore[0]).not.toBe('SWDY');
 
     // Once the next beat passes (at most DISPLAY_REFRESH_INTERVAL_MS away), the re-sort
@@ -84,7 +60,7 @@ describe('StockList periodic re-sort', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(DISPLAY_REFRESH_INTERVAL_MS);
     });
-    const after = bodyRows().map((row) => row.getAttribute('data-symbol'));
+    const after = boardSymbols();
     expect(after[0]).toBe('SWDY');
   });
 });

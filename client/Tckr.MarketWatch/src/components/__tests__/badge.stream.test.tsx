@@ -18,10 +18,7 @@ import {
 } from '../../motion/__tests__/motionTestSupport.ts';
 import { createFakeSource, fakeIdentity } from './testSupport.ts';
 
-vi.mock('../../data/config.ts', () => ({
-  getSharedSource: vi.fn(),
-  resolveClientConfig: vi.fn(),
-}));
+vi.mock('../../data/config.ts');
 
 import { getSharedSource, resolveClientConfig } from '../../data/config.ts';
 import { StreamBadge } from '../StreamBadge.tsx';
@@ -35,6 +32,18 @@ function mockSource(
     source: sourceKind,
     simulated: { delayedOffsetMs: 15_000 },
   } as ReturnType<typeof resolveClientConfig>);
+}
+
+/** The server moves this connection to the DELAYED stream. */
+function switchToDelayed(source: ReturnType<typeof createFakeSource>): void {
+  source.setIdentity(fakeIdentity({ stream: 'DELAYED' }));
+  source.emitEntitlement({
+    v: 1,
+    type: 'entitlementChanged',
+    stream: 'DELAYED',
+    resubscribeRequired: false,
+    effectiveFrom: '2026-09-12T10:00:00.000Z' as IsoUtc,
+  });
 }
 
 beforeEach(primeMotion);
@@ -77,42 +86,16 @@ describe('StreamBadge', () => {
     expect(badge.textContent?.toLowerCase()).not.toContain('simulated');
   });
 
-  it('flips when the entitlement changes', () => {
-    const source = createFakeSource(fakeIdentity({ stream: 'LIVE' }));
-    mockSource(source);
-    render(<StreamBadge />);
-    expect(screen.getByTestId('stream-badge').dataset.stream).toBe('LIVE');
-
-    act(() => {
-      source.setIdentity(fakeIdentity({ stream: 'DELAYED' }));
-      source.emitEntitlement({
-        v: 1,
-        type: 'entitlementChanged',
-        stream: 'DELAYED',
-        resubscribeRequired: false,
-        effectiveFrom: '2026-09-12T10:00:00.000Z' as IsoUtc,
-      });
-    });
-    expect(screen.getByTestId('stream-badge').dataset.stream).toBe('DELAYED');
-  });
-
-  it('pulses only on a real entitlement change, never on first paint, inside a persistent live region', () => {
+  it('flips and pulses on a real entitlement change, never on first paint, inside a persistent live region', () => {
     const source = createFakeSource(fakeIdentity({ stream: 'LIVE' }));
     mockSource(source);
     render(<StreamBadge />);
     expect(screen.getByTestId('stream-badge').className).not.toContain('animate-stream-change');
     const liveRegion = screen.getByRole('status');
 
-    act(() => {
-      source.setIdentity(fakeIdentity({ stream: 'DELAYED' }));
-      source.emitEntitlement({
-        v: 1,
-        type: 'entitlementChanged',
-        stream: 'DELAYED',
-        resubscribeRequired: false,
-        effectiveFrom: '2026-09-12T10:00:00.000Z' as IsoUtc,
-      });
-    });
+    act(() => switchToDelayed(source));
+
+    expect(screen.getByTestId('stream-badge').dataset.stream).toBe('DELAYED');
     expect(screen.getByTestId('stream-badge').className).toContain('animate-stream-change');
     expect(screen.getByRole('status')).toBe(liveRegion);
     // What a screen reader hears (the visible word is aria-hidden while it scrambles).
@@ -126,16 +109,7 @@ describe('StreamBadge', () => {
     render(<StreamBadge />);
     const liveRegion = screen.getByRole('status');
 
-    act(() => {
-      source.setIdentity(fakeIdentity({ stream: 'DELAYED' }));
-      source.emitEntitlement({
-        v: 1,
-        type: 'entitlementChanged',
-        stream: 'DELAYED',
-        resubscribeRequired: false,
-        effectiveFrom: '2026-09-12T10:00:00.000Z' as IsoUtc,
-      });
-    });
+    act(() => switchToDelayed(source));
     // Mid-scramble: the visible word is in flight, and it is aria-hidden, so the live
     // region never speaks an intermediate string.
     const word = liveRegion.querySelector(

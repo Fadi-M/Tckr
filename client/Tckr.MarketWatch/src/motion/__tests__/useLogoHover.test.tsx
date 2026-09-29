@@ -79,12 +79,14 @@ describe('useLogoHover', () => {
     Reflect.deleteProperty(window, 'matchMedia');
   });
 
-  it('keeps the body on its open and the wick on the crossbar at every point of the trade', async () => {
+  it('trades a well-formed candle at every point: body on its open, wick on the crossbar, red exactly while below rest, "ckr" still', async () => {
     stubMedia({ fine: true, reduce: false });
     const { container, link } = renderLogo();
+    const svg = container.querySelector('svg')!;
+    const wordmark = container.querySelector<HTMLElement>('[data-wordmark]')!;
     fireEvent.pointerEnter(link, { pointerType: 'mouse' });
 
-    for (const progress of [0.1, 0.35, 0.6, 0.85, 1]) {
+    for (const progress of [0.05, 0.2, 0.35, 0.55, 0.7, 0.85, 1]) {
       await seekAll(progress);
       const g = geometry(container);
       expect(g.bodyBottom).toBeCloseTo(REST.bodyBottom);
@@ -93,29 +95,7 @@ describe('useLogoHover', () => {
       expect(g.bodyTop).toBeGreaterThanOrEqual(19);
       expect(g.bodyTop).toBeLessThanOrEqual(33);
       expect(g.lowHeight).toBeLessThanOrEqual(12);
-    }
-  });
-
-  it('is a down candle exactly while the close is below rest', async () => {
-    stubMedia({ fine: true, reduce: false });
-    const { container, link } = renderLogo();
-    const svg = container.querySelector('svg')!;
-    fireEvent.pointerEnter(link, { pointerType: 'mouse' });
-
-    for (const progress of [0.05, 0.2, 0.4, 0.55, 0.7, 0.9, 1]) {
-      await seekAll(progress);
-      const below = geometry(container).bodyTop > REST.bodyTop + 0.5;
-      expect(svg.dataset.candleTrend ?? 'up').toBe(below ? 'down' : 'up');
-    }
-  });
-
-  it('moves only the T: the wordmark stays still throughout', async () => {
-    stubMedia({ fine: true, reduce: false });
-    const { container, link } = renderLogo();
-    const wordmark = container.querySelector<HTMLElement>('[data-wordmark]')!;
-    fireEvent.pointerEnter(link, { pointerType: 'mouse' });
-    for (const progress of [0.1, 0.5, 1]) {
-      await seekAll(progress);
+      expect(svg.dataset.candleTrend ?? 'up').toBe(g.bodyTop > REST.bodyTop + 0.5 ? 'down' : 'up');
       expect(wordmark.style.transform).toBe('');
     }
   });

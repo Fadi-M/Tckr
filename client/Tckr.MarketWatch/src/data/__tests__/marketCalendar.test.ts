@@ -88,16 +88,11 @@ describe('previousTradingDateKey / nextTradingDateKey', () => {
 });
 
 describe('getMarketStatus', () => {
-  it('is open during a Thursday mid-session (winter, DST off)', () => {
-    const status = getMarketStatus(Date.UTC(2026, 0, 15, 10, 0, 0)); // 12:00 Cairo
-    expect(status.state).toBe('open');
-    expect(status.sessionDateKey).toBe('2026-01-15');
-  });
-
-  it('is open during a Thursday mid-session (summer, DST on)', () => {
-    const status = getMarketStatus(Date.UTC(2026, 7, 13, 9, 0, 0)); // 12:00 Cairo
-    expect(status.state).toBe('open');
-    expect(status.sessionDateKey).toBe('2026-08-13');
+  it.each([
+    ['winter, DST off', Date.UTC(2026, 0, 15, 10, 0, 0), '2026-01-15'],
+    ['summer, DST on', Date.UTC(2026, 7, 13, 9, 0, 0), '2026-08-13'],
+  ])('is open at 12:00 Cairo on a Thursday (%s)', (_label, epochMs, dateKey) => {
+    expect(getMarketStatus(epochMs)).toMatchObject({ state: 'open', sessionDateKey: dateKey });
   });
 
   it('is open at the exact opening instant (boundary inclusive)', () => {
@@ -200,15 +195,6 @@ describe('formatNextOpen', () => {
     expect(formatNextOpen(sunday, sundayNight)).toBe('today 10:00 AM');
     expect(formatNextOpen(monday, mondayAfternoon)).toBe('tomorrow 10:00 AM');
     expect(formatNextOpen(thursday, thursdayAfternoon)).toBe('Sun 10:00 AM');
-  });
-
-  it('reflects the weekend-skipping nextOpenAt (reopens Sunday)', () => {
-    // Friday: closed, reopens the following Sunday at 10:00.
-    const status = getMarketStatus(Date.UTC(2026, 0, 16, 10, 0, 0));
-    expect(status.state).toBe('closed');
-    if (status.state === 'closed') {
-      expect(formatNextOpen(status)).toBe('Sun 10:00 AM');
-    }
   });
 });
 

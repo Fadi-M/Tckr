@@ -1,12 +1,14 @@
+/**
+ * Each close code (client-contract.md §3.4) gets its own actionable message in the
+ * connection pill, so a trader can tell a shutdown from a bad token from falling behind,
+ * and 4429 names the remedy.
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
-import { CloseCode, type CloseCode as CloseCodeType } from '../../contracts/closeCodes.ts';
+import { CloseCode } from '../../contracts/closeCodes.ts';
 import { createFakeSource, fakeIdentity } from './testSupport.ts';
 
-vi.mock('../../data/config.ts', () => ({
-  getSharedSource: vi.fn(),
-  resolveClientConfig: vi.fn(),
-}));
+vi.mock('../../data/config.ts');
 
 import { getSharedSource } from '../../data/config.ts';
 import { ConnectionStatus } from '../ConnectionStatus.tsx';
@@ -14,65 +16,28 @@ import { ConnectionStatus } from '../ConnectionStatus.tsx';
 afterEach(cleanup);
 
 describe('ConnectionStatus — close codes', () => {
-  it('renders five distinct, actionable messages, one per close code, and 4429 names the remedy', () => {
+  it('maps each close code to its own message', () => {
     const source = createFakeSource(fakeIdentity());
     vi.mocked(getSharedSource).mockReturnValue(source);
-
     render(<ConnectionStatus />);
 
-    const codes = [
+    const shown = [
       CloseCode.Normal,
       CloseCode.Unauthenticated,
       CloseCode.TokenExpired,
       CloseCode.HeartbeatTimeout,
       CloseCode.SlowConsumer,
-    ] as const;
-
-    const messages = new Set<string>();
-    for (const code of codes) {
-      act(() => {
-        source.emitStatus({ kind: 'closed', code, reason: 'test' });
-      });
-      messages.add(screen.getByTestId('connection-status').textContent ?? '');
-    }
-
-    expect(messages.size).toBe(5);
-
-    act(() => {
-      source.emitStatus({ kind: 'closed', code: CloseCode.SlowConsumer, reason: 'test' });
+    ].map((code) => {
+      act(() => source.emitStatus({ kind: 'closed', code, reason: 'test' }));
+      return screen.getByTestId('connection-status').textContent;
     });
-    const slowConsumerText = screen.getByTestId('connection-status').textContent ?? '';
-    expect(slowConsumerText.toLowerCase()).toContain('fewer symbols');
 
-    act(() => {
-      source.emitStatus({ kind: 'closed', code: CloseCode.Unauthenticated, reason: 'test' });
-    });
-    expect(screen.getByTestId('connection-status').textContent).toBe(
+    expect(shown).toEqual([
+      'Disconnected',
       'Not authenticated — sign in again',
-    );
-  });
-
-  it('maps each code to exactly the specified string', () => {
-    const source = createFakeSource(fakeIdentity());
-    vi.mocked(getSharedSource).mockReturnValue(source);
-    render(<ConnectionStatus />);
-
-    const expectations: ReadonlyArray<readonly [CloseCodeType, string]> = [
-      [CloseCode.Normal, 'Disconnected'],
-      [CloseCode.Unauthenticated, 'Not authenticated — sign in again'],
-      [CloseCode.TokenExpired, 'Session expired — reconnecting'],
-      [CloseCode.HeartbeatTimeout, 'Connection timed out — reconnecting'],
-      [
-        CloseCode.SlowConsumer,
-        'Disconnected: this client fell behind. Try watching fewer symbols.',
-      ],
-    ];
-
-    for (const [code, expected] of expectations) {
-      act(() => {
-        source.emitStatus({ kind: 'closed', code, reason: 'test' });
-      });
-      expect(screen.getByTestId('connection-status').textContent).toBe(expected);
-    }
+      'Session expired — reconnecting',
+      'Connection timed out — reconnecting',
+      'Disconnected: this client fell behind. Try watching fewer symbols.',
+    ]);
   });
 });

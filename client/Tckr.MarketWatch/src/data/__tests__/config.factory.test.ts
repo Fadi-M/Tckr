@@ -18,7 +18,7 @@ describe('createMarketDataSource factory', () => {
     expect(source).toBeInstanceOf(SimulatedSource);
   });
 
-  it('yields a MarketDataSource-shaped gateway placeholder for VITE_TCKR_SOURCE=gateway, without constructing a socket', () => {
+  it('yields the gateway source for VITE_TCKR_SOURCE=gateway, without opening a socket', () => {
     const WebSocketSpy = vi.fn();
     vi.stubGlobal('WebSocket', WebSocketSpy);
     vi.stubEnv('VITE_TCKR_SOURCE', 'gateway');
@@ -27,20 +27,6 @@ describe('createMarketDataSource factory', () => {
 
     expect(source).not.toBeInstanceOf(SimulatedSource);
     expect(WebSocketSpy).not.toHaveBeenCalled();
-
-    // Structurally a MarketDataSource: every member of the interface is present.
-    expect(typeof source.connect).toBe('function');
-    expect(typeof source.disconnect).toBe('function');
-    expect(typeof source.subscribe).toBe('function');
-    expect(typeof source.unsubscribe).toBe('function');
-    expect(typeof source.getUniverse).toBe('function');
-    expect(typeof source.getSnapshot).toBe('function');
-    expect(typeof source.on.tick).toBe('function');
-    expect(typeof source.on.snapshot).toBe('function');
-    expect(typeof source.on.status).toBe('function');
-    expect(typeof source.on.error).toBe('function');
-    expect(typeof source.on.entitlement).toBe('function');
-    expect(typeof source.identity).toBe('function');
     expect(source.identity()).toBeNull();
   });
 

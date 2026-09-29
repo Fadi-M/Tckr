@@ -20,6 +20,10 @@ describe('createHeartbeatWatchdog', () => {
 
     vi.advanceTimersByTime(1);
     expect(onTimeout).toHaveBeenCalledTimes(1);
+
+    // Exactly once, however far the clock runs past the deadline.
+    vi.advanceTimersByTime(50_000);
+    expect(onTimeout).toHaveBeenCalledTimes(1);
   });
 
   it('one missed heartbeat, followed by a late pulse before the deadline, does not fire onTimeout', () => {
@@ -62,12 +66,5 @@ describe('createHeartbeatWatchdog', () => {
     watchdog.stop();
     vi.advanceTimersByTime(10_000);
     expect(onTimeout).not.toHaveBeenCalled();
-  });
-
-  it('fires onTimeout exactly once even if timers advance well past the deadline', () => {
-    const onTimeout = vi.fn();
-    createHeartbeatWatchdog(1000, onTimeout);
-    vi.advanceTimersByTime(50_000);
-    expect(onTimeout).toHaveBeenCalledTimes(1);
   });
 });

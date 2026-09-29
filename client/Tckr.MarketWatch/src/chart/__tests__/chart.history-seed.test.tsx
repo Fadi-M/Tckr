@@ -6,7 +6,7 @@
  * not the store — `PriceChart` no longer reads `src/data/store.ts` for price data.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { toDecimal } from '../../contracts/decimal.ts';
 
 vi.mock('uplot', async () => {
@@ -105,7 +105,7 @@ describe('PriceChart history seeding', () => {
     expect(instances[0]?.setData).not.toHaveBeenCalled();
   });
 
-  it('behaves exactly as before (single live-point doubling) when `history` is omitted entirely', () => {
+  it('draws a flat stub from livePrice alone when `history` is omitted', () => {
     render(
       <PriceChart
         symbol="COMI"
@@ -115,9 +115,10 @@ describe('PriceChart history seeding', () => {
     );
 
     const instance = instances[0];
+    expect(instance?.setData).toHaveBeenCalledTimes(1);
     const [xs, ys] = instance!.setData.mock.calls[0]![0] as [Float64Array, Float64Array];
-    expect(xs.length).toBe(2);
-    expect(ys[0]).toBeCloseTo(85.42);
-    expect(ys[1]).toBeCloseTo(85.42);
+    expect(xs[1]! - xs[0]!).toBe(1000);
+    expect(Array.from(ys)).toEqual([85.42, 85.42]);
+    expect(screen.queryByTestId('price-chart-empty-state')).toBeNull();
   });
 });

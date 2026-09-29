@@ -3,10 +3,9 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-// public/symbols.json must be a byte-identical copy of the exchange's own reference
-// file, disclaimer included (client/Tckr.MarketWatch/public/symbols.json is task 02's
-// deliverable; src/Tckr.MockExchange/Reference/symbols.json is the .NET original, read
-// here only for comparison, never modified).
+// public/symbols.json must be a byte-identical copy of the mock exchange's own reference
+// file (src/Tckr.MockExchange/Reference/symbols.json, read here only for comparison), so
+// the client and the exchange always trade the same 34 fictional instruments.
 const here = dirname(fileURLToPath(import.meta.url));
 const clientCopyPath = resolve(here, '../../../public/symbols.json');
 const exchangeOriginalPath = resolve(
@@ -15,23 +14,15 @@ const exchangeOriginalPath = resolve(
 );
 
 describe('public/symbols.json parity with the mock exchange reference file', () => {
-  it('is byte-identical to src/Tckr.MockExchange/Reference/symbols.json', () => {
-    const clientBuffer = readFileSync(clientCopyPath);
-    const exchangeBuffer = readFileSync(exchangeOriginalPath);
-    expect(clientBuffer.equals(exchangeBuffer)).toBe(true);
-  });
+  it('is byte-identical, keeps the FICTIONAL disclaimer, and lists 34 instruments', () => {
+    const client = readFileSync(clientCopyPath);
+    expect(client.equals(readFileSync(exchangeOriginalPath))).toBe(true);
 
-  it('preserves the disclaimer and the simulated marking', () => {
-    const text = readFileSync(clientCopyPath, 'utf-8');
-    const parsed = JSON.parse(text) as { _disclaimer?: readonly string[] };
-    expect(Array.isArray(parsed._disclaimer)).toBe(true);
-    expect(parsed._disclaimer?.join(' ')).toMatch(/FICTIONAL/);
-  });
-
-  it('yields exactly 34 named instruments', () => {
-    const parsed = JSON.parse(readFileSync(clientCopyPath, 'utf-8')) as {
+    const parsed = JSON.parse(client.toString('utf-8')) as {
+      _disclaimer?: readonly string[];
       symbols: readonly unknown[];
     };
+    expect(parsed._disclaimer?.join(' ')).toMatch(/FICTIONAL/);
     expect(parsed.symbols).toHaveLength(34);
   });
 });

@@ -4,18 +4,13 @@
  * reports activity), not by share count, and a card showing a delayed price says so,
  * like a board row does.
  */
-import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { cleanup, screen } from '@testing-library/react';
 import { toDecimal } from '../../contracts/decimal.ts';
 import { applyTick, primeUniverse, resetStore } from '../../data/store.ts';
-import { loadUniverseFixture, makeFakeSource, tickFixture } from './testSupport.ts';
+import { loadUniverseFixture, renderBoard, tickFixture } from './testSupport.tsx';
 
-const { mockGetSharedSource } = vi.hoisted(() => ({ mockGetSharedSource: vi.fn() }));
-vi.mock('../../data/config.ts', () => ({ getSharedSource: mockGetSharedSource }));
-
-import { StockList } from '../StockList.tsx';
+vi.mock('../../data/config.ts');
 
 async function renderAfterTicks(ticks: Parameters<typeof tickFixture>[0][]) {
   const universe = loadUniverseFixture();
@@ -24,16 +19,7 @@ async function renderAfterTicks(ticks: Parameters<typeof tickFixture>[0][]) {
   for (const tick of ticks) {
     applyTick(tickFixture(tick));
   }
-  mockGetSharedSource.mockReturnValue(makeFakeSource(universe).source);
-  render(
-    <MemoryRouter>
-      <StockList />
-    </MemoryRouter>,
-  );
-  await act(async () => {
-    await Promise.resolve();
-    await Promise.resolve();
-  });
+  await renderBoard();
 }
 
 function mostActiveCard(): HTMLElement {
@@ -41,10 +27,7 @@ function mostActiveCard(): HTMLElement {
 }
 
 describe('StockList highlight cards', () => {
-  beforeEach(() => {
-    resetStore();
-    mockGetSharedSource.mockReset();
-  });
+  beforeEach(resetStore);
 
   afterEach(cleanup);
 

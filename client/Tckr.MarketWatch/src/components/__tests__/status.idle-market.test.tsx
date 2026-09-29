@@ -8,10 +8,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { cairoEpochFor } from '../../data/marketCalendar.ts';
 import { createFakeSource, fakeIdentity } from './testSupport.ts';
 
-vi.mock('../../data/config.ts', () => ({
-  getSharedSource: vi.fn(),
-  resolveClientConfig: vi.fn(),
-}));
+vi.mock('../../data/config.ts');
 
 import { getSharedSource } from '../../data/config.ts';
 import { ConnectionStatus } from '../ConnectionStatus.tsx';

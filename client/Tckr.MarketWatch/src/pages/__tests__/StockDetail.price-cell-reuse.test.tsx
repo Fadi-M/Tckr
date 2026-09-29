@@ -1,90 +1,32 @@
+/**
+ * Every price the detail pane shows (price, change, open, high, low) is rendered by
+ * `PriceCell`, so each one gets the same decimal formatting and ▲/▼ signal.
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { cleanup } from '@testing-library/react';
 import { resetStore } from '../../data/store.ts';
-import { createFakeSource } from './testSupport.ts';
+import { createFakeSource, renderDetail } from './testSupport.tsx';
 
-vi.mock('uplot', () => {
-  class FakeUPlot {
-    setData = vi.fn();
-    destroy = vi.fn();
-    setSize = vi.fn();
-    redraw = vi.fn();
-    root = document.createElement('div');
-    over = document.createElement('div');
-    cursor = { idx: null };
-    data: [number[], number[]] = [[], []];
-  }
-  return { default: FakeUPlot };
-});
-
-vi.mock('../../data/config.ts', () => ({
-  getSharedSource: vi.fn(),
-  resetSharedSource: vi.fn(),
-  resolveClientConfig: vi.fn(() => ({
-    source: 'simulated' as const,
-    gatewayUrl: 'ws://localhost:5000',
-    demoUser: 'user-001',
-    simulated: { eventsPerSecond: 2000, delayedOffsetMs: 15000, seed: 1 },
-  })),
+vi.mock('uplot', async () => ({
+  default: (await import('../../chart/__tests__/uplotTestDouble.ts')).FakeUPlot,
 }));
-
-// Spies on the real `PriceCell` so "every price is rendered by PriceCell" can be
-// asserted by component (which component rendered a given value), not by scraping
-// text out of the DOM and hoping it lines up.
+vi.mock('../../data/config.ts');
 vi.mock('../../components/PriceCell.tsx', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../components/PriceCell.tsx')>();
-  return {
-    ...actual,
-    PriceCell: vi.fn((props: Parameters<typeof actual.PriceCell>[0]) => (
-      <actual.PriceCell {...props} />
-    )),
-  };
+  return { ...actual, PriceCell: vi.fn(actual.PriceCell) };
 });
 
-import { getSharedSource, resetSharedSource } from '../../data/config.ts';
 import { PriceCell } from '../../components/PriceCell.tsx';
 import { StockDetail } from '../StockDetail.tsx';
 
+beforeEach(resetStore);
 afterEach(cleanup);
 
-beforeEach(() => {
-  resetStore();
-  resetSharedSource();
-});
-
 describe('StockDetail renders every price through PriceCell', () => {
-  it('routes price, change, open, high and low through the PriceCell component', async () => {
-    const { source } = createFakeSource();
-    vi.mocked(getSharedSource).mockReturnValue(source);
-
-    render(
-      <MemoryRouter>
-        <StockDetail symbol="COMI" />
-      </MemoryRouter>,
-    );
-
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    // Sanity: the page actually reached the ready state with the footer stats shown.
-    expect(screen.getByTestId('stock-detail-price')).toBeTruthy();
-    expect(screen.getByTestId('stock-detail-footer')).toBeTruthy();
-
-    const renderedValues = vi
-      .mocked(PriceCell)
-      .mock.calls.map((call) => String(call[0]?.value ?? ''));
-
-    // Every DecimalString value shown on the page — price, change, open, high, low —
-    // must have gone through PriceCell (by component, not by string).
-    expect(renderedValues).toContain('84.50'); // price
-    expect(renderedValues).toContain('0.13'); // change
-    expect(renderedValues).toContain('84.37'); // open
-    expect(renderedValues).toContain('84.60'); // high
-    expect(renderedValues).toContain('84.10'); // low
-
-    expect(vi.mocked(PriceCell).mock.calls.length).toBeGreaterThanOrEqual(5);
+  it('routes price, change, open, high and low through PriceCell', async () => {
+    await renderDetail(<StockDetail symbol="COMI" />, createFakeSource().source);
+    const rendered = vi.mocked(PriceCell).mock.calls.map(([props]) => String(props.value));
+    // snapshotFixture: price 84.50, change 0.13, open 84.37, high 84.60, low 84.10.
+    expect(rendered).toEqual(expect.arrayContaining(['84.50', '0.13', '84.37', '84.60', '84.10']));
   });
 });

@@ -7,43 +7,20 @@
  */
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { cleanup, screen } from '@testing-library/react';
 import { resetStore } from '../../data/store.ts';
-import { createFakeSource, snapshotFixture } from './testSupport.ts';
+import { createFakeSource, renderDetail, snapshotFixture } from './testSupport.tsx';
 
-vi.mock('uplot', () => {
-  class FakeUPlot {
-    setData = vi.fn();
-    destroy = vi.fn();
-    setSize = vi.fn();
-    redraw = vi.fn();
-    root = document.createElement('div');
-    over = document.createElement('div');
-    cursor = { idx: null };
-    data: [number[], number[]] = [[], []];
-  }
-  return { default: FakeUPlot };
-});
-
-vi.mock('../../data/config.ts', () => ({
-  getSharedSource: vi.fn(),
-  resetSharedSource: vi.fn(),
-  resolveClientConfig: vi.fn(() => ({
-    source: 'simulated' as const,
-    gatewayUrl: 'ws://localhost:5000',
-    demoUser: 'user-001',
-    simulated: { eventsPerSecond: 2000, delayedOffsetMs: 15000, seed: 1 },
-  })),
+vi.mock('uplot', async () => ({
+  default: (await import('../../chart/__tests__/uplotTestDouble.ts')).FakeUPlot,
 }));
+vi.mock('../../data/config.ts');
 
-import { getSharedSource, resetSharedSource } from '../../data/config.ts';
 import { StockDetail } from '../StockDetail.tsx';
 
 beforeEach(() => {
   vi.useFakeTimers();
   resetStore();
-  resetSharedSource();
 });
 
 afterEach(() => {
@@ -58,17 +35,12 @@ function renderInFlight() {
     historyImpl: (symbol) =>
       new Promise((resolve) => setTimeout(() => resolve({ v: 1, symbol, points: [] }), 50)),
   });
-  vi.mocked(getSharedSource).mockReturnValue(source);
-  return render(
-    <MemoryRouter>
-      <StockDetail symbol="COMI" />
-    </MemoryRouter>,
-  );
+  return renderDetail(<StockDetail symbol="COMI" />, source, { settleFirst: false });
 }
 
 describe('StockDetail loading skeleton', () => {
-  it('draws the price block, chart and stat values as shapes, with no figure anywhere', () => {
-    const { container } = renderInFlight();
+  it('draws the price block, chart and stat values as shapes, with no figure anywhere', async () => {
+    const { container } = await renderInFlight();
     const priceBlock = screen.getByTestId('stock-detail-loading');
     const chart = screen.getByTestId('stock-detail-chart-loading');
     const tiles = screen.getByTestId('stock-detail-footer-loading');
@@ -84,8 +56,8 @@ describe('StockDetail loading skeleton', () => {
     expect(container.querySelector('[data-testid="stock-detail-price"]')).toBeNull();
   });
 
-  it('says it is loading in words, and keeps the shapes out of the accessibility tree', () => {
-    renderInFlight();
+  it('says it is loading in words, and keeps the shapes out of the accessibility tree', async () => {
+    await renderInFlight();
     expect(screen.getByTestId('stock-detail-loading').textContent).toContain('Loading COMI price');
     expect(screen.getByTestId('stock-detail-chart-loading').textContent).toContain('Loading chart');
     for (const shape of document.querySelectorAll(
@@ -96,7 +68,7 @@ describe('StockDetail loading skeleton', () => {
   });
 
   it('keeps the stat tiles (labels included) in place and swaps only their values when the quote lands', async () => {
-    renderInFlight();
+    await renderInFlight();
     const tilesBefore = screen.getByTestId('stock-detail-footer-loading');
     expect(tilesBefore.textContent).toBe('OpenHighLowVolume');
 

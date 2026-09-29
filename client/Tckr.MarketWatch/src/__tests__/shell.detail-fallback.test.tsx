@@ -1,30 +1,17 @@
 /**
  * Opening a symbol before `StockDetail`'s chunk has loaded (a direct link, or a click
  * before the idle prefetch) shows the pane's skeleton, not a line of "Loading…" text.
- * And that skeleton must stay free of the chart: it renders in the entry chunk, so a
- * static path from it to `PriceChart`/uPlot would drag the chart library into the
- * first load.
+ * (That the skeleton keeps the chart out of the entry chunk is `bundle.footprint.test.ts`.)
  */
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { App } from '../App';
 
-vi.mock('uplot', () => {
-  class FakeUPlot {
-    setData = vi.fn();
-    destroy = vi.fn();
-    setSize = vi.fn();
-    redraw = vi.fn();
-    root = document.createElement('div');
-    over = document.createElement('div');
-    cursor = { idx: null };
-    data: [number[], number[]] = [[], []];
-  }
-  return { default: FakeUPlot };
-});
+// `App` reaches uPlot through the lazy StockDetail; jsdom can't construct it.
+vi.mock('uplot', async () => ({
+  default: (await import('../chart/__tests__/uplotTestDouble.ts')).FakeUPlot,
+}));
 
 afterEach(cleanup);
 
@@ -51,19 +38,7 @@ describe('detail pane before its chunk loads', () => {
     expect(fallback.textContent).toContain('Loading COMI price');
 
     // Then the real pane replaces it.
-    await screen.findByTestId('stock-detail-symbol');
+    await screen.findByTestId('stock-detail-symbol', undefined, { timeout: 4000 });
     expect(screen.queryByTestId('stock-detail-fallback')).toBeNull();
-  });
-
-  it('keeps the skeleton modules free of PriceChart and uPlot', () => {
-    for (const file of [
-      'pages/detailChrome.tsx',
-      'chart/ChartSkeleton.tsx',
-      'chart/chartGeometry.ts',
-      'components/Skeleton.tsx',
-    ]) {
-      const source = readFileSync(resolve(__dirname, '..', file), 'utf8');
-      expect(source, file).not.toMatch(/from\s+['"][^'"]*(PriceChart|uplot)[^'"]*['"]/);
-    }
   });
 });

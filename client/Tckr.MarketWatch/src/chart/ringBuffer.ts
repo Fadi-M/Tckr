@@ -11,7 +11,7 @@
  * existing contents left by one slot with `TypedArray.prototype.copyWithin` — an
  * in-place memmove, not a reallocation — and writes the new point at the end. The
  * returned array *references* therefore never change across the buffer's lifetime
- * (see `ringBuffer.no-alloc.test.ts`), which is exactly what lets `PriceChart` hand the
+ * (see `ringBuffer.test.ts`), which is exactly what lets `PriceChart` hand the
  * same views straight to `uPlot.setData` every frame.
  *
  * This module is the **one place a price becomes a JS `number`** within `src/chart/**`

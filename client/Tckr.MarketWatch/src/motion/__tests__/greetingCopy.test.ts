@@ -13,28 +13,19 @@ const at = (day: string, hour: number, minute: number) => {
 };
 
 describe('greetingCopy', () => {
-  it('knows morning, afternoon, evening and night, at every boundary', () => {
-    const expected: Record<number, string> = {};
-    for (let hour = 0; hour < 24; hour++) {
-      expected[hour] =
-        hour >= 5 && hour < 12
-          ? 'Hello, early bird'
-          : hour >= 12 && hour < 17
-            ? 'Hello, sunshine'
-            : hour >= 17 && hour < 21
-              ? 'Hello, stargazer'
-              : 'Hello, night owl';
-    }
-    for (let hour = 0; hour < 24; hour++) {
-      expect(salutationFor(hour), `${hour}:00`).toBe(expected[hour]);
-    }
-    // The boundaries, spelled out.
-    expect(salutationFor(4)).toBe('Hello, night owl');
-    expect(salutationFor(5)).toBe('Hello, early bird');
-    expect(salutationFor(12)).toBe('Hello, sunshine');
-    expect(salutationFor(17)).toBe('Hello, stargazer');
-    expect(salutationFor(21)).toBe('Hello, night owl');
-    expect(salutationFor(0)).toBe('Hello, night owl');
+  it.each([
+    [0, 'Hello, night owl'],
+    [4, 'Hello, night owl'],
+    [5, 'Hello, early bird'],
+    [11, 'Hello, early bird'],
+    [12, 'Hello, sunshine'],
+    [16, 'Hello, sunshine'],
+    [17, 'Hello, stargazer'],
+    [20, 'Hello, stargazer'],
+    [21, 'Hello, night owl'],
+    [23, 'Hello, night owl'],
+  ])('greets %i:00 with "%s"', (hour, salutation) => {
+    expect(salutationFor(hour)).toBe(salutation);
   });
 
   it("greets by the viewer's own clock, not Cairo's", () => {

@@ -3,17 +3,9 @@ import { parseServerMessage } from '../messages.ts';
 import { FIXTURES, SERVER_MESSAGE_FIXTURE_NAMES } from '../fixtures/index.ts';
 
 describe('parseServerMessage', () => {
-  it.each(SERVER_MESSAGE_FIXTURE_NAMES)('parses fixture "%s" without throwing', (name) => {
-    const raw = JSON.stringify(FIXTURES[name]);
-    expect(() => parseServerMessage(raw)).not.toThrow();
-  });
-
-  it('round-trips the discriminant for every fixture', () => {
-    for (const name of SERVER_MESSAGE_FIXTURE_NAMES) {
-      const fixture = FIXTURES[name] as { type: string };
-      const parsed = parseServerMessage(JSON.stringify(FIXTURES[name]));
-      expect(parsed.type).toBe(fixture.type);
-    }
+  it.each(SERVER_MESSAGE_FIXTURE_NAMES)('parses fixture "%s", keeping its type', (name) => {
+    const fixture = FIXTURES[name] as { type: string };
+    expect(parseServerMessage(JSON.stringify(fixture)).type).toBe(fixture.type);
   });
 
   it('throws on an unknown type', () => {
@@ -57,33 +49,14 @@ describe('parseServerMessage', () => {
       return JSON.stringify({ ...(FIXTURES['connected-live'] as object), heartbeatIntervalMs });
     }
 
-    it('accepts the fixture value unchanged (a normal, well-above-floor interval)', () => {
-      const parsed = parseServerMessage(JSON.stringify(FIXTURES['connected-live']));
+    it.each([0, -500, 1, 999])('throws on %i, below the 1000 ms floor', (interval) => {
+      expect(() => parseServerMessage(connectedWith(interval))).toThrow();
+    });
+
+    it.each([1000, 15000])('accepts %i', (interval) => {
+      const parsed = parseServerMessage(connectedWith(interval));
       if (parsed.type !== 'connected') throw new Error('expected a connected message');
-      expect(parsed.heartbeatIntervalMs).toBe(15000);
-    });
-
-    it('throws on a zero heartbeatIntervalMs', () => {
-      expect(() => parseServerMessage(connectedWith(0))).toThrow();
-    });
-
-    it('throws on a negative heartbeatIntervalMs', () => {
-      expect(() => parseServerMessage(connectedWith(-500))).toThrow();
-    });
-
-    it('throws on a heartbeatIntervalMs below the 1000ms floor', () => {
-      expect(() => parseServerMessage(connectedWith(1))).toThrow();
-    });
-
-    // NaN/Infinity cannot survive a JSON round trip (JSON.stringify emits `null` for
-    // both), so they are already rejected by requireNumber's `typeof` check before
-    // reaching the finite check below — covered by the "missing/wrong-type" cases
-    // elsewhere in this file, not repeated here.
-
-    it('accepts a heartbeatIntervalMs exactly at the floor', () => {
-      const parsed = parseServerMessage(connectedWith(1000));
-      if (parsed.type !== 'connected') throw new Error('expected a connected message');
-      expect(parsed.heartbeatIntervalMs).toBe(1000);
+      expect(parsed.heartbeatIntervalMs).toBe(interval);
     });
   });
 });

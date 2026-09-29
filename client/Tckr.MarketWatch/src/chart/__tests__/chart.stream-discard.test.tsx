@@ -23,14 +23,8 @@ vi.mock('uplot', async () => {
 });
 
 import { instances, resetUplotMock } from './uplotTestDouble.ts';
+import { priceAt } from './testSupport.ts';
 import { PriceChart, type ChartHistoryPoint } from '../PriceChart.tsx';
-
-function priceAt(i: number) {
-  const cents = 8500 + i;
-  const intPart = Math.floor(cents / 100);
-  const frac = (cents % 100).toString().padStart(2, '0');
-  return toDecimal(`${intPart}.${frac}`);
-}
 
 beforeEach(() => {
   resetStore();
@@ -52,7 +46,7 @@ describe('PriceChart stream-discard correctness', () => {
     const instance = instances[0];
     expect(instance).toBeDefined();
     // The initial livePrice paints immediately (buffer was empty, so it's preceded by
-    // a synthetic point — see chart.seeded-from-store.test.tsx).
+    // a synthetic point — see chart.history-seed.test.tsx).
     expect(instance?.setData).toHaveBeenCalledTimes(1);
 
     // "Old stream" burst: livePrice changes rapidly, well before the chart's own 30s

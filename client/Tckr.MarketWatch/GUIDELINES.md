@@ -23,7 +23,7 @@ the check and mark it.
 - **Heavy libraries stay lazy.** `uplot` is imported only under `src/chart/`, and `StockDetail`
   is lazy-loaded from `App.tsx`. `gsap` is imported only by `src/motion/gsap.ts`, and is
   reached through `loadMotion()` / `useMotion()`. Don't use `@gsap/react`.
-  **[enforced: ESLint + `gsap.lazy-chunk.test.ts` + `npm run check:bundle`]**
+  **[enforced: ESLint + `bundle.footprint.test.ts` + `npm run check:bundle`]**
 - **Both sources behave identically.** A data-layer change passes the conformance suite
   (`src/data/__tests__/conformance/`) against both implementations.
 - **Test support stays local.** Put it in the module's own `__tests__/testSupport.ts`, not in a
@@ -78,6 +78,16 @@ the check and mark it.
 - **Every behaviour change ships with a test** in the per-behaviour style (use the `gen-test`
   skill or the `test-writer` agent). Test files are named for the behaviour they cover, not
   the source file.
+- **One home per behaviour.** Before adding a test file, look for the one that already
+  covers the behaviour and extend it. Never assert the same thing in two files. A
+  behaviour both sources must share is one `describe.each` in `conformance/`, not a copy
+  per source.
+- **Test what the product relies on.** Tests assert the market-data contract, prices,
+  LIVE/DELAYED, EGX hours and connection states, and what must hold under a hot symbol's
+  load (coalescing, one tick one row, bounded buffers, the entry bundle). They don't
+  restate TypeScript's guarantees or pin class names. Page and component suites mock
+  `src/data/config.ts` with its automatic mock (`vi.mock('…/data/config.ts')`, see
+  `src/data/__mocks__/config.ts`) rather than writing their own.
 - **Bugs get a regression test first.** Reproduce the bug in a test, then fix it.
 - **Market-hours behaviour** (ticks, re-rank, opening bell, close) is checked in the running
   app with `npm run dev:open`, `npm run dev:bell` or `npm run dev -- --market HH:MM`.
@@ -93,7 +103,8 @@ the check and mark it.
 - **One tick, one row.** A tick re-renders only its own row. Ticks are coalesced
   through `TickDispatcher`, never painted per event.
 - **Entry bundle.** Under 125 KB gzip, with uplot and gsap absent.
-  **[enforced: `npm run check:bundle`]**
+  **[enforced: `npm run check:bundle` (built size) + `bundle.footprint.test.ts` (the
+  entry's static import graph, on every `npm test`)]**
 - **Motion runs on the compositor.** Animate only transform and opacity on anything
   that runs per tick.
 
